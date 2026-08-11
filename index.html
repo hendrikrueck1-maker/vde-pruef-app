@@ -22,6 +22,7 @@
   <script src="js/pwa.js" defer></script>
 
   <script src="js/storage.js"></script>
+  <script src="js/pdf-utils.js"></script>
 </head>
 <body>
 
@@ -31,7 +32,7 @@
     <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;">Stadttheater Konstanz Prüfsystem</span>
   </div>
 
-  <h2>1. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
+  <h2 class="kat-stamm">1. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
   </p>
@@ -53,10 +54,31 @@
     </div>
   </form>
 
-  <h2>2. Protokoll-Typ auswählen</h2>
+  <h2 class="kat-stamm">2. PDF-Speicherort</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Legt fest, was beim Erzeugen eines PDF passiert. Standard ist der direkte Download –
+    es öffnet sich dann kein Teilen-Fenster mehr.
+  </p>
+  <div class="grid">
+    <div class="form-group">
+      <label>Speichern als:</label>
+      <select id="pdf_speichern_modus" onchange="pdfModusGeaendert(this.value)">
+        <option value="download">Download-Ordner (Standard, ohne Rückfrage)</option>
+        <option value="ordner">Fester Ordner (Chrome/Edge am PC)</option>
+        <option value="teilen">Teilen-Menü (iPhone/iPad, Weiterleiten)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Ziel-Ordner:</label>
+      <button type="button" class="btn btn-secondary" onclick="ordnerWaehlen()">📁 Ordner auswählen</button>
+      <span id="ordnerHinweis" style="font-size:0.72rem; color:var(--secondary); margin-top:4px;"></span>
+    </div>
+  </div>
+
+  <h2 class="kat-messen">3. Protokoll-Typ auswählen</h2>
   <div class="protocol-grid" id="protocolGrid"></div>
 
-  <h2>3. Datensicherung</h2>
+  <h2 class="kat-ergebnis">4. Datensicherung</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Stammdaten und Zähler als Datei sichern – empfohlen vor längerem Offline-Einsatz
     und auf iPad/iPhone, da iOS Browserdaten nach längerer Nichtnutzung löschen kann.
@@ -74,6 +96,34 @@
   loadMasterDataToDashboard();
   renderProtokollKacheln();
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
+
+  /* PDF-Speicherort ------------------------------------------------------- */
+  document.getElementById('pdf_speichern_modus').value = getPdfSpeichernModus();
+  ordnerHinweisAktualisieren();
+
+  function pdfModusGeaendert(modus) {
+    setPdfSpeichernModus(modus);
+    if (modus === 'ordner') ordnerWaehlen();
+    else ordnerHinweisAktualisieren();
+  }
+
+  function ordnerWaehlen() {
+    pdfZielordnerWaehlen().then(function (handle) {
+      if (handle) document.getElementById('pdf_speichern_modus').value = 'ordner';
+      ordnerHinweisAktualisieren();
+    });
+  }
+
+  function ordnerHinweisAktualisieren() {
+    var el = document.getElementById('ordnerHinweis');
+    if (!window.showDirectoryPicker) {
+      el.textContent = 'Feste Ordner nur in Chrome/Edge am PC möglich – hier wird der Download-Ordner verwendet.';
+      return;
+    }
+    pdfOrdnerHandleLaden().then(function (h) {
+      el.textContent = h ? 'Aktueller Ziel-Ordner: ' + h.name : 'Noch kein Ordner ausgewählt.';
+    });
+  }
 
   /* Kacheln werden aus js/app-config.js erzeugt --------------------------- */
   function renderProtokollKacheln() {

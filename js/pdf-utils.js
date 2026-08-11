@@ -113,8 +113,13 @@ function getAbleitstromBezeichnung(schutzklasse) {
 // 150 ms bei 2x I_dn, 40 ms bei 5x I_dn. Der oft pauschal genannte Wert von
 // 40 ms gilt AUSSCHLIESSLICH fuer die Pruefung mit 5x I_dn.
 // Selektive RCD (Typ S) duerfen laenger brauchen: 500 / 200 / 150 ms.
+// STANDARD-PRUEFSTROM FUER DIE AUSLOESEZEIT-/AUSLOESESTROMMESSUNG.
+// In der Praxis wird mit 5 x I_dn geprueft (schnellster Nachweis, Grenzwert
+// 40 ms). Dieser Wert ist deshalb in allen Formularen vorausgewaehlt.
+const RCD_PRUEFSTROM_STANDARD = '5';
+
 function getRcdMaxAusloesezeitMs(pruefstrom, istSelektiv) {
-  const faktor = String(pruefstrom || '1').replace(/[^\d]/g, '');
+  const faktor = String(pruefstrom || RCD_PRUEFSTROM_STANDARD).replace(/[^\d]/g, '');
   if (istSelektiv) {
     if (faktor === '5') return 150;
     if (faktor === '2') return 200;
@@ -149,6 +154,128 @@ const PDF_TEXT = [15, 23, 42];
 const PDF_MUTED = [71, 85, 105];
 const PDF_BOX_BORDER = [203, 213, 225];
 const PDF_RED_TEXT = [153, 27, 27];
+const PDF_LINE = [148, 163, 184];  // Farbe der Eintragelinien im Leerformular
+
+/* ---------------------------------------------------------------------------
+ *  SEITENGEOMETRIE - EINE ZENTRALE STELLE FUER ALLE PROTOKOLLE
+ * ---------------------------------------------------------------------------
+ *  Der Kopf (Titel + Normzeile + Trennlinie) belegt auf JEDER Seite den
+ *  Bereich bis y = 20 mm. Inhalte duerfen deshalb nie oberhalb von
+ *  PDF_CONTENT_TOP beginnen - fruehere Umbrueche setzten y = 15 und liefen
+ *  dadurch in Titel und Trennlinie hinein.
+ * ------------------------------------------------------------------------ */
+const PDF_MARGIN_LEFT = 10;
+const PDF_MARGIN_RIGHT = 10;
+const PDF_CONTENT_WIDTH = 190;     // 210 mm - 2 x 10 mm
+const PDF_CONTENT_TOP = 25;        // erste Zeile unter der Kopf-Trennlinie
+const PDF_CONTENT_BOTTOM = 283;    // letzte nutzbare Zeile ueber der Fusszeile
+const PDF_FOOTER_Y = 291;
+
+// Legt bei Bedarf eine neue Seite an und liefert die y-Position zurueck, an der
+// weitergezeichnet werden darf. IMMER statt "if (y > x) { addPage(); y = 15; }"
+// verwenden - so ist der obere Seitenrand auf allen Folgeseiten identisch.
+function pdfPlatzPruefen(doc, y, benoetigteHoehe) {
+  if (y + benoetigteHoehe > PDF_CONTENT_BOTTOM) {
+    doc.addPage();
+    return PDF_CONTENT_TOP;
+  }
+  return y;
+}
+
+/* ---------------------------------------------------------------------------
+ *  FARBLICHE ABGRENZUNG DER PRUEFABLAUF-KATEGORIEN
+ * ---------------------------------------------------------------------------
+ *  Jede Kategorie (Stammdaten / Besichtigen / Messen / Erdung / Ergebnis)
+ *  bekommt einen eigenen, dezenten Farbton. Die gleichen Farben werden im
+ *  Web-Formular ueber css/style.css (.kat-*) verwendet, damit Bildschirm und
+ *  Ausdruck denselben Aufbau zeigen.
+ * ------------------------------------------------------------------------ */
+const PDF_KAT = {
+  stamm:    { bg: [239, 246, 255], rand: [147, 197, 253], akzent: [29, 78, 216],  kopf: [219, 234, 254] },
+  sicht:    { bg: [255, 251, 235], rand: [252, 211, 77],  akzent: [180, 83, 9],   kopf: [254, 243, 199] },
+  messen:   { bg: [240, 253, 244], rand: [134, 239, 172], akzent: [21, 128, 61],  kopf: [220, 252, 231] },
+  erdung:   { bg: [245, 243, 255], rand: [196, 181, 253], akzent: [109, 40, 217], kopf: [237, 233, 254] },
+  ergebnis: { bg: [248, 250, 252], rand: [203, 213, 225], akzent: [15, 23, 42],   kopf: [241, 245, 249] }
+};
+
+// Zeichnet eine farbig hinterlegte Kategoriebox mit Titelzeile.
+// Rueckgabe: das Farbschema, damit der Aufrufer z. B. den Tabellenkopf
+// in derselben Farbe einfaerben kann.
+function drawKategorieBox(doc, { y, h, titel, kat, x = PDF_MARGIN_LEFT, w = PDF_CONTENT_WIDTH }) {
+  const c = PDF_KAT[kat] || PDF_KAT.ergebnis;
+  doc.setDrawColor(...c.rand);
+  doc.setFillColor(...c.bg);
+  doc.setLineWidth(0.25);
+  doc.roundedRect(x, y, w, h, 1.5, 1.5, 'FD');
+
+  // farbiger Balken an der linken Kante -> Kategorie auf einen Blick erkennbar
+  doc.setFillColor(...c.akzent);
+  doc.rect(x + 0.6, y + 1.4, 1.6, h - 2.8, 'F');
+
+  if (titel) {
+    doc.setTextColor(...c.akzent);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(titel, x + 4.5, y + 5.5);
+  }
+
+  doc.setTextColor(...PDF_TEXT);
+  doc.setFont('helvetica', 'normal');
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(...PDF_BOX_BORDER);
+  return c;
+}
+
+// Ueberschrift ueber einer Tabelle, farblich passend zur Kategorie.
+function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
+  const c = PDF_KAT[kat] || PDF_KAT.ergebnis;
+  doc.setFillColor(...c.akzent);
+  doc.rect(x, y - 3.4, 1.6, 4.2, 'F');
+  doc.setTextColor(...c.akzent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(titel, x + 3.5, y);
+  doc.setTextColor(...PDF_TEXT);
+  doc.setFont('helvetica', 'normal');
+  return c;
+}
+
+/* ---------------------------------------------------------------------------
+ *  BESCHRIFTETE EINTRAGEZEILE
+ * ---------------------------------------------------------------------------
+ *  Im Leerformular standen bisher feste Unterstrich-Ketten ("____________").
+ *  Die waren unabhaengig von der Spaltenbreite immer gleich kurz. Jetzt wird
+ *  eine echte Linie bis zum Spaltenende gezeichnet - dadurch ist ueberall die
+ *  volle Breite zum handschriftlichen Ausfuellen nutzbar.
+ * ------------------------------------------------------------------------ */
+function drawFeldZeile(doc, label, wert, x, y, breite, isBlank) {
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...PDF_TEXT);
+  doc.text(label, x, y);
+  const labelBreite = doc.getStringUnitWidth(label) * doc.getFontSize() / doc.internal.scaleFactor;
+  const startX = x + labelBreite + 1.5;
+  const wertText = wert === undefined || wert === null ? '' : String(wert).trim();
+
+  if (isBlank || wertText === '') {
+    doc.setDrawColor(...PDF_LINE);
+    doc.setLineWidth(0.15);
+    doc.line(startX, y + 1, x + breite, y + 1);
+  } else {
+    // Zu langer Wert wird verkleinert, damit er nicht in die Nachbarspalte laeuft
+    const alteGroesse = doc.getFontSize();
+    drawFittedText(doc, wertText, startX, y, Math.max(breite - (startX - x), 10), alteGroesse, 5.5);
+    doc.setFontSize(alteGroesse);
+  }
+}
+
+// Mehrere leere Schreiblinien untereinander (z. B. fuer Bemerkungen im Leerformular)
+function drawSchreibLinien(doc, x, y, breite, anzahl, abstand = 5) {
+  doc.setDrawColor(...PDF_LINE);
+  doc.setLineWidth(0.15);
+  for (let i = 0; i < anzahl; i++) {
+    doc.line(x, y + i * abstand, x + breite, y + i * abstand);
+  }
+}
 
 // Setzt Text und verkleinert die Schrift so weit, dass maxWidth eingehalten wird.
 // Gibt die tatsaechlich verwendete Schriftgroesse zurueck.
@@ -182,26 +309,30 @@ function drawProtokollHeader(doc, { titel, normzeile }) {
   doc.setTextColor(...PDF_TEXT);
 }
 
-// Infobox oben rechts inkl. Seitenzahl, plus Revisionsvermerk in der Fusszeile.
+// Infobox oben rechts inkl. Protokoll-Nr., Prueflings-ID, Datum und Seitenzahl,
+// plus Revisionsvermerk in der Fusszeile.
 // Muss nach dem Erzeugen aller Seiten aufgerufen werden.
-function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr, revision }) {
+function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr, datum, revision }) {
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
 
+    // Der Kopf muss auf JEDER Folgeseite identisch stehen, sonst rutschen die
+    // Inhalte optisch gegeneinander. Seite 1 hat ihn bereits vom Generator.
     if (i > 1) drawProtokollHeader(doc, { titel, normzeile });
 
     doc.setDrawColor(...PDF_BOX_BORDER);
     doc.setFillColor(255, 255, 255);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(PDF_HEADER_BOX_X, 5, 75, 14, 1, 1, 'S');
+    doc.setLineWidth(0.25);
+    doc.roundedRect(PDF_HEADER_BOX_X, 4.5, 75, 15, 1, 1, 'FD');
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
+    doc.setFontSize(6.8);
     doc.setTextColor(...PDF_PRIMARY);
-    doc.text(`Protokoll-Nr: ${protokollNr}`, 128, 9);
-    doc.text(`Prüflings-ID: ${pruefNr}`, 128, 13);
-    doc.text(`Seite ${i} von ${totalPages}`, 128, 17);
+    doc.text(`Protokoll-Nr.: ${protokollNr}`, 127.5, 8);
+    doc.text(`Prüflings-ID: ${pruefNr}`, 127.5, 11.5);
+    doc.text(`Datum: ${datum || '____.____.20__'}`, 127.5, 15);
+    doc.text(`Seite ${i} von ${totalPages}`, 127.5, 18.5);
 
     // Revisionsstand: macht spaeter nachvollziehbar, mit welcher Formularversion
     // ein archiviertes Protokoll erstellt wurde.
@@ -209,7 +340,8 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
       doc.setFont("helvetica", "normal");
       doc.setFontSize(5.5);
       doc.setTextColor(...PDF_MUTED);
-      doc.text(revision, 10, 292);
+      doc.text(revision, PDF_MARGIN_LEFT, PDF_FOOTER_Y);
+      doc.text(`Seite ${i} / ${totalPages}`, 200, PDF_FOOTER_Y, { align: 'right' });
     }
     doc.setTextColor(...PDF_TEXT);
   }
@@ -275,21 +407,111 @@ const validateErdungAnschluss = validateErdung;
 /* ============================================================================
  *  PDF-AUSGABE FUER ALLE PLATTFORMEN
  * ----------------------------------------------------------------------------
- *  Problem: jsPDF doc.save() erzeugt einen klassischen Datei-Download.
- *  - Desktop / Android-Chrome  -> funktioniert
- *  - iOS / iPadOS als installierte App (Home-Bildschirm) -> passiert oft NICHTS
+ *  Frueher wurde IMMER zuerst das Teilen-Menue geoeffnet. Das war auf iOS
+ *  noetig, auf Windows und Android aber laestig: Man wollte die Datei einfach
+ *  im Download-Ordner haben.
  *
- *  Loesung (in dieser Reihenfolge):
- *    1. Web-Share-API mit Datei  -> iOS/iPadOS + Android: "Teilen"-Menue mit
- *       "In Dateien sichern", "Drucken", "Mail" usw.
- *    2. Klassischer Download     -> Desktop, Android
- *    3. Notfall: Link-Banner mit Blob-URL zum manuellen Antippen
+ *  Jetzt gilt (einstellbar auf der Startseite unter "PDF-Speicherort"):
+ *    'download' (Standard) -> direkt in den Download-Ordner, ohne Rueckfrage
+ *    'ordner'              -> in einen einmal ausgewaehlten Ziel-Ordner
+ *                             (Chrome/Edge am PC; Ordner wird gemerkt)
+ *    'teilen'              -> altes Verhalten mit Teilen-Menue
+ *
+ *  Auf iOS/iPadOS funktioniert ein echter Download in der installierten App
+ *  nicht - dort wird automatisch auf das Teilen-Menue zurueckgefallen.
  *
  *  Aufruf statt doc.save(name):   savePdfCompatible(doc, name);
  * ========================================================================== */
+const PDF_SPEICHERN_KEY = 'vde_pdf_speichern_modus';
+
 function isIosLike() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function getPdfSpeichernModus() {
+  try { return localStorage.getItem(PDF_SPEICHERN_KEY) || 'download'; }
+  catch (e) { return 'download'; }
+}
+
+function setPdfSpeichernModus(modus) {
+  try { localStorage.setItem(PDF_SPEICHERN_KEY, modus); } catch (e) {}
+}
+
+/* --- Ziel-Ordner dauerhaft merken (File System Access API, nur Chrome/Edge) --- */
+const PDF_ORDNER_DB = 'vde_pdf_ordner';
+
+function pdfOrdnerHandleSpeichern(handle) {
+  return new Promise((resolve) => {
+    if (!('indexedDB' in window)) return resolve(false);
+    const req = indexedDB.open(PDF_ORDNER_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => {
+      try {
+        const tx = req.result.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, 'ziel');
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      } catch (e) { resolve(false); }
+    };
+    req.onerror = () => resolve(false);
+  });
+}
+
+function pdfOrdnerHandleLaden() {
+  return new Promise((resolve) => {
+    if (!('indexedDB' in window)) return resolve(null);
+    const req = indexedDB.open(PDF_ORDNER_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => {
+      try {
+        const get = req.result.transaction('handles', 'readonly').objectStore('handles').get('ziel');
+        get.onsuccess = () => resolve(get.result || null);
+        get.onerror = () => resolve(null);
+      } catch (e) { resolve(null); }
+    };
+    req.onerror = () => resolve(null);
+  });
+}
+
+// Ordnerauswahl (muss aus einem Klick heraus aufgerufen werden)
+async function pdfZielordnerWaehlen() {
+  if (!window.showDirectoryPicker) {
+    alert('Das Auswählen eines festen Ordners unterstützt nur Chrome oder Edge am Computer.\n' +
+          'Auf Android/iPad bitte "Download-Ordner" oder "Teilen-Menü" verwenden.');
+    return null;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ id: 'vde-pdf-ziel', mode: 'readwrite' });
+    await pdfOrdnerHandleSpeichern(handle);
+    setPdfSpeichernModus('ordner');
+    return handle;
+  } catch (e) {
+    return null; // Nutzer hat abgebrochen
+  }
+}
+
+async function pdfOrdnerFreigabePruefen(handle) {
+  if (!handle || !handle.queryPermission) return false;
+  const opt = { mode: 'readwrite' };
+  if (await handle.queryPermission(opt) === 'granted') return true;
+  try { return await handle.requestPermission(opt) === 'granted'; }
+  catch (e) { return false; }
+}
+
+function pdfDirektDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () {
+    if (a.parentNode) a.parentNode.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 60000);
 }
 
 async function savePdfCompatible(doc, filename) {
@@ -301,43 +523,48 @@ async function savePdfCompatible(doc, filename) {
     return;
   }
 
-  const file = (typeof File !== 'undefined')
-    ? new File([blob], filename, { type: 'application/pdf' })
-    : null;
+  const modus = getPdfSpeichernModus();
 
-  /* --- 1. Teilen-Menue (bevorzugt auf iPad/iPhone, gut auch auf Android) --- */
-  if (file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+  /* --- 1. Fester Ziel-Ordner (nur wenn ausdruecklich eingestellt) --- */
+  if (modus === 'ordner' && window.showDirectoryPicker) {
     try {
-      await navigator.share({ files: [file], title: filename });
-      return;
-    } catch (err) {
-      // Nutzer hat abgebrochen -> nichts weiter tun
-      if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
-        if (err.name === 'AbortError') return;
+      let handle = await pdfOrdnerHandleLaden();
+      if (!handle) handle = await pdfZielordnerWaehlen();
+      if (handle && await pdfOrdnerFreigabePruefen(handle)) {
+        const datei = await handle.getFileHandle(filename, { create: true });
+        const writer = await datei.createWritable();
+        await writer.write(blob);
+        await writer.close();
+        showNotification('PDF gespeichert: ' + filename, 'success');
+        return;
       }
-      // sonst: naechste Methode versuchen
+    } catch (e) { /* faellt unten auf den normalen Download zurueck */ }
+  }
+
+  /* --- 2. Teilen-Menue: nur auf ausdruecklichen Wunsch oder auf iOS --- */
+  const brauchtTeilen = modus === 'teilen' || isIosLike();
+  if (brauchtTeilen && typeof File !== 'undefined') {
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;   // Nutzer hat abgebrochen
+        // sonst: normaler Download als Rueckfallebene
+      }
     }
   }
 
-  /* --- 2. Klassischer Download --- */
-  if (!isIosLike()) {
-    try { doc.save(filename); return; } catch (e) { /* weiter */ }
-  }
-
-  /* --- 3. Notfall: anklickbarer Link --- */
+  /* --- 3. Standard: direkter Download in den Download-Ordner --- */
   try {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function () {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 60000);
-  } catch (e) {
+    pdfDirektDownload(blob, filename);
+    return;
+  } catch (e) { /* weiter */ }
+
+  /* --- 4. Notfall --- */
+  try { doc.save(filename); }
+  catch (e) {
     alert('PDF konnte nicht gespeichert werden. Bitte die Seite im Browser (statt als App) öffnen.');
   }
 }

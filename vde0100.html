@@ -56,7 +56,7 @@
 
   <form id="vdeForm">
     <!-- 1. STAMMDATEN -->
-    <h2>1. Allgemeine Angaben & Stammdaten</h2>
+    <h2 class="kat-stamm">1. Allgemeine Angaben & Stammdaten</h2>
     <div class="grid">
       <!-- AUFTRAGGEBER LESBAR IN VOLLBREITE -->
       <div class="form-group grid-full">
@@ -85,13 +85,17 @@
       </div>
 
       <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. PR-2026-001"></div>
-      <div class="form-group"><label>Protokoll-Nr. (Auto):</label><input type="text" id="protokollnummer" readonly></div>
+      <div class="form-group">
+        <label>Protokoll-Nr.:</label>
+        <input type="text" id="protokollnummer" placeholder="z. B. PR-2026-08-11-001">
+        <div class="limit-hint">Wird automatisch vergeben, kann aber überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
+      </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
       <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
     </div>
 
     <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄTE -->
-    <h2>2. Netzsystem, Netzbetreiber & Prüfgeräte</h2>
+    <h2 class="kat-stamm">2. Netzsystem, Netzbetreiber & Prüfgeräte</h2>
     <div class="grid">
       <div class="form-group">
         <label>Prüfart / Norm:</label>
@@ -119,8 +123,8 @@
     </div>
 
     <!-- 3. BESICHTIGEN -->
-    <h2>3. Besichtigen (Sichtprüfung gemäß VDE-Vorlage)</h2>
-    <div class="grid">
+    <h2 class="kat-sicht">3. Besichtigen (Sichtprüfung gemäß VDE-Vorlage)</h2>
+    <div class="grid kat-block kat-sicht">
       <div class="form-group"><label>1. Betriebsmittel:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
       <div class="form-group"><label>2. Kabel & Leitungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
       <div class="form-group"><label>3. Zugänglichkeit:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
@@ -169,25 +173,53 @@
     </div>
 
     <!-- 4. ERPROBEN -->
-    <h2>4. Erproben (Funktionsprüfung)</h2>
-    <div class="grid">
+    <h2 class="kat-sicht">4. Erproben (Funktionsprüfung)</h2>
+    <div class="grid kat-block kat-sicht">
       <div class="form-group"><label>Funktion Anlage:</label><select id="erp_anlage"><option>i.O.</option><option>n.i.O.</option></select></div>
       <div class="form-group"><label>Schutzeinrichtungen:</label><select id="erp_schutz"><option>i.O.</option><option>n.i.O.</option></select></div>
       <div class="form-group"><label>Drehfeld:</label><select id="erp_drehfeld"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 5. MESSWERTE PRO STROMKREIS -->
-    <h2>5. Messtechnische Prüfungen (Stromkreise)</h2>
+    <h2 class="kat-messen">5. Messtechnische Prüfungen (Stromkreise)</h2>
+    <p class="limit-hint" style="margin:-4px 0 8px;">
+      Richtwerte: R<sub>PE</sub> &le; 0,30 &Omega; · R<sub>ISO</sub> &ge; 1,0 M&Omega; (SELV/PELV &ge; 0,5 M&Omega;) ·
+      I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) · RCD: I<sub>&Delta;mess</sub> 0,5–1,0&times;I<sub>&Delta;n</sub>,
+      t<sub>A</sub> &le; 40 ms bei 5&times;I<sub>&Delta;n</sub> · U<sub>mess</sub> &le; 50 V AC / 120 V DC
+    </p>
     <div id="circuitsContainer"></div>
     <button type="button" class="btn btn-secondary" onclick="addCircuitCard()">+ Stromkreis hinzufügen</button>
 
     <!-- 6. ERDUNG & POTENZIALAUSGLEICH -->
-    <h2>6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
-    <div class="form-group" style="margin-bottom: 8px;">
-      <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
-      <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" style="max-width: 180px;" oninput="validateErdung()">
+    <h2 class="kat-erdung">6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
+    <div class="kat-block kat-erdung">
+    <div class="grid" style="margin-bottom: 8px;">
+      <div class="form-group">
+        <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
+        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" oninput="validateErdung()">
+      </div>
+      <div class="form-group">
+        <label>Widerstand Schutzleiter / PA R<sub>PA</sub> (&Omega;) [&le; 1,0 &Omega;]:</label>
+        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.12">
+        <div class="limit-hint">Durchgängigkeitsmessung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
+      </div>
+      <div class="form-group">
+        <label>Messpunkt / Bezugspunkt:</label>
+        <input type="text" id="erdung_messpunkt" placeholder="z. B. HES im Keller / PA-Schiene UV-1">
+        <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'PA-Schiene')">PA-Schiene</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Unterverteilung UV')">UV</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptverteilung HV')">HV</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Fundamenterder')">Fundamenterder</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Gemessen gegen (2. Messpunkt):</label>
+        <input type="text" id="erdung_bezugspunkt" placeholder="z. B. Steckdose Bühne links / Traverse">
+      </div>
     </div>
-    
+
     <label>Gemessen an Hauptkomponenten (Häkchen setzen):</label>
     <div class="checkbox-grid">
       <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Fundamenterder"> Fundamenterder</label>
@@ -203,8 +235,18 @@
       <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Gasleitung"> Gasleitung</label>
     </div>
 
+    <!-- EIGENE MESSSTELLEN: die Häkchenliste deckt nicht jede Anlage ab -->
+    <div class="eigene-angaben">
+      <label>Weitere / eigene Messstellen (Freitext, erscheint im PDF):</label>
+      <textarea id="erdung_eigene" class="auto-grow" rows="2"
+                placeholder="z. B. Traverse Portal links 0,08 Ω · Bühnenwagen 0,15 Ω · Lichtstativ FOH 0,21 Ω"
+                oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      <div class="limit-hint">Jede Zeile wird im Protokoll als eigene Zeile gedruckt. Format-Vorschlag: Messstelle – Messwert (Ω) – i.O./n.i.O.</div>
+    </div>
+    </div>
+
     <!-- 7. BEWERTUNG -->
-    <h2>7. Gesamtbeurteilung, Gewährleistung & Prüftermin</h2>
+    <h2 class="kat-ergebnis">7. Gesamtbeurteilung, Gewährleistung & Prüftermin</h2>
     <div class="grid">
       <div class="form-group">
         <label>Gesamtbewertung Mängel:</label>
@@ -237,9 +279,14 @@
     </div>
 
     <!-- 8. UNTERSCHRIFTEN -->
-    <h2>8. Konformitätsbestätigung & Unterschriften</h2>
+    <h2 class="kat-ergebnis">8. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
       <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+      <div class="form-group">
+        <label>Datum der Unterzeichnung:</label>
+        <input type="date" id="unterschrift_datum">
+        <div class="limit-hint">Wird unter beide Unterschriften gedruckt (bisher stand dort eine leere Linie).</div>
+      </div>
     </div>
 
     <div class="sig-block">
@@ -266,6 +313,7 @@
   let padPruefer, padKunde;
 
   document.getElementById('datum').valueAsDate = new Date();
+  document.getElementById('unterschrift_datum').valueAsDate = new Date();
 
   // NÄCHSTER PRÜFTERMIN STANDARDMÄSSIG 1 JAHR IN DIE ZUKUNFT
   const nextD = new Date();

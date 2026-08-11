@@ -43,8 +43,38 @@ body {
   gap: 12px;
 }
 
-h1 { color: var(--primary); font-size: 1.4rem; margin: 0; }
+h1 { color: var(--primary); font-size: 1.4rem; margin: 0; line-height: 1.25; }
 h2 { color: var(--primary); font-size: 0.95rem; margin-top: 20px; margin-bottom: 10px; background: #f1f5f9; padding: 6px 10px; border-left: 4px solid var(--primary); border-radius: 2px; }
+
+/* ============================================================================
+ *  FARBLICHE ABGRENZUNG DER PRUEFABLAUF-KATEGORIEN
+ * ----------------------------------------------------------------------------
+ *  Gleiche Farblogik wie im PDF (PDF_KAT in js/pdf-utils.js):
+ *    blau   = Stammdaten / Rahmenbedingungen
+ *    gelb   = Besichtigen & Erproben
+ *    gruen  = Messtechnische Pruefungen
+ *    violett= Erdung / Potenzialausgleich
+ *    grau   = Ergebnis, Unterschriften
+ * ========================================================================== */
+h2.kat-stamm    { background: #eff6ff; border-left-color: #1d4ed8; color: #1e3a8a; }
+h2.kat-sicht    { background: #fffbeb; border-left-color: #b45309; color: #92400e; }
+h2.kat-messen   { background: #f0fdf4; border-left-color: #15803d; color: #14532d; }
+h2.kat-erdung   { background: #f5f3ff; border-left-color: #6d28d9; color: #5b21b6; }
+h2.kat-ergebnis { background: #f8fafc; border-left-color: #334155; color: #0f172a; }
+
+/* Der zugehoerige Inhaltsblock bekommt denselben Farbton als zarten Rahmen */
+.kat-block { border-left: 3px solid transparent; padding: 4px 0 8px 10px; margin-bottom: 4px; border-radius: 0 4px 4px 0; }
+.kat-block.kat-stamm    { border-left-color: #bfdbfe; background: linear-gradient(90deg, #f8fbff, transparent 70%); }
+.kat-block.kat-sicht    { border-left-color: #fde68a; background: linear-gradient(90deg, #fffdf5, transparent 70%); }
+.kat-block.kat-messen   { border-left-color: #bbf7d0; background: linear-gradient(90deg, #f6fffa, transparent 70%); }
+.kat-block.kat-erdung   { border-left-color: #ddd6fe; background: linear-gradient(90deg, #faf9ff, transparent 70%); }
+.kat-block.kat-ergebnis { border-left-color: #e2e8f0; background: linear-gradient(90deg, #fbfcfd, transparent 70%); }
+
+/* Karten (Stromkreis / Uebergabepunkt / Geraet) gehoeren zur Kategorie "Messen" */
+.circuit-card, .feed-card { border-left: 3px solid #86efac !important; }
+
+/* Freitextfeld fuer eigene Eintragungen (Potenzialausgleich, Messpunkte) */
+.eigene-angaben { background: #ffffff; border: 1px dashed var(--border); border-radius: 4px; padding: 8px 10px; margin-top: 8px; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .form-group { display: flex; flex-direction: column; }

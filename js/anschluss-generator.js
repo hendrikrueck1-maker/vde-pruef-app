@@ -114,11 +114,11 @@ function addFeedCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-rcd-imess" value="${data.rcd_imess || ''}" placeholder="z. B. 22" oninput="validateFeedNorms(${cardCounter})">
         </div>
         <div class="form-group">
-          <label>Prüfstrom für Auslösezeit:</label>
+          <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
           <select class="c-rcd-pruefstrom" onchange="validateFeedNorms(${cardCounter})">
+            <option value="5" selected>5 &times; I<sub>&Delta;n</sub> (max. 40 ms) &ndash; Standard</option>
             <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
             <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-            <option value="5">5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
           </select>
         </div>
         <div class="form-group">
@@ -128,7 +128,8 @@ function addFeedCard(data = {}) {
       </div>
     </div>
   `;
-  if (data.rcd_pruefstrom) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
+  // Ohne gespeicherten Wert bleibt der Standard 5 x I_dn aus dem Markup stehen.
+  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || RCD_PRUEFSTROM_STANDARD;
   container.appendChild(card);
   validateFeedNorms(cardCounter);
 }
@@ -169,7 +170,7 @@ function validateFeedNorms(cardId) {
   const pruefstromElem = card.querySelector('.c-rcd-pruefstrom');
   const rcdTypElem = card.querySelector('.c-rcd-typ');
   const istSelektiv = rcdTypElem ? /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(rcdTypElem.value) : false;
-  const taMax = getRcdMaxAusloesezeitMs(pruefstromElem ? pruefstromElem.value : '1', istSelektiv);
+  const taMax = getRcdMaxAusloesezeitMs(pruefstromElem ? pruefstromElem.value : RCD_PRUEFSTROM_STANDARD, istSelektiv);
   const taLimitLabel = document.getElementById(`fta_limit_${cardId}`);
   if (taLimitLabel) taLimitLabel.textContent = `[max. ${taMax} ms]`;
 
@@ -205,20 +206,29 @@ function fillExampleDataAnschluss() {
   document.getElementById('uebergabe_standort').value = 'Verteilerkasten Bühnenzugang Ost';
   document.getElementById('anschlussleistung_vertrag').value = '63';
   document.getElementById('erdung_re').value = '3.2';
+  document.getElementById('pa_widerstand').value = '0.14';
+  document.getElementById('pa_messpunkt').value = 'PA-Schiene im Übergabeverteiler Bühnenzugang Ost';
+  document.getElementById('pa_bezugspunkt').value = 'CEE-Verteiler Bühne links';
+  document.getElementById('pa_eigene').value =
+    'Traverse Bühne Süd - 0,11 Ohm - i.O.\nAbsperrgitter Publikumsbereich - 0,26 Ohm - i.O.';
   validateErdungAnschluss();
   document.getElementById('res_bemerkungen').value = 'Übergabepunkt in einwandfreiem Zustand. Keine Mängel festgestellt.';
 
   document.getElementById('feedsContainer').innerHTML = '';
   cardCounter = 0;
-  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', last: '25', rpe: '0.12', sich: 'C 32A', zs: '0.31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '24', rcd_pruefstrom: '1' });
+  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', last: '25', rpe: '0.12', sich: 'C 32A', zs: '0.31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
 }
 
 // KOPFDATEN (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet).
+// Der Titel wurde gekuerzt: mit dem Zusatz "STROMVERSORGUNG" war er so lang,
+// dass drawFittedText ihn deutlich staerker verkleinern musste als bei den
+// anderen beiden Protokollen - die Kopfzeile sah dadurch anders aus.
+// Der Zusatz steht jetzt in der Normzeile.
 // DIN VDE 0100-718 ergaenzt: Das Stadttheater ist eine Versammlungsstaette,
 // fuer die diese Norm (Bauliche Anlagen fuer Menschenansammlungen) einschlaegig ist.
 const ANSCHLUSS_KOPF = {
-  titel: "ANSCHLUSSPRÜFUNG ÜBERGABEPUNKT STROMVERSORGUNG",
-  normzeile: "Übergabe der Einspeisung nach DIN VDE 0100-704 / -711 / -718 / -740 i.V.m. DIN VDE 0100-600"
+  titel: "ANSCHLUSSPRÜFUNG ÜBERGABEPUNKT",
+  normzeile: "Übergabe der Stromversorgung nach DIN VDE 0100-704 / -711 / -718 / -740 i.V.m. DIN VDE 0100-600"
 };
 const ANSCHLUSS_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
 
@@ -240,8 +250,14 @@ function generatePDFAnschluss(isBlank = false) {
     return val ? cleanStr(val) : defaultBlank;
   };
 
+  const feldWert = (id) => {
+    if (isBlank) return '';
+    const el = document.getElementById(id);
+    return el && el.value.trim() ? cleanStr(el.value.trim()) : '';
+  };
+
   const formatDatum = (isoDate) => {
-    if (!isoDate) return "____.____.20__";
+    if (!isoDate) return "";
     const parts = isoDate.split('-');
     if (parts.length !== 3) return isoDate;
     const [jahr, monat, tag] = parts;
@@ -250,93 +266,99 @@ function generatePDFAnschluss(isBlank = false) {
 
   const protokollNr = getVal('protokollnummer', "AP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
-  const datum = isBlank ? "____.____.20__" : formatDatum(document.getElementById('datum').value);
+  const datum = isBlank ? "____.____.20__" : (formatDatum(document.getElementById('datum').value) || "____.____.20__");
   const ort = getVal('unterschrift_ort', "Konstanz");
+  const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
 
   // HEADER: zentrale Funktion aus pdf-utils.js. Sie skaliert Titel und Normzeile
   // automatisch auf die verfuegbaren 112 mm, damit sie die Infobox oben rechts
   // nicht mehr ueberdrucken (fruehere Ausgabe: "STROMVEPRroStoOkolRl-NGr:").
   drawProtokollHeader(doc, ANSCHLUSS_KOPF);
 
-  let y = 24;
+  let y = PDF_CONTENT_TOP;
 
-  // SEKTION 1: STAMMDATEN + BEREITSTELLER
-  doc.setDrawColor(...boxBorder);
-  doc.setFillColor(255, 255, 255);
-  doc.setLineWidth(0.2);
-  doc.roundedRect(10, y, 190, 46, 1, 1, 'FD');
+  /* --- SEKTION 1: STAMMDATEN + BEREITSTELLER (Kategorie "stamm" = blau) --- */
+  const SEK1_H = 47;
+  drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & BEREITSTELLER DER EINSPEISUNG", kat: 'stamm' });
 
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("1. STAMMDATEN & BEREITSTELLER DER EINSPEISUNG", 13, y + 5);
-
-  doc.setTextColor(...textColor);
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
+  const spL = 14, spR = 108, spB = 88;
 
-  const gebaeudeVal = getVal('gebaeude_custom', "________");
+  const messgeraetText = (() => {
+    const g = feldWert('messgeraet');
+    if (!g) return '';
+    const sn = feldWert('seriennummer');
+    const kal = formatDatum(document.getElementById('kalibriert_bis')?.value);
+    let t = g;
+    if (sn) t += ` (SN ${sn}`;
+    if (sn && kal) t += `, kal. bis ${kal}`;
+    if (sn) t += ')';
+    return t;
+  })();
 
-  doc.text(`Auftraggeber: ${getVal('auftraggeber', 'Stadttheater Konstanz, Inselgasse 2-6')}`, 13, y + 11);
-  doc.text(`Gebäude/Bereich: ${gebaeudeVal}`, 13, y + 16);
-  doc.text(`Veranstaltung/Anlass: ${getVal('veranstaltung', '____________________')}`, 13, y + 21);
-  doc.text(`Prüfer/-in: ${getVal('pruefer', '____________________')}`, 13, y + 26);
-  doc.text(`Prüfdatum: ${datum}`, 13, y + 31);
-  doc.text(`Prüfgerät: ${getVal('messgeraet', '__________')} (SN: ${getVal('seriennummer', '__________')}, kal. bis ${getVal('kalibriert_bis', '__.__.____')})`, 13, y + 36);
+  drawFeldZeile(doc, "Auftraggeber:",         feldWert('auftraggeber'),    spL, y + 11, spB, isBlank);
+  drawFeldZeile(doc, "Gebäude/Bereich:",      feldWert('gebaeude_custom'), spL, y + 16, spB, isBlank);
+  drawFeldZeile(doc, "Veranstaltung/Anlass:", feldWert('veranstaltung'),   spL, y + 21, spB, isBlank);
+  drawFeldZeile(doc, "Prüfer/-in:",           feldWert('pruefer'),         spL, y + 26, spB, isBlank);
+  drawFeldZeile(doc, "Prüfdatum:",            isBlank ? '' : datum,        spL, y + 31, spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, y + 36, spB, isBlank);
+  drawFeldZeile(doc, "Protokoll-Nr.:",        isBlank ? '' : protokollNr,  spL, y + 41, spB, isBlank);
 
-  doc.text(`Firma/Netzbetreiber: ${getVal('vnb', '____________________')}`, 115, y + 11);
-  doc.text(`Ansprechpartner/-in: ${getVal('bereitsteller_ansprechpartner', '____________________')}`, 115, y + 16);
-  doc.text(`Telefon: ${getVal('bereitsteller_telefon', '____________________')}`, 115, y + 21);
-  doc.text(`Art der Einspeisung: ${getVal('einspeisung_art', '____________________')}`, 115, y + 26);
-  doc.text(`Standort Übergabepunkt: ${getVal('uebergabe_standort', '____________________')}`, 115, y + 31);
-  doc.text(`Vertragl. Anschlussleistung: ${getVal('anschlussleistung_vertrag', '____')} kVA`, 115, y + 36);
+  drawFeldZeile(doc, "Firma/Netzbetreiber:",    feldWert('vnb'),                          spR, y + 11, spB, isBlank);
+  drawFeldZeile(doc, "Ansprechpartner/-in:",    feldWert('bereitsteller_ansprechpartner'), spR, y + 16, spB, isBlank);
+  drawFeldZeile(doc, "Telefon:",                feldWert('bereitsteller_telefon'),         spR, y + 21, spB, isBlank);
+  drawFeldZeile(doc, "Art der Einspeisung:",    feldWert('einspeisung_art'),               spR, y + 26, spB, isBlank);
+  drawFeldZeile(doc, "Standort Übergabepunkt:", feldWert('uebergabe_standort'),            spR, y + 31, spB, isBlank);
+  drawFeldZeile(doc, "Anschlussleistung (kVA):", feldWert('anschlussleistung_vertrag'),    spR, y + 36, spB, isBlank);
+  drawFeldZeile(doc, "Prüflings-ID:",           isBlank ? '' : pruefNr,                    spR, y + 41, spB, isBlank);
 
-  y += 50;
+  y += SEK1_H + 5;
 
-  // SEKTION 2: BESICHTIGEN
-  doc.setDrawColor(...boxBorder);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, y, 190, 30, 1, 1, 'FD');
+  /* --- SEKTION 2: BESICHTIGEN (Kategorie "sicht" = gelb) -----------------
+   * 2 Spalten statt 3: die Beschriftungen haben jetzt 46 mm Platz und laufen
+   * nicht mehr unter die Ankreuzkaestchen. */
+  const SEK2_H = 34;
+  drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN (SICHTPRÜFUNG ÜBERGABEPUNKT)", kat: 'sicht' });
 
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("2. BESICHTIGEN (SICHTPRÜFUNG ÜBERGABEPUNKT)", 13, y + 5);
-
-  doc.setTextColor(...textColor);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
 
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
-    "1. Verteiler/Zählerschrank:", "2. Steckvorr./Kupplungen:", "3. Zuleitung/Kabel:",
-    "4. Kennzeichnung:", "5. Zugänglichkeit:", "6. Zugang Not-Aus:",
-    "7. Witterungsschutz:", "8. Berührungsschutz:", "9. Prüfplakette Verteiler:"
+    "1. Verteiler / Zählerschrank", "2. Steckvorrichtungen / Kupplungen", "3. Zuleitung / Kabel unbeschädigt",
+    "4. Kennzeichnung / Beschriftung", "5. Zugänglichkeit / Fluchtwege", "6. Zugang Not-Aus / Hauptschalter",
+    "7. Witterungsschutz (falls außen)", "8. Berührungsschutz / Abdeckungen", "9. Prüfplakette / Typenschild"
   ];
-  const sichtCols = [13, 75, 138];
-  const sichtChkX = [36, 98, 161];
+  const SICHT_LABEL_X = [14, 106];
+  const SICHT_CB_X    = [62, 154];
+  const SICHT_LABEL_W = 46;
+  const proSpalte = Math.ceil(sichtLabels.length / 2);
+
   sichtLabels.forEach((label, i) => {
-    const col = Math.floor(i / 3);
-    const row = i % 3;
-    const yy = y + 11 + row * 5;
-    doc.text(label, sichtCols[col], yy);
-    drawCheckbox(doc, sichtChkX[col], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
-    drawCheckbox(doc, sichtChkX[col] + 12, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
+    const spalte = i < proSpalte ? 0 : 1;
+    const zeile = i < proSpalte ? i : i - proSpalte;
+    const yy = y + 11 + zeile * 5;
+    doc.setFontSize(7);
+    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W, 7, 5.5);
+    doc.setFontSize(7);
+    drawCheckbox(doc, SICHT_CB_X[spalte], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
+    drawCheckbox(doc, SICHT_CB_X[spalte] + 12, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
     // Dritte Checkbox: Punkt 7 (Witterungsschutz) kann "n.a." sein, wenn der
     // Uebergabepunkt im Innenbereich liegt. Ohne diese Box blieben bei "n.a."
     // beide Felder leer und das Protokoll sah aus wie "nicht geprueft".
-    if (s[i]?.querySelector?.('option[value="n.a."]') || Array.from(s[i]?.options || []).some(o => o.value === 'n.a.')) {
-      drawCheckbox(doc, sichtChkX[col] + 26, yy, "n.a.", !isBlank && s[i]?.value === "n.a.");
-    }
+    const hatNa = isBlank ? (i === 6) : Array.from(s[i]?.options || []).some(o => o.value === 'n.a.');
+    if (hatNa) drawCheckbox(doc, SICHT_CB_X[spalte] + 25, yy, "n.a.", !isBlank && s[i]?.value === "n.a.");
   });
 
-  y += 34;
+  y += SEK2_H + 8;
 
-  // SEKTION 3: ÜBERGABEPUNKTE TABELLE
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("3. MESSTECHNISCHE PRÜFUNGEN JE ÜBERGABEPUNKT (SCHUTZLEITER, SCHLEIFENIMPEDANZ, RCD)", 10, y);
+  // SEKTION 3: ÜBERGABEPUNKTE TABELLE (Kategorie "messen" = gruen)
+  const katMessen = drawKategorieTitel(doc, "3. MESSTECHNISCHE PRÜFUNGEN JE ÜBERGABEPUNKT", y, 'messen');
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.8);
+  doc.setTextColor(...PDF_MUTED);
+  doc.text("Schutzleiter, Schleifenimpedanz, RCD. Grenzwerte je Spalte im Tabellenkopf; unzulässige Werte werden rot hinterlegt.", 13.5, y + 3.6);
+  doc.setTextColor(...textColor);
 
   const makeCell = (text, isOut = false) => {
     if (!isBlank && isOut) {
@@ -347,8 +369,22 @@ function generatePDFAnschluss(isBlank = false) {
 
   const tableRows = [];
   let anyFeedMeasurementOut = false;
+  // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
+  const BEISPIEL_ZEILE_AP = [
+    "Bsp",
+    "Bühnenversorgung Haupt",
+    "TN-S\n230 / 400 V, 50 Hz",
+    "i.O.",
+    "0,12 Ohm\n(max. 0,30)",
+    "C 32A",
+    "0,31 Ohm /\n740 A (min. 320 A)",
+    "Typ A (30 mA)\n21 mA / 17 ms bei 5x IdN\n(0,5-1,0x IdN, <= 40 ms)",
+    "25 kVA"
+  ];
+
   if (isBlank) {
-    for (let i = 1; i <= 4; i++) tableRows.push([i, "", "", "", "", "", "", "", ""]);
+    tableRows.push(BEISPIEL_ZEILE_AP);
+    for (let i = 1; i <= 8; i++) tableRows.push([i, "", "", "", "", "", "", "", ""]);
   } else {
     const cards = document.querySelectorAll('.feed-card');
     cards.forEach((card, idx) => {
@@ -411,53 +447,107 @@ function generatePDFAnschluss(isBlank = false) {
   }
 
   doc.autoTable({
-    startY: y + 2.5,
-    head: [['Nr.', 'Bezeichnung', 'Netzsystem/Spannung/Freq.', 'Drehfeld', 'R_PE', 'Absicherung', 'Z_S / I_K', 'RCD (Typ/Idn/Mess)', 'Geplante Last']],
+    startY: y + 5,
+    // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert stehen untereinander
+    head: [[
+      'Nr.',
+      'Bezeichnung\nÜbergabepunkt',
+      'Netzsystem\nSpannung / Frequenz',
+      'Dreh-\nfeld',
+      'R_PE\n(Ohm)\nRichtw. <= 0,30',
+      'Absicherung\nTyp / I_n',
+      'Z_S (Ohm) / I_K (A)\nI_K >= 5x I_n (B)\n10x (C) / 20x (D)',
+      'RCD: Typ (I_dn)\nI_dmess 0,5-1,0x I_dn\nt_A <= 40 ms bei 5x',
+      'Geplante\nLast (kVA)'
+    ]],
     body: tableRows,
     theme: 'grid',
-    headStyles: { fillColor: tableHeaderBg, textColor: primaryColor, fontSize: 7, fontStyle: 'bold', halign: 'center' },
-    bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center' },
-    columnStyles: {
-      0: { cellWidth: 6 }, 1: { cellWidth: 26, halign: 'left' }, 2: { cellWidth: 32 },
-      3: { cellWidth: 12 }, 4: { cellWidth: 16 }, 5: { cellWidth: 16 },
-      6: { cellWidth: 22 }, 7: { cellWidth: 42 }, 8: { cellWidth: 16 }
+    headStyles: {
+      fillColor: katMessen.kopf, textColor: katMessen.akzent,
+      fontSize: 5.6, fontStyle: 'bold', halign: 'center', valign: 'middle',
+      lineColor: katMessen.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
     },
-    margin: { left: 10, right: 10 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5 }
+    bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
+    // Summe = 190 mm (210 - 2 x 10 mm Rand). Vorher 188 -> autoTable meldete
+    // "content width could not fit page" und rechnete die Spalten selbst um.
+    columnStyles: {
+      0: { cellWidth: 7 }, 1: { cellWidth: 28, halign: 'left' }, 2: { cellWidth: 30 },
+      3: { cellWidth: 11 }, 4: { cellWidth: 17 }, 5: { cellWidth: 17 },
+      6: { cellWidth: 24 }, 7: { cellWidth: 40 }, 8: { cellWidth: 16 }
+    },
+    margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5, overflow: 'linebreak' },
+    didParseCell: (data) => {
+      if (isBlank && data.section === 'body' && data.row.index === 0) {
+        data.cell.styles.fontStyle = 'italic';
+        data.cell.styles.textColor = [100, 116, 139];
+        data.cell.styles.fillColor = [248, 250, 252];
+        data.cell.styles.fontSize = 5.6;
+      }
+    }
   });
 
   let finalY = doc.lastAutoTable.finalY + 6;
-  if (finalY > 210) { doc.addPage(); finalY = 15; }
 
-  // SEKTION 4: ERDUNG, BEWERTUNG & FREIGABE
-  let bemerkungenText = getVal('res_bemerkungen', '');
-  if (isBlank) bemerkungenText = "________________________________________________________________________________________________________";
-  const splitBemerkung = doc.splitTextToSize(bemerkungenText, 180);
-  const boxHeight = 42 + (splitBemerkung.length * 4);
+  /* --- SEKTION 4: ERDUNG / POTENZIALAUSGLEICH & FREIGABE ------------------
+   * Neu: Messpunkt/Bezugspunkt sowie Freitextzeilen fuer eigene Messstellen. */
+  const eigeneRoh = isBlank ? '' : (document.getElementById('pa_eigene')?.value || '').trim();
+  const eigeneZeilen = eigeneRoh
+    ? eigeneRoh.split(/\r?\n/).map(z => z.trim()).filter(Boolean).map(z => cleanStr(z))
+    : [];
+  const eigeneAnzahl = isBlank ? 4 : Math.max(eigeneZeilen.length, 1);
 
-  if (finalY + boxHeight > 280) { doc.addPage(); finalY = 15; }
+  const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
+  const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
 
-  doc.setDrawColor(...boxBorder);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, finalY, 190, boxHeight, 1, 1, 'FD');
+  const OFF_PA = 11, OFF_MESS = 16, OFF_PUNKT1 = 21, OFF_PUNKT2 = 26;
+  const offEigenLabel = OFF_PUNKT2 + 7;
+  const offEigenStart = offEigenLabel + 4.5;
+  const offErgebnis   = offEigenStart + eigeneAnzahl * 4.5 + 2;
+  const offFreigabe   = offErgebnis + 6;
+  const offBemLabel   = offFreigabe + 6;
+  const offBemStart   = offBemLabel + 4.5;
+  const boxHeight     = offBemStart + bemZeilen * 4.5 + 3;
 
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("4. ERDUNG & GESAMTBEWERTUNG", 13, finalY + 5);
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
 
-  doc.setTextColor(...textColor);
+  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
 
   const paVal = document.getElementById('pa_angeschlossen')?.value || '';
-  doc.text(`Potenzialausgleich angeschlossen: ${isBlank ? '________' : paVal}`, 13, finalY + 11);
+  doc.text("Potenzialausgleich angeschlossen:", 14, finalY + OFF_PA);
+  drawCheckbox(doc, 60, finalY + OFF_PA, "Ja", !isBlank && paVal === "Ja");
+  drawCheckbox(doc, 72, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
+  drawCheckbox(doc, 87, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
+
+  drawFeldZeile(doc, "Durchgängigkeit PE/PA R_PA (<= 1,0 Ohm):",
+                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 108, finalY + OFF_PA, 88, isBlank);
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
   if (isErdungOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
-  doc.text(`Erdungswiderstand R_E: ${getVal('erdung_re', '__________')} Ohm (Richtwert <= ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ohm)`, 13, finalY + 16);
+  drawFeldZeile(doc, `Erdungswiderstand R_E (Richtwert <= ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ohm):`,
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ohm') : '', 14, finalY + OFF_MESS, 182, isBlank);
   if (isErdungOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
+
+  drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, Erdspieß):",
+                feldWert('pa_messpunkt'), 14, finalY + OFF_PUNKT1, 182, isBlank);
+  drawFeldZeile(doc, "Gemessen gegen (2. Messpunkt):",
+                feldWert('pa_bezugspunkt'), 14, finalY + OFF_PUNKT2, 182, isBlank);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("Weitere Messstellen (Messstelle – Messwert – Bewertung):", 14, finalY + offEigenLabel);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  if (isBlank || eigeneZeilen.length === 0) {
+    drawSchreibLinien(doc, 14, finalY + offEigenStart + 1, 182, eigeneAnzahl, 4.5);
+  } else {
+    eigeneZeilen.forEach((z, i) => doc.text(z, 14, finalY + offEigenStart + i * 4.5));
+  }
 
   const maengelVal = document.getElementById('res_maengel')?.value || "";
   const hatKeineMaengel = maengelVal.startsWith("Keine");
@@ -465,34 +555,40 @@ function generatePDFAnschluss(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("Prüfergebnis:", 13, finalY + 22);
-  drawCheckbox(doc, 35, finalY + 22, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 80, finalY + 22, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", 14, finalY + offErgebnis);
+  drawCheckbox(doc, 36, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   const leistungVal = document.getElementById('res_leistung_ausreichend')?.value || '';
-  doc.text("Anschlussleistung ausreichend:", 118, finalY + 22);
-  drawCheckbox(doc, 156, finalY + 22, "Ja", !isBlank && leistungVal === "Ja");
-  drawCheckbox(doc, 165, finalY + 22, "Nein", !isBlank && leistungVal === "Nein", true);
+  doc.text("Leistung ausreichend:", 122, finalY + offErgebnis);
+  drawCheckbox(doc, 154, finalY + offErgebnis, "Ja", !isBlank && leistungVal === "Ja");
+  drawCheckbox(doc, 165, finalY + offErgebnis, "Nein", !isBlank && leistungVal === "Nein", true);
   // "n.a." war im Formular waehlbar, im PDF aber nicht darstellbar
-  drawCheckbox(doc, 178, finalY + 22, "n.a.", !isBlank && leistungVal === "n.a.");
+  drawCheckbox(doc, 180, finalY + offErgebnis, "n.a.", !isBlank && leistungVal === "n.a.");
 
   const freigabeVal = document.getElementById('res_freigabe')?.value || 'Ja';
-  doc.text("Freigabe zur Nutzung:", 13, finalY + 28);
-  drawCheckbox(doc, 45, finalY + 28, "Ja", !isBlank && freigabeVal === "Ja");
-  drawCheckbox(doc, 55, finalY + 28, "Nein", !isBlank && freigabeVal === "Nein", true);
+  doc.text("Freigabe zur Nutzung:", 14, finalY + offFreigabe);
+  drawCheckbox(doc, 46, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja");
+  drawCheckbox(doc, 57, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", true);
 
   const terminVal = document.getElementById('res_termin_date')?.value || '';
-  const terminText = isBlank ? "____.____.20__" : formatDatum(terminVal);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Befristet bis / Rückgabe am: ${terminText}`, 100, finalY + 28);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  drawFeldZeile(doc, "Befristet bis / Rückgabe am:", isBlank ? '' : formatDatum(terminVal), 108, finalY + offFreigabe, 88, isBlank);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Bemerkungen / Mängel:", 13, finalY + 34);
+  doc.setFontSize(7.5);
+  doc.text("Bemerkungen / Mängel:", 14, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
-  doc.text(splitBemerkung, 13, finalY + 39);
+  doc.setFontSize(7);
+  if (isBlank || splitBemerkung.length === 0) {
+    drawSchreibLinien(doc, 14, finalY + offBemStart + 1, 182, bemZeilen, 4.5);
+  } else {
+    doc.text(splitBemerkung, 14, finalY + offBemStart);
+  }
 
-  finalY += boxHeight + 5;
-  if (finalY > 270) { doc.addPage(); finalY = 15; }
+  finalY += boxHeight + 6;
+  finalY = pdfPlatzPruefen(doc, finalY, 36);
 
   const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
   const hasIssues = !isBlank && (hatMaengel || freigabeVal === 'Nein' || leistungVal === 'Nein' || anySichtNiO || anyFeedMeasurementOut || isErdungOut);
@@ -509,24 +605,28 @@ function generatePDFAnschluss(isBlank = false) {
   doc.setTextColor(...textColor);
 
   finalY += complianceLines.length * 3.2 + 6;
+  finalY = pdfPlatzPruefen(doc, finalY, 20);
+
+  const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
 
   if (!isBlank && !padUebergeber.isEmpty()) {
     doc.addImage(padUebergeber.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
-  doc.line(10, finalY + 12, 65, finalY + 12);
+  doc.setLineWidth(0.2);
+  doc.line(10, finalY + 12, 90, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ort}, den ____________ (Übergebende/-r)`, 10, finalY + 15);
+  doc.text(`${ortDatum} – Übergebende/-r (Netzbetreiber/Bereitsteller)`, 10, finalY + 15);
 
   if (!isBlank && !padUebernehmer.isEmpty()) {
     doc.addImage(padUebernehmer.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
-  doc.line(115, finalY + 12, 170, finalY + 12);
-  doc.text(`${ort}, den ____________ (Übernehmende/-r)`, 115, finalY + 15);
+  doc.line(115, finalY + 12, 200, finalY + 12);
+  doc.text(`${ortDatum} – Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
 
-  drawProtokollSeitenkoepfe(doc, { ...ANSCHLUSS_KOPF, protokollNr, pruefNr, revision: ANSCHLUSS_REVISION });
+  drawProtokollSeitenkoepfe(doc, { ...ANSCHLUSS_KOPF, protokollNr, pruefNr, datum, revision: ANSCHLUSS_REVISION });
 
   const filename = isBlank
     ? `Anschlusspruefung_Uebergabepunkt_Leerformular.pdf`
@@ -543,8 +643,10 @@ const ANSCHLUSS_FIELD_IDS = [
   'kalibriert_bis',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon', 'einspeisung_art',
   'uebergabe_standort', 'anschlussleistung_vertrag', 'vnb',
-  'pa_angeschlossen', 'erdung_re', 'res_maengel', 'res_leistung_ausreichend',
-  'res_freigabe', 'res_termin_date', 'res_bemerkungen', 'unterschrift_ort'
+  'pa_angeschlossen', 'erdung_re', 'pa_widerstand', 'pa_messpunkt', 'pa_bezugspunkt', 'pa_eigene',
+  'res_maengel', 'res_leistung_ausreichend',
+  'res_freigabe', 'res_termin_date', 'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum',
+  'protokollnummer'
 ];
 
 function collectAnschlussState() {
@@ -594,6 +696,11 @@ function restoreAnschlussState(state) {
     ta.style.height = ta.scrollHeight + 'px';
   }
 
+  ['res_bemerkungen', 'pa_eigene'].forEach(id => {
+    const ta = document.getElementById(id);
+    if (ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+  });
+
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
   validateErdungAnschluss();
 
@@ -632,8 +739,10 @@ function resetAnschlussForm() {
   document.getElementById('anschlussForm').reset();
 
   document.getElementById('datum').valueAsDate = new Date();
+  document.getElementById('unterschrift_datum').valueAsDate = new Date();
   document.getElementById('veranstaltung').style.height = 'auto';
   document.getElementById('res_bemerkungen').style.height = 'auto';
+  document.getElementById('pa_eigene').style.height = 'auto';
 
   applyMasterDataToForm();
 

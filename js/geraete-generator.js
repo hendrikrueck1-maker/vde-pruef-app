@@ -218,8 +218,14 @@ function generatePDFGeraete(isBlank = false) {
     return val ? cleanStr(val) : defaultBlank;
   };
 
+  const feldWert = (id) => {
+    if (isBlank) return '';
+    const el = document.getElementById(id);
+    return el && el.value.trim() ? cleanStr(el.value.trim()) : '';
+  };
+
   const formatDatum = (isoDate) => {
-    if (!isoDate) return "____.____.20__";
+    if (!isoDate) return "";
     const parts = isoDate.split('-');
     if (parts.length !== 3) return isoDate;
     const [jahr, monat, tag] = parts;
@@ -228,63 +234,80 @@ function generatePDFGeraete(isBlank = false) {
 
   const protokollNr = getVal('protokollnummer', "GP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
-  const datum = isBlank ? "____.____.20__" : formatDatum(document.getElementById('datum').value);
-  const naechsterTermin = isBlank ? "____.____.20__" : formatDatum(document.getElementById('res_termin_date').value);
+  const datum = isBlank ? "____.____.20__" : (formatDatum(document.getElementById('datum').value) || "____.____.20__");
+  const naechsterTermin = isBlank ? "" : formatDatum(document.getElementById('res_termin_date').value);
   const ort = getVal('unterschrift_ort', "Konstanz");
+  const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
 
   drawProtokollHeader(doc, GERAETE_KOPF);
 
-  let y = 24;
+  let y = PDF_CONTENT_TOP;
 
-  // SEKTION 1: STAMMDATEN
-  doc.setDrawColor(...boxBorder);
-  doc.setFillColor(255, 255, 255);
-  doc.setLineWidth(0.2);
-  doc.roundedRect(10, y, 190, 36, 1, 1, 'FD');
+  /* --- SEKTION 1: STAMMDATEN (Kategorie "stamm" = blau) ------------------- */
+  const SEK1_H = 37;
+  drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
 
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("1. STAMMDATEN & PRÜFART", 13, y + 5);
-
-  doc.setTextColor(...textColor);
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
+  const spL = 14, spR = 108, spB = 88;
 
-  const gebaeudeVal = getVal('gebaeude_custom', "________");
-
-  doc.text(`Auftraggeber: ${getVal('auftraggeber', 'Stadttheater Konstanz, Inselgasse 2-6')}`, 13, y + 11);
-  doc.text(`Gebäude/Bereich: ${gebaeudeVal}`, 13, y + 16);
-  doc.text(`Prüfer/-in: ${getVal('pruefer', '____________________')}`, 13, y + 21);
-  doc.text(`Prüfgerät: ${getVal('messgeraet', '__________')} (SN: ${getVal('seriennummer', '__________')})`, 13, y + 26);
-  // Prueflings-ID stand hier ein zweites Mal (sie steht bereits in der Infobox oben
-  // rechts) und war bei mehreren Geraeten pro Protokoll ohnehin irrefuehrend --
-  // die Identifikation erfolgt jetzt je Geraet ueber die Spalte "Inv.-Nr.".
-  // Stattdessen die Kalibriergueltigkeit des Pruefmittels, die fuer die
-  // Beweiskraft der Messwerte nach DGUV V3 erforderlich ist.
-  doc.text(`Prüfgerät kalibriert bis: ${getVal('kalibriert_bis', '____.____.20__')}`, 13, y + 31);
+  const messgeraetText = (() => {
+    const g = feldWert('messgeraet');
+    if (!g) return '';
+    const sn = feldWert('seriennummer');
+    return sn ? `${g} (SN ${sn})` : g;
+  })();
 
   const pruefintervallSelect = document.getElementById('pruefintervall');
-  const pruefintervallText = isBlank ? '____________________' : cleanStr(pruefintervallSelect.options[pruefintervallSelect.selectedIndex].text);
+  const pruefintervallText = isBlank
+    ? ''
+    : cleanStr(pruefintervallSelect.options[pruefintervallSelect.selectedIndex].text);
 
-  doc.text(`Prüfart: ${getVal('pruefart')}`, 115, y + 11);
-  doc.text(`Prüffrist: ${pruefintervallText}`, 115, y + 16);
-  doc.text(`Prüfdatum: ${datum}`, 115, y + 21);
-  doc.text(`Nächster Prüftermin: ${naechsterTermin}`, 115, y + 26);
+  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, y + 11, spB, isBlank);
+  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, y + 16, spB, isBlank);
+  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, y + 21, spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, y + 26, spB, isBlank);
+  // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
+  // der Messwerte erforderlich.
+  drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, y + 31, spB, isBlank);
 
-  y += 40;
+  drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'),       spR, y + 11, spB, isBlank);
+  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,         spR, y + 16, spB, isBlank);
+  drawFeldZeile(doc, "Prüfdatum:",           isBlank ? '' : datum,       spR, y + 21, spB, isBlank);
+  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,            spR, y + 26, spB, isBlank);
+  drawFeldZeile(doc, "Protokoll-Nr.:",       isBlank ? '' : protokollNr, spR, y + 31, spB, isBlank);
 
-  // SEKTION 2: GERÄTE-TABELLE
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("2. GERÄTE: BESICHTIGEN, ERPROBEN, MESSEN", 10, y);
+  y += SEK1_H + 8;
+
+  // SEKTION 2: GERÄTE-TABELLE (Kategorie "messen" = gruen)
+  const katMessen = drawKategorieTitel(doc, "2. GERÄTE: BESICHTIGEN, ERPROBEN, MESSEN", y, 'messen');
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.8);
+  doc.setTextColor(...PDF_MUTED);
+  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", 13.5, y + 3.6);
+  doc.setTextColor(...textColor);
 
   const tableRows = [];
   let anyDeviceOut = false;
 
+  // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
+  const BEISPIEL_ZEILE_GP = [
+    "Bsp",
+    "PAR-Scheinwerfer Lichtregie (ADB PAR64)",
+    "INV-0231",
+    "Kl. I",
+    "10 m",
+    "i.O.",
+    "i.O.",
+    "0,22 Ohm\n(max. 0,40)",
+    "> 100 MOhm\n(min. 1)",
+    "0,3 mA (max. 3,5)\nSchutzleiterstrom\nErsatzableitstrom"
+  ];
+
   if (isBlank) {
-    for (let i = 1; i <= 8; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+    tableRows.push(BEISPIEL_ZEILE_GP);
+    // 12 Leerzeilen: Tabelle, Gesamtbeurteilung und Unterschriften passen so
+    // gemeinsam auf eine Seite.
+    for (let i = 1; i <= 12; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
   } else {
     const cards = document.querySelectorAll('#devicesContainer .feed-card');
     cards.forEach((card, idx) => {
@@ -351,44 +374,63 @@ function generatePDFGeraete(isBlank = false) {
   }
 
   doc.autoTable({
-    startY: y + 2.5,
-    head: [['Nr.', 'Bezeichnung / Typ', 'Inv.-Nr.', 'SK', 'Ltg.', 'Sicht', 'Funkt.', 'R_PE', 'R_ISO', 'Ableitstrom']],
+    startY: y + 5,
+    // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert untereinander
+    head: [[
+      'Nr.',
+      'Bezeichnung / Typ',
+      'Inv.-Nr.\nSeriennr.',
+      'Schutz-\nklasse',
+      'Leitung\n(m)',
+      'Sicht-\nprüfung',
+      'Funk-\ntion',
+      'R_PE (Ohm)\n<= 0,30 bis 5 m\n+0,1 je 7,5 m',
+      'R_ISO (MOhm)\nSK I >= 1,0\nSK II >= 2,0',
+      'Ableitstrom (mA)\nSK I <= 3,5 / SK II <= 0,5\nMessverfahren'
+    ]],
     body: tableRows,
     theme: 'grid',
-    headStyles: { fillColor: tableHeaderBg, textColor: primaryColor, fontSize: 6.5, fontStyle: 'bold', halign: 'center' },
-    bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center' },
+    headStyles: {
+      fillColor: katMessen.kopf, textColor: katMessen.akzent,
+      fontSize: 5.4, fontStyle: 'bold', halign: 'center', valign: 'middle',
+      lineColor: katMessen.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+    },
+    bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
     // Summe = 190 mm (Seitenbreite 210 abzueglich 2 x 10 mm Rand)
     columnStyles: {
-      0: { cellWidth: 6 }, 1: { cellWidth: 36, halign: 'left' }, 2: { cellWidth: 16 },
+      0: { cellWidth: 8 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 16 },
       3: { cellWidth: 9 }, 4: { cellWidth: 10 }, 5: { cellWidth: 24 },
       6: { cellWidth: 12 }, 7: { cellWidth: 19 }, 8: { cellWidth: 20 },
       9: { cellWidth: 38 }
     },
-    margin: { left: 10, right: 10 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5 }
+    margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5, overflow: 'linebreak' },
+    didParseCell: (data) => {
+      if (isBlank && data.section === 'body' && data.row.index === 0) {
+        data.cell.styles.fontStyle = 'italic';
+        data.cell.styles.textColor = [100, 116, 139];
+        data.cell.styles.fillColor = [248, 250, 252];
+        data.cell.styles.fontSize = 5.4;
+      }
+    }
   });
 
   let finalY = doc.lastAutoTable.finalY + 6;
-  if (finalY > 225) { doc.addPage(); finalY = 15; }
 
-  // SEKTION 3: GESAMTBEWERTUNG
-  let bemerkungenText = getVal('res_bemerkungen', '');
-  if (isBlank) bemerkungenText = "________________________________________________________________________________________________________";
-  const splitBemerkung = doc.splitTextToSize(bemerkungenText, 180);
-  const boxHeight = 34 + (splitBemerkung.length * 4);
+  // SEKTION 3: GESAMTBEWERTUNG (Kategorie "ergebnis")
+  const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
+  const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
 
-  if (finalY + boxHeight > 280) { doc.addPage(); finalY = 15; }
+  const offErgebnis = 12;
+  const offBemLabel = offErgebnis + 7;
+  const offBemStart = offBemLabel + 4.5;
+  const boxHeight   = offBemStart + bemZeilen * 4.5 + 3;
 
-  doc.setDrawColor(...boxBorder);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, finalY, 190, boxHeight, 1, 1, 'FD');
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
 
-  doc.setTextColor(...primaryColor);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("3. GESAMTBEURTEILUNG", 13, finalY + 5);
+  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "3. GESAMTBEURTEILUNG", kat: 'ergebnis' });
 
-  doc.setTextColor(...textColor);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
 
@@ -398,21 +440,27 @@ function generatePDFGeraete(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("Prüfergebnis:", 13, finalY + 12);
-  drawCheckbox(doc, 35, finalY + 12, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 80, finalY + 12, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", 14, finalY + offErgebnis);
+  drawCheckbox(doc, 36, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  doc.text("Prüfplakette erteilt:", 120, finalY + 12);
-  drawCheckbox(doc, 150, finalY + 12, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 162, finalY + 12, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.text("Prüfplakette erteilt:", 122, finalY + offErgebnis);
+  drawCheckbox(doc, 152, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 164, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Bemerkungen / Mängel:", 13, finalY + 18);
+  doc.setFontSize(7.5);
+  doc.text("Bemerkungen / Mängel:", 14, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
-  doc.text(splitBemerkung, 13, finalY + 23);
+  doc.setFontSize(7);
+  if (isBlank || splitBemerkung.length === 0) {
+    drawSchreibLinien(doc, 14, finalY + offBemStart + 1, 182, bemZeilen, 4.5);
+  } else {
+    doc.text(splitBemerkung, 14, finalY + offBemStart);
+  }
 
-  finalY += boxHeight + 5;
-  if (finalY > 270) { doc.addPage(); finalY = 15; }
+  finalY += boxHeight + 6;
+  finalY = pdfPlatzPruefen(doc, finalY, 36);
 
   const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
   const hasIssues = !isBlank && (hatMaengel || gewaehrleistungVal === 'Nein' || anyDeviceOut);
@@ -435,24 +483,28 @@ function generatePDFGeraete(isBlank = false) {
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 4;
+  finalY = pdfPlatzPruefen(doc, finalY, 20);
+
+  const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
 
   if (!isBlank && !padPruefer.isEmpty()) {
     doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
-  doc.line(10, finalY + 12, 65, finalY + 12);
+  doc.setLineWidth(0.2);
+  doc.line(10, finalY + 12, 90, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ort}, den ____________ (Unterschrift Prüfer/-in)`, 10, finalY + 15);
+  doc.text(`${ortDatum} – Unterschrift Prüfer/-in`, 10, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
-  doc.line(115, finalY + 12, 170, finalY + 12);
-  doc.text(`${ort}, den ____________ (Unterschrift Auftraggeber/Betreiber)`, 115, finalY + 15);
+  doc.line(115, finalY + 12, 200, finalY + 12);
+  doc.text(`${ortDatum} – Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
-  drawProtokollSeitenkoepfe(doc, { ...GERAETE_KOPF, protokollNr, pruefNr, revision: GERAETE_REVISION });
+  drawProtokollSeitenkoepfe(doc, { ...GERAETE_KOPF, protokollNr, pruefNr, datum, revision: GERAETE_REVISION });
 
   const filename = isBlank
     ? `Geraetepruefung_50678_50699_Leerformular.pdf`
@@ -466,8 +518,9 @@ const GERAETE_AUTOSAVE_KEY = 'geraete_protocol_autosave';
 
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
-  'pruefart', 'pruefintervall', 'res_termin_date',
-  'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen', 'unterschrift_ort'
+  'kalibriert_bis', 'pruefart', 'pruefintervall', 'res_termin_date',
+  'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
+  'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
 
 function collectGeraeteState() {
@@ -544,6 +597,7 @@ function resetGeraeteForm() {
   document.getElementById('geraeteForm').reset();
 
   document.getElementById('datum').valueAsDate = new Date();
+  document.getElementById('unterschrift_datum').valueAsDate = new Date();
   updateNaechsterTermin();
   document.getElementById('res_bemerkungen').style.height = 'auto';
 
