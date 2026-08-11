@@ -234,21 +234,27 @@ function generatePDFGeraete(isBlank = false) {
 
   const protokollNr = getVal('protokollnummer', "GP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
-  const datum = isBlank ? "____.____.20__" : (formatDatum(document.getElementById('datum').value) || "____.____.20__");
+  const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
   const naechsterTermin = isBlank ? "" : formatDatum(document.getElementById('res_termin_date').value);
   const ort = getVal('unterschrift_ort', "Konstanz");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
+  // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
+  const kopfProtokollNr = isBlank ? "" : protokollNr;
+  const kopfPruefNr = isBlank ? "" : pruefNr;
 
   drawProtokollHeader(doc, GERAETE_KOPF);
 
   let y = PDF_CONTENT_TOP;
 
-  /* --- SEKTION 1: STAMMDATEN (Kategorie "stamm" = blau) ------------------- */
-  const SEK1_H = 37;
+  /* --- SEKTION 1: STAMMDATEN ---------------------------------------------
+   * Kompakt: 5 Zeilen je Spalte. Protokoll-Nr. und Prueflings-ID stehen in
+   * der Kopfbox oben rechts und werden hier nicht wiederholt. */
+  const ZA = 4.6;
+  const SEK1_H = 31;
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
 
-  doc.setFontSize(7.5);
-  const spL = 14, spR = 108, spB = 88;
+  doc.setFontSize(7.2);
+  const spL = 13, spR = 107, spB = 90;
 
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
@@ -262,28 +268,28 @@ function generatePDFGeraete(isBlank = false) {
     ? ''
     : cleanStr(pruefintervallSelect.options[pruefintervallSelect.selectedIndex].text);
 
-  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, y + 11, spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, y + 16, spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, y + 21, spB, isBlank);
-  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, y + 26, spB, isBlank);
+  const z1 = (i) => y + 10 + i * ZA;
+  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
+  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
   // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
   // der Messwerte erforderlich.
-  drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, y + 31, spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, z1(4), spB, isBlank);
 
-  drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'),       spR, y + 11, spB, isBlank);
-  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,         spR, y + 16, spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",           isBlank ? '' : datum,       spR, y + 21, spB, isBlank);
-  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,            spR, y + 26, spB, isBlank);
-  drawFeldZeile(doc, "Protokoll-Nr.:",       isBlank ? '' : protokollNr, spR, y + 31, spB, isBlank);
+  drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
+  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Prüfdatum:",           datum,                spR, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,      spR, z1(3), spB, isBlank);
 
-  y += SEK1_H + 8;
+  y += SEK1_H + 6;
 
-  // SEKTION 2: GERÄTE-TABELLE (Kategorie "messen" = gruen)
+  // SEKTION 2: GERÄTE-TABELLE
   const katMessen = drawKategorieTitel(doc, "2. GERÄTE: BESICHTIGEN, ERPROBEN, MESSEN", y, 'messen');
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.8);
+  doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", 13.5, y + 3.6);
+  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", 10, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -303,11 +309,16 @@ function generatePDFGeraete(isBlank = false) {
     "0,3 mA (max. 3,5)\nSchutzleiterstrom\nErsatzableitstrom"
   ];
 
+  // Die Beispielzeile steht am ENDE der Tabelle, damit die Eintragezeilen
+  // direkt unter dem Tabellenkopf beginnen.
+  let beispielIndex = -1;
+
   if (isBlank) {
+    // Zeilenzahl so gewaehlt, dass Tabelle, Gesamtbeurteilung und Unterschriften
+    // gemeinsam auf eine A4-Seite passen.
+    for (let i = 1; i <= 16; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+    beispielIndex = tableRows.length;
     tableRows.push(BEISPIEL_ZEILE_GP);
-    // 12 Leerzeilen: Tabelle, Gesamtbeurteilung und Unterschriften passen so
-    // gemeinsam auf eine Seite.
-    for (let i = 1; i <= 12; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
   } else {
     const cards = document.querySelectorAll('#devicesContainer .feed-card');
     cards.forEach((card, idx) => {
@@ -404,9 +415,10 @@ function generatePDFGeraete(isBlank = false) {
       9: { cellWidth: 38 }
     },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5, overflow: 'linebreak' },
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 6.5 : 5, overflow: 'linebreak',
+              cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
-      if (isBlank && data.section === 'body' && data.row.index === 0) {
+      if (data.section === 'body' && data.row.index === beispielIndex) {
         data.cell.styles.fontStyle = 'italic';
         data.cell.styles.textColor = [100, 116, 139];
         data.cell.styles.fillColor = [248, 250, 252];
@@ -422,10 +434,10 @@ function generatePDFGeraete(isBlank = false) {
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
   const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
 
-  const offErgebnis = 12;
-  const offBemLabel = offErgebnis + 7;
-  const offBemStart = offBemLabel + 4.5;
-  const boxHeight   = offBemStart + bemZeilen * 4.5 + 3;
+  const offErgebnis = 11;
+  const offBemLabel = offErgebnis + 6;
+  const offBemStart = offBemLabel + 4.2;
+  const boxHeight   = offBemStart + bemZeilen * 4.2 + 2.5;
 
   finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
 
@@ -439,31 +451,40 @@ function generatePDFGeraete(isBlank = false) {
   const hatMaengel = !hatKeineMaengel && maengelVal !== "";
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("Prüfergebnis:", 14, finalY + offErgebnis);
-  drawCheckbox(doc, 36, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.setFontSize(7.5);
+  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
+  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 78, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  doc.text("Prüfplakette erteilt:", 122, finalY + offErgebnis);
-  drawCheckbox(doc, 152, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 164, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.text("Prüfplakette erteilt:", 120, finalY + offErgebnis);
+  drawCheckbox(doc, 150, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 162, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Bemerkungen / Mängel:", 14, finalY + offBemLabel);
+  doc.setFontSize(7.2);
+  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 14, finalY + offBemStart + 1, 182, bemZeilen, 4.5);
+    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 14, finalY + offBemStart);
+    doc.text(splitBemerkung, 13, finalY + offBemStart);
   }
 
-  finalY += boxHeight + 6;
-  finalY = pdfPlatzPruefen(doc, finalY, 36);
+  finalY += boxHeight + 5;
 
   const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
   const hasIssues = !isBlank && (hatMaengel || gewaehrleistungVal === 'Nein' || anyDeviceOut);
+
+  const complianceText = isBlank
+    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
+    : hasIssues
+      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
+      : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+
+  doc.setFontSize(6.5);
+  const complianceLines = doc.splitTextToSize(complianceText, 190);
+  finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
@@ -471,19 +492,13 @@ function generatePDFGeraete(isBlank = false) {
   drawCheckbox(doc, 58, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
   drawCheckbox(doc, 118, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
-  const complianceText = hasIssues
-    ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
-    : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
-
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
   doc.text(complianceLines, 10, finalY + 4);
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 4;
-  finalY = pdfPlatzPruefen(doc, finalY, 20);
 
   const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
 
@@ -504,11 +519,13 @@ function generatePDFGeraete(isBlank = false) {
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} – Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
-  drawProtokollSeitenkoepfe(doc, { ...GERAETE_KOPF, protokollNr, pruefNr, datum, revision: GERAETE_REVISION });
+  drawProtokollSeitenkoepfe(doc, {
+    ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: GERAETE_REVISION
+  });
 
   const filename = isBlank
     ? `Geraetepruefung_50678_50699_Leerformular.pdf`
-    : `Geraetepruefung_${protokollNr}_${datum.replace(/\./g, '-')}.pdf`;
+    : `Geraetepruefung_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
 
   savePdfCompatible(doc, filename);
 }

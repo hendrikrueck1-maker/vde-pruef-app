@@ -9,7 +9,7 @@ Gilt für: <https://hendrikrueck1-maker.github.io/vde-pruef-app/>
 In `js/app-config.js` steht ganz oben:
 
 ```js
-var APP_VERSION = '2.1.0';
+var APP_VERSION = '2.2.0';
 ```
 
 **Diese Zahl muss bei jeder Änderung hochgezählt werden.** Der Service Worker
@@ -46,7 +46,7 @@ Faustregel: kleine Korrekturen → `2.1.1`, neue Felder/Funktionen → `2.2.0`.
    Ordner mit hochziehen ist erlaubt – GitHub legt die Struktur automatisch an.
    Gleichnamige Dateien werden überschrieben, das ist gewollt.
 4. Unten bei **„Commit changes“** eine kurze Beschreibung eintragen, z. B.
-   `v2.1.0: Seitenumbrüche, Messpunkt-Felder, PDF-Download statt Teilen`.
+   `v2.2.0: Formular-Feinschliff, keine Vorbelegungen, Beispielzeile ans Tabellenende`.
 5. **„Commit changes“** klicken.
 
 ### Variante B – mit Git auf dem PC
@@ -63,7 +63,7 @@ git push
 - Im Repository auf den Reiter **„Actions“** gehen. Dort läuft nach dem Commit
   der Job „pages build and deployment“. Grüner Haken = fertig (dauert 1–2 Minuten).
 - Danach <https://hendrikrueck1-maker.github.io/vde-pruef-app/> aufrufen.
-  Ganz unten rechts muss **„Version 2.1.0“** stehen.
+  Ganz unten rechts muss **„Version 2.2.0“** stehen.
 
 > Falls dort noch die alte Version steht: einmal mit `Strg + F5` neu laden.
 
@@ -80,7 +80,7 @@ Die App ist eine PWA. Sie prüft beim Start selbst, ob es eine neue Version gibt
 2. App wieder öffnen – mit Internetverbindung.
 3. Es erscheint der Hinweis **„Neue Version verfügbar“** → antippen
    („Jetzt aktualisieren“). Die App lädt neu und läuft in der neuen Version.
-4. Kontrolle: Auf der Startseite unten rechts muss **Version 2.1.0** stehen.
+4. Kontrolle: Auf der Startseite unten rechts muss **Version 2.2.0** stehen.
 
 ### Wenn der Hinweis nicht kommt
 
@@ -102,7 +102,29 @@ Die App ist eine PWA. Sie prüft beim Start selbst, ob es eine neue Version gibt
 
 ---
 
-## 3. Was in Version 2.1.0 neu ist
+## 3. Was in Version 2.2.0 neu ist
+
+- **Keine Vorbelegungen mehr** bei Absicherung, RCD-Typ, Bemessungsfehlerstrom
+  und RCD-Prüfstrom. Diese Angaben müssen bewusst eingetragen werden; ein
+  voreingestelltes „Typ A / 30 mA / B 16A“ hätte sonst ungeprüft im Protokoll
+  stehen können. Der Grenzwert der Auslösezeit erscheint erst, wenn der
+  Prüfstrom gewählt wurde.
+- Beim Stromkreis sind **Schutzleiter und Isolationswiderstand** jetzt zwei
+  optisch getrennte Gruppen – am Desktop wirkte die Prüfspannung vorher wie
+  eine Angabe zu R_PE.
+- **Eingabefelder stehen auf gleicher Höhe** und haben die gleiche Größe
+  (feste Label-Höhe, einheitliche Feldhöhe; auf dem Handy wie gehabt untereinander).
+- Potenzialausgleich/Erdung: nur noch **ein Messpunkt-Feld** mit deutlich mehr
+  Schnellauswahl-Vorschlägen (HES, PA-Schiene, HV, UV, Fundamenterder,
+  Blitzschutz, Hauptschutzleiter, Wasser, Heizung, Gas, Klima, Stahlbau,
+  Traverse, Bühnenwagen, Kabeltrasse). Häkchenliste und Freitextfeld entfallen.
+- Anschlussprüfung: bei „Art der Einspeisung – Sonstiges“ erscheint ein Feld
+  für die tatsächliche Herkunft des Stroms. „Geplante Last (kVA)“ je
+  Übergabepunkt und „Befristet bis / Rückgabe am“ sind entfallen.
+- Die **Beispielzeile steht jetzt am Ende** der Messtabelle, damit die
+  Eintragezeilen direkt unter dem Tabellenkopf beginnen.
+
+## Was in Version 2.1.0 neu war
 
 **PDF-Ausgabe**
 
@@ -120,17 +142,25 @@ Die App ist eine PWA. Sie prüft beim Start selbst, ob es eine neue Version gibt
 
 **Formulare**
 
-- Die Kategorien des Prüfablaufs sind farblich abgesetzt – am Bildschirm und im
-  PDF: blau = Stammdaten, gelb = Besichtigen/Erproben, grün = Messen,
-  violett = Erdung/Potenzialausgleich, grau = Ergebnis.
-- Sichtprüfung: zwei statt drei Spalten – der Beschreibungstext verschwindet
-  nicht mehr unter den Kästchen „i.O.“ / „n.i.O.“.
+- Alle Protokolle passen wieder auf **eine A4-Seite** – Leerformulare immer,
+  ausgefüllte bis 8 Stromkreise bzw. Übergabepunkte. Erst danach entsteht
+  eine zweite Seite, und die bricht dann sauber um.
+- Platz je Leerformular: 7 Stromkreise (VDE 0100), 10 Übergabepunkte
+  (Anschlussprüfung), 16 Geräte (Geräteprüfung) – jeweils zusätzlich zur
+  Beispielzeile.
+- Die Abschnitte sind nur dezent abgesetzt: zwei abwechselnde, sehr helle
+  Grautöne, keine Buntfarben. Druckt auch auf S/W-Geräten sauber.
+- Sichtprüfung bleibt dreispaltig (kompakt); die Bezeichnungen sind gekürzt und
+  werden bei Bedarf automatisch verkleinert, damit sie nicht mehr unter die
+  Kästchen „i.O.” / „n.i.O.” laufen.
 - Leerformulare: durchgehende Schreiblinien über die volle Spaltenbreite statt
-  kurzer Unterstriche.
+  kurzer Unterstriche – auch für Protokoll-Nr., Prüflings-ID und Datum im Kopf.
 - Beispielzeile mit Grenzwerten und realistischen Werten in jeder Messtabelle
-  der Leerformulare (grau/kursiv, gekennzeichnet mit „Bsp“).
+  der Leerformulare (grau/kursiv, gekennzeichnet mit „Bsp”).
 - Tabellenköpfe zeigen Größe, Einheit und Grenzwert untereinander
   (z. B. `R_PE (Ohm) / Richtwert <= 0,30`).
+- Im ausgefüllten Protokoll werden die angehakten Erdungspunkte als Fließtext
+  gedruckt statt als Kästchenraster – das spart zwei Zeilen Bauhöhe.
 
 **Fachliches**
 

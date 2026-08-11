@@ -98,12 +98,17 @@
       <div class="form-group"><label>Telefon:</label><input type="text" id="bereitsteller_telefon"></div>
       <div class="form-group">
         <label>Art der Einspeisung:</label>
-        <select id="einspeisung_art">
+        <select id="einspeisung_art" onchange="toggleEinspeisungSonstiges(this.value)">
           <option>Festanschluss / Zählerschrank</option>
           <option>Baustromverteiler</option>
           <option>Generator / Notstromaggregat</option>
           <option>Sonstiges</option>
         </select>
+      </div>
+      <!-- Nur bei "Sonstiges" sichtbar: woher der Strom tatsächlich kommt -->
+      <div class="form-group" id="einspeisung_sonstiges_gruppe" style="display:none;">
+        <label>Sonstiges &ndash; Herkunft der Einspeisung:</label>
+        <input type="text" id="einspeisung_sonstiges" placeholder="z. B. Nachbargebäude Werkstatt, Verteiler W-3">
       </div>
       <div class="form-group"><label>Standort / Bezeichnung Übergabepunkt:</label><input type="text" id="uebergabe_standort" placeholder="z. B. Zählerschrank Bühneneingang"></div>
       <div class="form-group"><label>Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
@@ -150,29 +155,24 @@
         <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.14">
         <div class="limit-hint">Messung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
-      <div class="form-group">
-        <label>Messpunkt / Bezugspunkt:</label>
+      <div class="form-group grid-full">
+        <label>Messpunkt / Bezugspunkt der Messung:</label>
         <input type="text" id="pa_messpunkt" placeholder="z. B. PA-Schiene im Übergabeverteiler">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'PA-Schiene Übergabeverteiler')">PA-Schiene</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'PE-Schiene Übergabeverteiler')">PE-Schiene Übergabe</button>
           <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Baustromverteiler')">Baustromverteiler</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Generator-Sternpunkt / Erdspieß')">Generator/Erdspieß</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Zählerschrank / Hausanschlusskasten')">Zählerschrank</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Generator-Sternpunkt')">Generator-Sternpunkt</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Erdspieß / Tiefenerder')">Erdspieß</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Fundamenterder')">Fundamenterder</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'CEE-Verteiler Bühne')">CEE-Verteiler</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bauzaun / Absperrung')">Bauzaun</button>
+          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bühnenpodest / Bühnenwagen')">Bühnenpodest</button>
         </div>
       </div>
-      <div class="form-group">
-        <label>Gemessen gegen (2. Messpunkt):</label>
-        <input type="text" id="pa_bezugspunkt" placeholder="z. B. Traverse Bühne / CEE-Verteiler Bühne links">
-      </div>
-    </div>
-
-    <!-- EIGENE MESSSTELLEN: freie Eintragungen, die keine Vorauswahl abdeckt -->
-    <div class="eigene-angaben">
-      <label>Weitere / eigene Messstellen des Potenzialausgleichs (Freitext, erscheint im PDF):</label>
-      <textarea id="pa_eigene" class="auto-grow" rows="2"
-                placeholder="z. B. Traverse Bühne Süd – 0,11 Ω – i.O. · Bauzaun/Absperrung – 0,26 Ω – i.O."
-                oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      <div class="limit-hint">Jede Zeile wird im Protokoll als eigene Zeile gedruckt. Format-Vorschlag: Messstelle – Messwert (Ω) – i.O./n.i.O.</div>
     </div>
     </div>
 
@@ -197,10 +197,6 @@
           <option value="Ja">Ja (Übergabepunkt freigegeben)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label>Einspeisung befristet bis / Rückgabe am:</label>
-        <input type="date" id="res_termin_date">
       </div>
     </div>
 
@@ -248,6 +244,7 @@
 
   applyMasterDataToForm();
   initProtokollNummer('AP');
+  toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
 
   addFeedCard();
 

@@ -203,45 +203,27 @@
         <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.12">
         <div class="limit-hint">Durchgängigkeitsmessung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
-      <div class="form-group">
-        <label>Messpunkt / Bezugspunkt:</label>
+      <div class="form-group grid-full">
+        <label>Messpunkt / Bezugspunkt der Messung:</label>
         <input type="text" id="erdung_messpunkt" placeholder="z. B. HES im Keller / PA-Schiene UV-1">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'PA-Schiene')">PA-Schiene</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Unterverteilung UV')">UV</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptverteilung HV')">HV</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Unterverteilung UV')">UV</button>
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Fundamenterder')">Fundamenterder</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Blitzschutzanlage / Erdungsfestpunkt')">Blitzschutz</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptschutzleiter PE')">Hauptschutzleiter</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptwasserleitung')">Hauptwasserleitung</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Heizungsanlage')">Heizung</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Gasleitung (Isolierstück beachten)')">Gasleitung</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Klima-/Lüftungsanlage')">Klima/Lüftung</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Gebäudekonstruktion / Stahlbau')">Gebäudekonstr.</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Bühnenwagen / Drehbühne')">Bühnenwagen</button>
+          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Kabelpritsche / Kabeltrasse')">Kabeltrasse</button>
         </div>
       </div>
-      <div class="form-group">
-        <label>Gemessen gegen (2. Messpunkt):</label>
-        <input type="text" id="erdung_bezugspunkt" placeholder="z. B. Steckdose Bühne links / Traverse">
-      </div>
-    </div>
-
-    <label>Gemessen an Hauptkomponenten (Häkchen setzen):</label>
-    <div class="checkbox-grid">
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Fundamenterder"> Fundamenterder</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Blitzschutzanlage"> Blitzschutzanlage</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Hauptwasserleitung"> Hauptwasserleitung</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Heizungsanlage"> Heizungsanlage</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Potenzialausgleichsschiene"> Potenzialausgleichsschiene</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Gebäudekonstruktion"> Gebäudekonstruktion</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Wasserleitung"> Wasserleitung</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Klimaanlage"> Klimaanlage</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Hauptschutzleiter"> Hauptschutzleiter</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Traverse/Tribüne"> Traverse/Tribüne</label>
-      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Gasleitung"> Gasleitung</label>
-    </div>
-
-    <!-- EIGENE MESSSTELLEN: die Häkchenliste deckt nicht jede Anlage ab -->
-    <div class="eigene-angaben">
-      <label>Weitere / eigene Messstellen (Freitext, erscheint im PDF):</label>
-      <textarea id="erdung_eigene" class="auto-grow" rows="2"
-                placeholder="z. B. Traverse Portal links 0,08 Ω · Bühnenwagen 0,15 Ω · Lichtstativ FOH 0,21 Ω"
-                oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      <div class="limit-hint">Jede Zeile wird im Protokoll als eigene Zeile gedruckt. Format-Vorschlag: Messstelle – Messwert (Ω) – i.O./n.i.O.</div>
     </div>
     </div>
 

@@ -48,27 +48,37 @@ function addCircuitCard(data = {}) {
       </div>
     </div>
 
-    <!-- MESSWERTE: R_PE & R_ISO -->
+    <!-- MESSWERTE: R_PE & R_ISO
+         Zwei klar getrennte Gruppen: sonst wirkte am Desktop die Prüfspannung
+         wie eine Angabe zu R_PE, obwohl sie zum Isolationswiderstand gehört. -->
     <div class="sub-section">
       <div class="sub-title">1. Schutzleiter- & Isolationswiderstand</div>
-      <div class="grid">
-        <div class="form-group">
-          <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${data.rpe || ''}" placeholder="z. B. 0.11" oninput="validateCardNorms(${cardCounter})">
-          <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
+      <div class="mess-gruppen">
+        <div class="mess-gruppe">
+          <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
+          <div class="form-group">
+            <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
+            <input type="text" inputmode="decimal" class="c-rpe" value="${data.rpe || ''}" placeholder="z. B. 0.11" oninput="validateCardNorms(${cardCounter})">
+            <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>R<sub>ISO</sub> Prüfspannung (DIN VDE 0100-600, Tab. 6.1):</label>
-          <select class="c-riso-mode" onchange="validateCardNorms(${cardCounter})">
-            <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; Stromkreis bis 500 V (&ge; 1,0 M&Omega;)</option>
-            <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
-            <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; Stromkreis über 500 V (&ge; 1,0 M&Omega;)</option>
-            <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>R<sub>ISO</sub> Messwert (M&Omega;):</label>
-          <input type="text" inputmode="decimal" class="c-riso" value="${data.riso || ''}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
+        <div class="mess-gruppe">
+          <div class="mess-gruppe-titel">Isolationswiderstand R<sub>ISO</sub></div>
+          <div class="grid">
+            <div class="form-group">
+              <label>Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
+              <select class="c-riso-mode" onchange="validateCardNorms(${cardCounter})">
+                <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
+                <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
+                <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
+                <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung (kein Normfall)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Messwert R<sub>ISO</sub> (M&Omega;):</label>
+              <input type="text" inputmode="decimal" class="c-riso" value="${data.riso || ''}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -79,7 +89,7 @@ function addCircuitCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>Absicherung (Typ / Nennstrom):</label>
-          <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${data.sich || 'B 16A'}" placeholder="z. B. B 16A" oninput="validateCardNorms(${cardCounter})">
+          <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${data.sich || ''}" placeholder="z. B. B 16A" oninput="validateCardNorms(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 16A'); validateCardNorms(${cardCounter})">B 16A</button>
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 10A'); validateCardNorms(${cardCounter})">B 10A</button>
@@ -104,7 +114,7 @@ function addCircuitCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>RCD Typ:</label>
-          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${data.rcd_typ || 'Typ A'}" placeholder="z. B. Typ A">
+          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${data.rcd_typ || ''}" placeholder="z. B. Typ A">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A')">Typ A</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B')">Typ B</button>
@@ -115,7 +125,7 @@ function addCircuitCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-          <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${data.rcd_idn || '30 mA'}" placeholder="z. B. 30 mA" oninput="validateCardNorms(${cardCounter})">
+          <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${data.rcd_idn || ''}" placeholder="z. B. 30 mA" oninput="validateCardNorms(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '10 mA'); validateCardNorms(${cardCounter})">10 mA</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '30 mA'); validateCardNorms(${cardCounter})">30 mA</button>
@@ -129,9 +139,10 @@ function addCircuitCard(data = {}) {
         <div class="form-group">
           <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
           <select class="c-rcd-pruefstrom" onchange="validateCardNorms(${cardCounter})">
-            <option value="5" selected>5 &times; I<sub>&Delta;n</sub> (max. 40 ms) &ndash; Standard</option>
+            <option value="" selected>&ndash; bitte wählen &ndash;</option>
             <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
             <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
+            <option value="5">5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
           </select>
         </div>
         <div class="form-group">
@@ -166,8 +177,9 @@ function addCircuitCard(data = {}) {
   container.appendChild(card);
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
-  // Ohne gespeicherten Wert bleibt der Standard 5 x I_dn aus dem Markup stehen.
-  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || RCD_PRUEFSTROM_STANDARD;
+  // Kein Vorgabewert: der Prüfstrom muss bewusst gewählt werden, weil davon
+  // der zulaessige Grenzwert der Ausloesezeit abhaengt.
+  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || '';
   if (data.art) {
     card.querySelector('.c-spannung-art').value = data.art;
     updateMaxSpannung(cardCounter, data.art);
@@ -205,12 +217,15 @@ function validateCardNorms(cardId) {
   const pruefstromElem = card.querySelector('.c-rcd-pruefstrom');
   const rcdTypElem = card.querySelector('.c-rcd-typ');
   const istSelektiv = rcdTypElem ? /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(rcdTypElem.value) : false;
-  const taMax = getRcdMaxAusloesezeitMs(pruefstromElem ? pruefstromElem.value : RCD_PRUEFSTROM_STANDARD, istSelektiv);
+  // Ohne gewaehlten Pruefstrom gibt es keinen definierten Grenzwert -> es wird
+  // weder ein Limit angezeigt noch die Ausloesezeit bewertet.
+  const pruefstromGewaehlt = !!(pruefstromElem && pruefstromElem.value);
+  const taMax = pruefstromGewaehlt ? getRcdMaxAusloesezeitMs(pruefstromElem.value, istSelektiv) : null;
   const taLimitLabel = document.getElementById(`ta_limit_${cardId}`);
-  if (taLimitLabel) taLimitLabel.textContent = `[max. ${taMax} ms]`;
+  if (taLimitLabel) taLimitLabel.textContent = taMax !== null ? `[max. ${taMax} ms]` : '[Prüfstrom wählen]';
 
   const taElem = card.querySelector('.c-rcd-ta');
-  if (taElem && taElem.value.trim() !== '' && taElem.value.trim() !== '-') {
+  if (taElem && taMax !== null && taElem.value.trim() !== '' && taElem.value.trim() !== '-') {
     const num = parseFloat(taElem.value.replace(',', '.'));
     if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
   } else if (taElem) taElem.classList.remove('out-of-norm');
@@ -274,17 +289,11 @@ function fillExampleData() {
   document.getElementById('erdung_re').value = "0.18";
   document.getElementById('pa_widerstand').value = "0.11";
   document.getElementById('erdung_messpunkt').value = "HES (Haupterdungsschiene) Keller Gr. Haus";
-  document.getElementById('erdung_bezugspunkt').value = "PA-Schiene UV-1 Unterbühne";
-  document.getElementById('erdung_eigene').value =
-    "Traverse Portal links - 0,09 Ohm - i.O.\nBühnenwagen 2 - 0,14 Ohm - i.O.\nLichtstativ FOH - 0,21 Ohm - i.O.";
   validateErdung();
   // Der frueher hier hinterlegte Text "Sicherung in Kreis 2 erneuert" stand im
   // Widerspruch zum angekreuzten "Keine Mängel festgestellt". Fuer den Fall einer
   // behobenen Beanstandung gibt es jetzt die eigene Option im Feld res_maengel.
   document.getElementById('res_bemerkungen').value = "Alle Messwerte innerhalb der zulässigen Grenzen. Keine Mängel festgestellt.";
-
-  const checkboxes = document.querySelectorAll('.erdung-cb');
-  if (checkboxes.length > 4) { checkboxes[0].checked = true; checkboxes[2].checked = true; checkboxes[4].checked = true; }
 
   document.getElementById('circuitsContainer').innerHTML = '';
   cardCounter = 0;
@@ -494,10 +503,15 @@ function generatePDF(isBlank = false) {
     "1,2 V"
   ];
 
+  // Index der Beispielzeile (fuer die Formatierung in didParseCell).
+  // Sie steht am ENDE der Tabelle, damit die Eintragezeilen oben beginnen.
+  let beispielIndex = -1;
+
   if (isBlank) {
-    tableRows.push(BEISPIEL_ZEILE_VDE);
     // Zeilenzahl so gewaehlt, dass das GESAMTE Leerformular auf eine A4-Seite passt
     for (let i = 1; i <= 7; i++) tableRows.push([i, "", "", "", "", "", "", "", ""]);
+    beispielIndex = tableRows.length;
+    tableRows.push(BEISPIEL_ZEILE_VDE);
   } else {
     const cards = document.querySelectorAll('.circuit-card');
     cards.forEach((card, idx) => {
@@ -622,7 +636,7 @@ function generatePDF(isBlank = false) {
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
       // Beispielzeile im Leerformular grau/kursiv absetzen
-      if (isBlank && data.section === 'body' && data.row.index === 0) {
+      if (data.section === 'body' && data.row.index === beispielIndex) {
         data.cell.styles.fontStyle = 'italic';
         data.cell.styles.textColor = [100, 116, 139];
         data.cell.styles.fillColor = [248, 250, 252];
@@ -636,31 +650,14 @@ function generatePDF(isBlank = false) {
   /* --- SEKTION 4: ERDUNG / POTENZIALAUSGLEICH (Kategorie "erdung" = violett)
    * Neu: Messpunkt + Bezugspunkt sowie ein Freitextblock fuer eigene
    * Messstellen, die die Haekchenliste nicht abdeckt. */
-  const eigeneRoh = isBlank ? '' : (document.getElementById('erdung_eigene')?.value || '').trim();
-  const eigeneZeilen = eigeneRoh
-    ? eigeneRoh.split(/\r?\n/).map(z => z.trim()).filter(Boolean).map(z => cleanStr(z))
-    : [];
-  const eigeneAnzahl = isBlank ? 2 : Math.max(eigeneZeilen.length, 1);
-
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
-
-  const selectedErdung = Array.from(document.querySelectorAll('.erdung-cb:checked')).map(cb => cb.value);
-  // Im ausgefuellten Protokoll werden die angehakten Punkte als Fliesstext
-  // gedruckt (eine Zeile) statt als Kaestchenraster (drei Zeilen) - das spart
-  // Bauhoehe, ohne Information zu verlieren. Das Leerformular behaelt die
-  // Kaestchen, weil man dort ankreuzen koennen muss.
-  const erdungAlsText = !isBlank;
-  const erdungZeilenHoehe = erdungAlsText ? ZA : 3 * ZA;
+  const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
   const OFF_R = 10;
   const OFF_PUNKT = OFF_R + ZA;
-  const OFF_ERD = OFF_PUNKT + ZA;
-  const offEigenLabel = OFF_ERD + erdungZeilenHoehe + 1;
-  const offEigenStart = offEigenLabel + 4.2;
-  const offErgebnis   = offEigenStart + eigeneAnzahl * 4.2 + 1.5;
+  const offErgebnis   = OFF_PUNKT + ZA + 2;
   const offTermin     = offErgebnis + 5.5;
   const offBemLabel   = offTermin + 5.5;
   const offBemStart   = offBemLabel + 4.2;
@@ -685,44 +682,8 @@ function generatePDF(isBlank = false) {
                 feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 107, finalY + OFF_R, 90, isBlank);
 
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
-  drawFeldZeile(doc, "Messpunkt (HES/UV/PA-Schiene):", feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 90, isBlank);
-  drawFeldZeile(doc, "Gemessen gegen:", feldWert('erdung_bezugspunkt'), 107, finalY + OFF_PUNKT, 90, isBlank);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.text("Gemessen an:", 13, finalY + OFF_ERD);
-  doc.setFont("helvetica", "normal");
-
-  if (erdungAlsText) {
-    drawFittedText(doc, selectedErdung.length ? selectedErdung.join(', ') : '-', 35, finalY + OFF_ERD, 162, 7.2, 5.4);
-    doc.setFontSize(7.2);
-  } else {
-    const cbX = [35, 77, 116, 158];
-    const zeile1 = finalY + OFF_ERD, zeile2 = zeile1 + ZA, zeile3 = zeile2 + ZA;
-    drawCheckbox(doc, cbX[0], zeile1, "Fundamenterder", false);
-    drawCheckbox(doc, cbX[1], zeile1, "Blitzschutz", false);
-    drawCheckbox(doc, cbX[2], zeile1, "Hauptwasserleitung", false);
-    drawCheckbox(doc, cbX[3], zeile1, "Heizung", false);
-    drawCheckbox(doc, cbX[0], zeile2, "PA-Schiene", false);
-    drawCheckbox(doc, cbX[1], zeile2, "Gebäudekonstr.", false);
-    drawCheckbox(doc, cbX[2], zeile2, "Wasserleitung", false);
-    drawCheckbox(doc, cbX[3], zeile2, "Klimaanlage", false);
-    drawCheckbox(doc, cbX[0], zeile3, "Hauptschutzleiter", false);
-    drawCheckbox(doc, cbX[1], zeile3, "Traverse/Tribüne", false);
-    drawCheckbox(doc, cbX[2], zeile3, "Gasleitung", false);
-  }
-
-  // EIGENE MESSSTELLEN (Freitext bzw. leere Linien im Leerformular)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.text("Weitere Messstellen (Messstelle – Messwert – Bewertung):", 13, finalY + offEigenLabel);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  if (isBlank || eigeneZeilen.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offEigenStart + 1, 184, eigeneAnzahl, 4.2);
-  } else {
-    eigeneZeilen.forEach((z, i) => doc.text(z, 13, finalY + offEigenStart + i * 4.2));
-  }
+  drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
+                feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
 
   const maengelVal = document.getElementById('res_maengel')?.value || "";
   const hatKeineMaengel = maengelVal.startsWith("Keine");
@@ -848,7 +809,7 @@ const AUTOSAVE_FIELD_IDS = [
   'kalibriert_bis',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erp_anlage', 'erp_schutz', 'erp_drehfeld',
-  'erdung_re', 'pa_widerstand', 'erdung_messpunkt', 'erdung_bezugspunkt', 'erdung_eigene',
+  'erdung_re', 'pa_widerstand', 'erdung_messpunkt',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
   'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -863,7 +824,6 @@ function collectProtocolState() {
   state.anlage_bez = document.getElementById('anlage_bez').value;
   state.gebaeude = document.getElementById('gebaeude_custom').value;
   state.sicht = Array.from(document.querySelectorAll('.sicht-item')).map(s => s.value);
-  state.erdung = Array.from(document.querySelectorAll('.erdung-cb')).map(cb => cb.checked);
 
   state.circuits = Array.from(document.querySelectorAll('.circuit-card')).map(card => ({
     bez: card.querySelector('.c-bez').value,
@@ -904,7 +864,7 @@ function restoreProtocolState(state) {
   }
 
   // Mitwachsende Textfelder nach dem Wiederherstellen auf Inhaltshoehe bringen
-  ['res_bemerkungen', 'erdung_eigene'].forEach(id => {
+  ['res_bemerkungen'].forEach(id => {
     const ta = document.getElementById(id);
     if (ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
   });
@@ -914,9 +874,6 @@ function restoreProtocolState(state) {
 
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });
-
-  const erdungEls = document.querySelectorAll('.erdung-cb');
-  (state.erdung || []).forEach((checked, i) => { if (erdungEls[i]) erdungEls[i].checked = checked; });
 
   if (state.circuits && state.circuits.length) {
     document.getElementById('circuitsContainer').innerHTML = '';
@@ -954,7 +911,6 @@ function resetVdeForm() {
 
   document.getElementById('anlage_bez').style.height = 'auto';
   document.getElementById('res_bemerkungen').style.height = 'auto';
-  document.getElementById('erdung_eigene').style.height = 'auto';
 
   applyMasterDataToForm();
 
