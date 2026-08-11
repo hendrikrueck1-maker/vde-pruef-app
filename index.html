@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>VDE Prüfprotokoll Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- ===== PWA (Progressive Web App) ===== -->
+  <meta name="description" content="Prüfprotokolle nach DIN VDE erstellen und als PDF ausgeben – offline nutzbar.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- iOS-spezifisch -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Protokoll">
+  <meta name="format-detection" content="telephone=no">
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+
+  <script src="js/storage.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <h1>Prüfprotokoll Manager – Hauptübersicht</h1>
+    <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;">Stadttheater Konstanz Prüfsystem</span>
+  </div>
+
+  <h2>1. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
+  </p>
+
+  <form id="masterDataForm">
+    <div class="grid">
+      <div class="form-group"><label>Auftraggeber / Betrieb:</label><input type="text" id="m_auftraggeber"></div>
+      <div class="form-group"><label>Standard-Gebäude / Bereich:</label><input type="text" id="m_gebaeude"></div>
+      <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="m_vnb"></div>
+      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="m_pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="m_messgeraet"></div>
+      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="m_seriennummer"></div>
+      <div class="form-group"><label>Prüfgerät kalibriert bis:</label><input type="date" id="m_kalibriert_bis"></div>
+      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="m_ort"></div>
+    </div>
+    
+    <div style="text-align: right; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary" onclick="saveMasterData(true)">💾 Stammdaten Speichern</button>
+    </div>
+  </form>
+
+  <h2>2. Protokoll-Typ auswählen</h2>
+  <div class="protocol-grid" id="protocolGrid"></div>
+
+  <h2>3. Datensicherung</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Stammdaten und Zähler als Datei sichern – empfohlen vor längerem Offline-Einsatz
+    und auf iPad/iPhone, da iOS Browserdaten nach längerer Nichtnutzung löschen kann.
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <button type="button" class="btn btn-secondary" onclick="exportAppData()">⬇️ Sicherung exportieren</button>
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('importFile').click()">⬆️ Sicherung einspielen</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none"
+           onchange="importAppData(this.files[0]); this.value='';">
+    <span id="appVersionHint" style="margin-left:auto; align-self:center; font-size:0.75rem; color:var(--secondary);"></span>
+  </div>
+</div>
+
+<script>
+  loadMasterDataToDashboard();
+  renderProtokollKacheln();
+  document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
+
+  /* Kacheln werden aus js/app-config.js erzeugt --------------------------- */
+  function renderProtokollKacheln() {
+    var grid = document.getElementById('protocolGrid');
+    if (!grid || typeof PROTOKOLLE === 'undefined') return;
+    grid.innerHTML = '';
+
+    PROTOKOLLE.forEach(function (p) {
+      var aktiv = p.status !== 'geplant';
+      var card = document.createElement('div');
+      card.className = 'protocol-card' + (aktiv ? ' active' : '');
+
+      var kopf = document.createElement('div');
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (aktiv ? 'badge-active' : 'badge-future');
+      badge.textContent = aktiv ? 'Aktiv / Verfügbar' : 'In Planung';
+      kopf.appendChild(badge);
+
+      var h3 = document.createElement('h3');
+      h3.textContent = p.titel;
+      kopf.appendChild(h3);
+
+      if (p.norm) {
+        var norm = document.createElement('p');
+        norm.style.cssText = 'font-size:0.72rem; color:var(--secondary); margin:2px 0 6px;';
+        norm.textContent = p.norm;
+        kopf.appendChild(norm);
+      }
+
+      var txt = document.createElement('p');
+      txt.textContent = p.beschreibung || '';
+      kopf.appendChild(txt);
+      card.appendChild(kopf);
+
+      if (aktiv) {
+        var a = document.createElement('a');
+        a.href = p.datei;
+        a.className = 'btn btn-success';
+        a.style.cssText = 'display:block; text-align:center; text-decoration:none; margin-top:10px;';
+        a.textContent = '▶ Protokoll starten';
+        a.onclick = function () { saveMasterData(false); };
+        card.appendChild(a);
+      } else {
+        var d = document.createElement('div');
+        d.style.cssText = 'margin-top:10px; text-align:center; font-size:0.8rem; color:var(--secondary);';
+        d.textContent = 'noch nicht verfügbar';
+        card.appendChild(d);
+      }
+
+      grid.appendChild(card);
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Anschlussprüfung Übergabepunkt Stromversorgung</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- ===== PWA (Progressive Web App) ===== -->
+  <meta name="description" content="Prüfprotokolle nach DIN VDE erstellen und als PDF ausgeben – offline nutzbar.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- iOS-spezifisch -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Protokoll">
+  <meta name="format-detection" content="telephone=no">
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+
+  <script src="js/vendor/jspdf.umd.min.js"></script>
+  <script src="js/vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/vendor/signature_pad.umd.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/pdf-utils.js"></script>
+  <script src="js/anschluss-generator.js"></script>
+
+  <style>
+    .grid-full { grid-column: 1 / -1; }
+    textarea.auto-grow { resize: none; overflow: hidden; min-height: 38px; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <div>
+      <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+    </div>
+    <h1>Anschlussprüfung Übergabepunkt Stromversorgung</h1>
+    <div>
+      <button type="button" class="btn btn-secondary" onclick="fillExampleDataAnschluss()">+ Beispieldaten laden</button>
+      <button type="button" class="btn btn-secondary" onclick="neuesAnschlussProtokoll()">+ Neues Formular</button>
+    </div>
+  </div>
+
+  <form id="anschlussForm">
+    <!-- 1. STAMMDATEN -->
+    <h2>1. Allgemeine Angaben & Stammdaten</h2>
+    <div class="grid">
+      <div class="form-group grid-full">
+        <label>Auftraggeber / Veranstaltungsort:</label>
+        <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
+      </div>
+
+      <div class="form-group">
+        <label>Gebäude / Bereich:</label>
+        <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
+          <option value="Gr. Haus">Gr. Haus</option>
+          <option value="Werkstatt">Werkstatt</option>
+          <option value="Spiegelhalle">Spiegelhalle</option>
+          <option value="Münsterplatz">Münsterplatz</option>
+          <option value="Probebühne">Probebühne</option>
+          <option value="custom">Sonstiges...</option>
+        </select>
+        <input type="text" id="gebaeude_custom" value="Gr. Haus" placeholder="Gebäude/Raum eingeben" style="display:none; margin-top:4px;">
+      </div>
+
+      <div class="form-group grid-full">
+        <label>Veranstaltung / Anlass:</label>
+        <textarea id="veranstaltung" class="auto-grow" rows="1" placeholder="z. B. Gastspiel Ballett XY, Freilichtaufführung Münsterplatz" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      </div>
+
+      <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. AP-2026-001"></div>
+      <div class="form-group"><label>Protokoll-Nr. (Auto):</label><input type="text" id="protokollnummer" readonly></div>
+      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <div class="form-group"><label>Prüfgerät kalibriert bis:</label><input type="date" id="kalibriert_bis"></div>
+    </div>
+
+    <!-- 2. BEREITSTELLER / NETZBETREIBER DER EINSPEISUNG -->
+    <h2>2. Angaben zum Bereitsteller / Netzbetreiber der Einspeisung</h2>
+    <p style="font-size: 0.78rem; color: var(--secondary); margin-top: -5px;">
+      Der Übergabepunkt markiert die Grenze zwischen der Anlage des Netzbetreibers/Bereitstellers und der eigenen (Veranstaltungs-)Anlage (vgl. DIN&nbsp;VDE&nbsp;0100-704). Ab hier übernimmt der Veranstalter/die Elektrofachkraft die Verantwortung.
+    </p>
+    <div class="grid">
+      <div class="form-group"><label>Firma / Netzbetreiber / Vermieter:</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz"></div>
+      <div class="form-group"><label>Ansprechpartner/-in:</label><input type="text" id="bereitsteller_ansprechpartner"></div>
+      <div class="form-group"><label>Telefon:</label><input type="text" id="bereitsteller_telefon"></div>
+      <div class="form-group">
+        <label>Art der Einspeisung:</label>
+        <select id="einspeisung_art">
+          <option>Festanschluss / Zählerschrank</option>
+          <option>Baustromverteiler</option>
+          <option>Generator / Notstromaggregat</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Standort / Bezeichnung Übergabepunkt:</label><input type="text" id="uebergabe_standort" placeholder="z. B. Zählerschrank Bühneneingang"></div>
+      <div class="form-group"><label>Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
+    </div>
+
+    <!-- 3. BESICHTIGEN -->
+    <h2>3. Besichtigen (Sichtprüfung Übergabepunkt)</h2>
+    <div class="grid">
+      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+    </div>
+
+    <!-- 4. ÜBERGABEPUNKTE -->
+    <h2>4. Messtechnische Feststellungen je Übergabepunkt</h2>
+    <div id="feedsContainer"></div>
+    <button type="button" class="btn btn-secondary" onclick="addFeedCard()">+ Übergabepunkt hinzufügen</button>
+
+    <!-- 5. ERDUNG -->
+    <h2>5. Erdung / Potenzialausgleich</h2>
+    <div class="grid">
+      <div class="form-group">
+        <label>Potenzialausgleich angeschlossen:</label>
+        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
+      </div>
+      <div class="form-group">
+        <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
+        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" oninput="validateErdungAnschluss()">
+      </div>
+    </div>
+
+    <!-- 6. BEWERTUNG -->
+    <h2>6. Gesamtbeurteilung & Freigabe</h2>
+    <div class="grid">
+      <div class="form-group">
+        <label>Gesamtbewertung Mängel:</label>
+        <select id="res_maengel">
+          <option>Keine Mängel festgestellt</option>
+          <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
+          <option>Mängel festgestellt (siehe Bemerkung)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Anschlussleistung ausreichend für geplante Last:</label>
+        <select id="res_leistung_ausreichend"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
+      </div>
+      <div class="form-group">
+        <label>Freigabe zur Nutzung:</label>
+        <select id="res_freigabe">
+          <option value="Ja">Ja (Übergabepunkt freigegeben)</option>
+          <option value="Nein">Nein (Sicherheitsrisiko)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Einspeisung befristet bis / Rückgabe am:</label>
+        <input type="date" id="res_termin_date">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 8px;">
+      <label>Mängel / Bemerkungen / Auflagen:</label>
+      <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+
+    <!-- 7. ÜBERGABE -->
+    <h2>7. Übergabebestätigung & Unterschriften</h2>
+    <div class="grid" style="margin-bottom:8px;">
+      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+    </div>
+
+    <div class="sig-block">
+      <div class="sig-card">
+        <label>Unterschrift Übergebende/-r (Netzbetreiber/Bereitsteller):</label>
+        <canvas id="sigUebergeber"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padUebergeber.clear()">Löschen</button>
+      </div>
+      <div class="sig-card">
+        <label>Unterschrift Übernehmende/-r (Veranstalter/Elektrofachkraft):</label>
+        <canvas id="sigUebernehmer"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padUebernehmer.clear()">Löschen</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" onclick="generatePDFAnschluss(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
+      <button type="button" class="btn btn-success" onclick="generatePDFAnschluss(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  let padUebergeber, padUebernehmer;
+
+  document.getElementById('datum').valueAsDate = new Date();
+
+  applyMasterDataToForm();
+  initProtokollNummer('AP');
+
+  addFeedCard();
+
+  restoreAnschlussState(loadAnschlussAutosave());
+
+  const pads = initSignaturePadsAnschluss();
+  padUebergeber = pads.uebergeber;
+  padUebernehmer = pads.uebernehmer;
+
+  document.getElementById('anschlussForm').addEventListener('input', autosaveProtocol);
+  document.getElementById('anschlussForm').addEventListener('change', autosaveProtocol);
+</script>
+
+</body>
+</html>

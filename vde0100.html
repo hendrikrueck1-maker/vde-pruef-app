@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>VDE 0100 / 0105 Prüfprotokoll Formular</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- ===== PWA (Progressive Web App) ===== -->
+  <meta name="description" content="Prüfprotokolle nach DIN VDE erstellen und als PDF ausgeben – offline nutzbar.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- iOS-spezifisch -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Protokoll">
+  <meta name="format-detection" content="telephone=no">
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+
+  <script src="js/vendor/jspdf.umd.min.js"></script>
+  <script src="js/vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/vendor/signature_pad.umd.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/pdf-utils.js"></script>
+  <script src="js/pdf-generator.js"></script>
+
+  <style>
+    /* Spezifische Ergänzungen für mitwachsende Felder */
+    .grid-full {
+      grid-column: 1 / -1;
+    }
+    textarea.auto-grow {
+      resize: none;
+      overflow: hidden;
+      min-height: 38px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <div>
+      <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+    </div>
+    <h1>VDE 0100 / 0105 Prüfprotokoll</h1>
+    <div>
+      <button type="button" class="btn btn-secondary" onclick="fillExampleData()">+ Beispieldaten laden</button>
+      <button type="button" class="btn btn-secondary" onclick="neuesProtokoll()">+ Neues Formular</button>
+    </div>
+  </div>
+
+  <form id="vdeForm">
+    <!-- 1. STAMMDATEN -->
+    <h2>1. Allgemeine Angaben & Stammdaten</h2>
+    <div class="grid">
+      <!-- AUFTRAGGEBER LESBAR IN VOLLBREITE -->
+      <div class="form-group grid-full">
+        <label>Auftraggeber / Prüfort:</label>
+        <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
+      </div>
+
+      <div class="form-group">
+        <label>Gebäude / Bereich:</label>
+        <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
+          <option value="Gr. Haus">Gr. Haus</option>
+          <option value="Werkstatt">Werkstatt</option>
+          <option value="Spiegelhalle">Spiegelhalle</option>
+          <option value="Münsterplatz">Münsterplatz</option>
+          <option value="Probebühne">Probebühne</option>
+          <option value="custom">Sonstiges...</option>
+        </select>
+        <!-- Custom Input nur sichtbar bei "custom" -->
+        <input type="text" id="gebaeude_custom" value="Gr. Haus" placeholder="Gebäude/Raum eingeben" style="display:none; margin-top:4px;">
+      </div>
+
+      <!-- MITWACHSENDES FELD ANLAGE -->
+      <div class="form-group grid-full">
+        <label>Anlage (Bezeichnung):</label>
+        <textarea id="anlage_bez" class="auto-grow" rows="1" placeholder="z. B. Hauptverteilung Unterbühne UV-1" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      </div>
+
+      <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. PR-2026-001"></div>
+      <div class="form-group"><label>Protokoll-Nr. (Auto):</label><input type="text" id="protokollnummer" readonly></div>
+      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
+    </div>
+
+    <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄTE -->
+    <h2>2. Netzsystem, Netzbetreiber & Prüfgeräte</h2>
+    <div class="grid">
+      <div class="form-group">
+        <label>Prüfart / Norm:</label>
+        <select id="pruefnorm">
+          <option>DIN VDE 0100-600 (Erstprüfung)</option>
+          <option selected>DIN VDE 0105-100 (Wiederholungsprüfung)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Netzsystem:</label>
+        <select id="netzsystem">
+          <option selected>TN-S</option>
+          <option>TN-C-S</option>
+          <option>TN-C</option>
+          <option>TT</option>
+          <option>IT</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Netzspannung (V):</label><input type="text" inputmode="decimal" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)"></div>
+      <div class="form-group"><label>Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"></div>
+      <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="vnb"></div>
+      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <div class="form-group"><label>Prüfgerät kalibriert bis:</label><input type="date" id="kalibriert_bis"></div>
+    </div>
+
+    <!-- 3. BESICHTIGEN -->
+    <h2>3. Besichtigen (Sichtprüfung gemäß VDE-Vorlage)</h2>
+    <div class="grid">
+      <div class="form-group"><label>1. Betriebsmittel:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>2. Kabel & Leitungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>3. Zugänglichkeit:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>4. Schaltgeräte:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>5. Kennzeichnung:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>6. Doku / Warnung:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>7. Zus. Potenzialausgl.:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>8. Berührungsschutz:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>9. Typenschild:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+    </div>
+
+    <!-- ANSCHLUSSKABEL DER ANLAGE (TEXT KORRIGIERT & MIT BUTTONS) -->
+    <div class="sub-section" style="margin-top:10px;">
+      <div class="sub-title">Anschlusskabel der Anlage</div>
+      <div class="grid">
+        <div class="form-group">
+          <label>Kabeltyp:</label>
+          <input type="text" id="anschluss_typ" placeholder="z. B. H07RN-F">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'NYM-J')">NYM-J</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07RN-F')">H07RN-F</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'TITANEX')">TITANEX</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Leiter-Anzahl:</label>
+          <input type="text" id="anschluss_leiter" placeholder="z. B. 5G">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '5G')">5G</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '3G')">3G</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '4G')">4G</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Querschnitt:</label>
+          <input type="text" inputmode="decimal" id="anschluss_qs" placeholder="z. B. 6 mm²">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1.5 mm²')">1.5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '2.5 mm²')">2.5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '4.0 mm²')">4.0 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '6.0 mm²')">6.0 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '10.0 mm²')">10 mm²</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. ERPROBEN -->
+    <h2>4. Erproben (Funktionsprüfung)</h2>
+    <div class="grid">
+      <div class="form-group"><label>Funktion Anlage:</label><select id="erp_anlage"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>Schutzeinrichtungen:</label><select id="erp_schutz"><option>i.O.</option><option>n.i.O.</option></select></div>
+      <div class="form-group"><label>Drehfeld:</label><select id="erp_drehfeld"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+    </div>
+
+    <!-- 5. MESSWERTE PRO STROMKREIS -->
+    <h2>5. Messtechnische Prüfungen (Stromkreise)</h2>
+    <div id="circuitsContainer"></div>
+    <button type="button" class="btn btn-secondary" onclick="addCircuitCard()">+ Stromkreis hinzufügen</button>
+
+    <!-- 6. ERDUNG & POTENZIALAUSGLEICH -->
+    <h2>6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
+    <div class="form-group" style="margin-bottom: 8px;">
+      <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
+      <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" style="max-width: 180px;" oninput="validateErdung()">
+    </div>
+    
+    <label>Gemessen an Hauptkomponenten (Häkchen setzen):</label>
+    <div class="checkbox-grid">
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Fundamenterder"> Fundamenterder</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Blitzschutzanlage"> Blitzschutzanlage</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Hauptwasserleitung"> Hauptwasserleitung</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Heizungsanlage"> Heizungsanlage</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Potenzialausgleichsschiene"> Potenzialausgleichsschiene</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Gebäudekonstruktion"> Gebäudekonstruktion</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Wasserleitung"> Wasserleitung</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Klimaanlage"> Klimaanlage</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Hauptschutzleiter"> Hauptschutzleiter</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Traverse/Tribüne"> Traverse/Tribüne</label>
+      <label class="checkbox-item"><input type="checkbox" class="erdung-cb" value="Gasleitung"> Gasleitung</label>
+    </div>
+
+    <!-- 7. BEWERTUNG -->
+    <h2>7. Gesamtbeurteilung, Gewährleistung & Prüftermin</h2>
+    <div class="grid">
+      <div class="form-group">
+        <label>Gesamtbewertung Mängel:</label>
+        <select id="res_maengel">
+          <option>Keine Mängel festgestellt</option>
+          <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
+          <option>Mängel festgestellt (siehe Bemerkung)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Prüfplakette erteilt:</label>
+        <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
+      </div>
+      <div class="form-group">
+        <label>Nächster Prüftermin (Monat/Jahr):</label>
+        <input type="month" id="res_termin_date">
+      </div>
+      <div class="form-group">
+        <label>Sicherer Gebrauch gewährleistet:</label>
+        <select id="res_gewaehrleistung">
+          <option value="Ja">Ja (Anlage entspricht VDE-Regeln)</option>
+          <option value="Nein">Nein (Sicherheitsrisiko)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 8px;">
+      <label>Mängel / Bemerkungen / Auflagen:</label>
+      <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+
+    <!-- 8. UNTERSCHRIFTEN -->
+    <h2>8. Konformitätsbestätigung & Unterschriften</h2>
+    <div class="grid" style="margin-bottom:8px;">
+      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+    </div>
+
+    <div class="sig-block">
+      <div class="sig-card">
+        <label>Unterschrift Prüfer/-in:</label>
+        <canvas id="sigPruefer"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
+      </div>
+      <div class="sig-card">
+        <label>Unterschrift Auftraggeber / Betreiber:</label>
+        <canvas id="sigKunde"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padKunde.clear()">Löschen</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" onclick="generatePDF(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
+      <button type="button" class="btn btn-success" onclick="generatePDF(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  let padPruefer, padKunde;
+
+  document.getElementById('datum').valueAsDate = new Date();
+
+  // NÄCHSTER PRÜFTERMIN STANDARDMÄSSIG 1 JAHR IN DIE ZUKUNFT
+  const nextD = new Date();
+  nextD.setFullYear(nextD.getFullYear() + 1);
+  document.getElementById('res_termin_date').value = nextD.toISOString().slice(0, 7);
+
+  applyMasterDataToForm();
+  initProtokollNummer('PR');
+
+  addCircuitCard();
+  addCircuitCard();
+
+  // AUTOSAVE WIEDERHERSTELLEN, FALLS VORHANDEN (verhindert Datenverlust bei versehentlichem Reload)
+  restoreProtocolState(loadAutosave());
+
+  const pads = initSignaturePads();
+  padPruefer = pads.pruefer;
+  padKunde = pads.kunde;
+
+  document.getElementById('vdeForm').addEventListener('input', autosaveProtocol);
+  document.getElementById('vdeForm').addEventListener('change', autosaveProtocol);
+</script>
+
+</body>
+</html>
