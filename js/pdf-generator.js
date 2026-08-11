@@ -350,9 +350,13 @@ function generatePDF(isBlank = false) {
     const [jahr, monat, tag] = parts;
     return `${tag}.${monat}.${jahr}`;
   };
-  const datum = isBlank ? "____.____.20__" : (formatDatum(document.getElementById('datum').value) || "____.____.20__");
+  const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
   const ort = getVal('unterschrift_ort', "Konstanz");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
+  // Im Leerformular bleiben Kopf-Felder leer -> die Kopfbox zeichnet dort
+  // Schreiblinien, auf die von Hand eingetragen werden kann.
+  const kopfProtokollNr = isBlank ? "" : protokollNr;
+  const kopfPruefNr = isBlank ? "" : pruefNr;
 
   // HEADER: zentrale Funktion aus pdf-utils.js, passt die Schriftgroesse
   // automatisch an die verfuegbare Breite an (verhindert Ueberdrucken der Infobox)
@@ -360,12 +364,16 @@ function generatePDF(isBlank = false) {
 
   let y = PDF_CONTENT_TOP;
 
-  /* --- SEKTION 1: STAMMDATEN (Kategorie "stamm" = blau) ------------------- */
-  const SEK1_H = 42;
+  /* --- SEKTION 1: STAMMDATEN ---------------------------------------------
+   * Kompakt gehalten: 5 Zeilen je Spalte, Zeilenabstand 4,6 mm.
+   * Protokoll-Nr. und Prueflings-ID stehen bereits in der Kopfbox oben rechts
+   * und werden hier nicht wiederholt - das spart eine ganze Zeile. */
+  const SEK1_H = 31;
+  const ZA = 4.6;                        // Zeilenabstand innerhalb der Boxen
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
 
-  doc.setFontSize(7.5);
-  const spL = 14, spR = 108, spB = 88;   // linke/rechte Spalte, Spaltenbreite
+  doc.setFontSize(7.2);
+  const spL = 13, spR = 107, spB = 90;   // linke/rechte Spalte, Spaltenbreite
 
   let volt = feldWert('netzspannung');
   if (volt && !volt.toLowerCase().includes('v')) volt += ' V';
@@ -385,29 +393,27 @@ function generatePDF(isBlank = false) {
     return t;
   })();
 
-  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, y + 11, spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, y + 16, spB, isBlank);
-  drawFeldZeile(doc, "Anlage:",           feldWert('anlage_bez'),      spL, y + 21, spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, y + 26, spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",        isBlank ? '' : datum,        spL, y + 31, spB, isBlank);
-  drawFeldZeile(doc, "Protokoll-Nr.:",    isBlank ? '' : protokollNr,  spL, y + 36, spB, isBlank);
+  const z1 = (i) => y + 10 + i * ZA;
+  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
+  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Anlage:",           feldWert('anlage_bez'),      spL, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Prüfdatum:",        datum,                       spL, z1(4), spB, isBlank);
 
-  drawFeldZeile(doc, "Prüfnorm:",            feldWert('pruefnorm'),  spR, y + 11, spB, isBlank);
-  drawFeldZeile(doc, "Netzsystem:",          feldWert('netzsystem'), spR, y + 16, spB, isBlank);
-  drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, y + 21, spB, isBlank);
-  drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, y + 26, spB, isBlank);
-  drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, y + 31, spB, isBlank);
-  drawFeldZeile(doc, "Prüflings-ID:",        isBlank ? '' : pruefNr, spR, y + 36, spB, isBlank);
+  drawFeldZeile(doc, "Prüfnorm:",            feldWert('pruefnorm'),  spR, z1(0), spB, isBlank);
+  drawFeldZeile(doc, "Netzsystem:",          feldWert('netzsystem'), spR, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(4), spB, isBlank);
 
-  y += SEK1_H + 5;
+  y += SEK1_H + 4;
 
-  /* --- SEKTION 2: BESICHTIGEN & ERPROBEN (Kategorie "sicht" = gelb) -------
-   * Frueher standen 3 Spalten a ca. 25 mm zur Verfuegung. Lange Beschriftungen
-   * wie "7. Zus. Potenzialausgl.:" liefen dadurch unter die Ankreuzkaestchen.
-   * Jetzt 2 Spalten a 92 mm: der Text hat 46 mm Platz, die Kaestchen stehen
-   * an einer festen Position rechts davon. Zu lange Texte werden zusaetzlich
-   * per drawFittedText verkleinert - Ueberlappung ist damit ausgeschlossen. */
-  const SEK2_H = 49;
+  /* --- SEKTION 2: BESICHTIGEN & ERPROBEN ---------------------------------
+   * Wieder 3 Spalten (spart gegenueber 2 Spalten zwei Zeilen Hoehe).
+   * Damit der Beschreibungstext nicht mehr unter die Kaestchen laeuft, sind
+   * die Bezeichnungen gekuerzt UND die Kaestchen stehen weiter rechts;
+   * zusaetzlich verkleinert drawFittedText zu lange Texte automatisch. */
+  const SEK2_H = 34;
   drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht' });
 
   doc.setFont("helvetica", "normal");
@@ -415,21 +421,20 @@ function generatePDF(isBlank = false) {
 
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
-    "1. Betriebsmittel", "2. Kabel & Leitungen", "3. Zugänglichkeit",
-    "4. Schaltgeräte", "5. Kennzeichnung", "6. Doku / Warnung",
-    "7. Zusätzlicher Potenzialausgleich", "8. Berührungsschutz", "9. Typenschild"
+    "1. Betriebsmittel", "2. Kabel/Leitungen", "3. Zugänglichkeit",
+    "4. Schaltgeräte", "5. Kennzeichnung", "6. Doku/Warnung",
+    "7. Zus. Potenzialausgl.", "8. Berührungsschutz", "9. Typenschild"
   ];
-  const SICHT_LABEL_X = [14, 106];     // Textbeginn je Spalte
-  const SICHT_CB_X    = [62, 154];     // "i.O."-Kaestchen (46 mm Abstand zum Text)
-  const SICHT_LABEL_W = 46;
-  const proSpalte = Math.ceil(sichtLabels.length / 2);   // 5 / 4
+  const SICHT_LABEL_X = [13, 76, 139];   // Textbeginn je Spalte
+  const SICHT_CB_X    = [42, 105, 168];  // "i.O."-Kaestchen (29 mm Textbreite)
+  const SICHT_LABEL_W = 27;
 
   sichtLabels.forEach((label, i) => {
-    const spalte = i < proSpalte ? 0 : 1;
-    const zeile = i < proSpalte ? i : i - proSpalte;
-    const yy = y + 11 + zeile * 5;
+    const spalte = Math.floor(i / 3);
+    const zeile = i % 3;
+    const yy = y + 10 + zeile * ZA;
     doc.setFontSize(7);
-    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W, 7, 5.5);
+    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W, 7, 5.4);
     doc.setFontSize(7);
     drawCheckbox(doc, SICHT_CB_X[spalte], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
     drawCheckbox(doc, SICHT_CB_X[spalte] + 12, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
@@ -439,34 +444,36 @@ function generatePDF(isBlank = false) {
   const kabelAnschluss = [feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
     .filter(p => p).join(' ');
   doc.setFontSize(7);
-  drawFeldZeile(doc, "Anschlusskabel (Typ / Adern / Querschnitt):", kabelAnschluss, 14, y + 37, 180, isBlank);
+  const yKabel = y + 10 + 3 * ZA + 1;
+  drawFeldZeile(doc, "Anschlusskabel (Typ / Adern / Querschnitt):", kabelAnschluss, 13, yKabel, 184, isBlank);
 
+  const yErp = yKabel + ZA + 1;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.text("Erproben:", 14, y + 44);
+  doc.text("Erproben:", 13, yErp);
   doc.setFont("helvetica", "normal");
 
-  doc.text("Funktion Anlage:", 33, y + 44);
-  drawCheckbox(doc, 55, y + 44, "i.O.", !isBlank && document.getElementById('erp_anlage')?.value === "i.O.");
-  drawCheckbox(doc, 67, y + 44, "n.i.O.", !isBlank && document.getElementById('erp_anlage')?.value === "n.i.O.", true);
+  doc.text("Funktion Anlage:", 32, yErp);
+  drawCheckbox(doc, 54, yErp, "i.O.", !isBlank && document.getElementById('erp_anlage')?.value === "i.O.");
+  drawCheckbox(doc, 66, yErp, "n.i.O.", !isBlank && document.getElementById('erp_anlage')?.value === "n.i.O.", true);
 
-  doc.text("Schutzeinrichtungen:", 85, y + 44);
-  drawCheckbox(doc, 112, y + 44, "i.O.", !isBlank && document.getElementById('erp_schutz')?.value === "i.O.");
-  drawCheckbox(doc, 124, y + 44, "n.i.O.", !isBlank && document.getElementById('erp_schutz')?.value === "n.i.O.", true);
+  doc.text("Schutzeinrichtungen:", 84, yErp);
+  drawCheckbox(doc, 111, yErp, "i.O.", !isBlank && document.getElementById('erp_schutz')?.value === "i.O.");
+  drawCheckbox(doc, 123, yErp, "n.i.O.", !isBlank && document.getElementById('erp_schutz')?.value === "n.i.O.", true);
 
-  doc.text("Drehfeld:", 144, y + 44);
-  drawCheckbox(doc, 157, y + 44, "i.O.", !isBlank && document.getElementById('erp_drehfeld')?.value === "i.O.");
-  drawCheckbox(doc, 169, y + 44, "n.i.O.", !isBlank && document.getElementById('erp_drehfeld')?.value === "n.i.O.", true);
-  drawCheckbox(doc, 183, y + 44, "n.a.", !isBlank && document.getElementById('erp_drehfeld')?.value === "n.a.");
+  doc.text("Drehfeld:", 143, yErp);
+  drawCheckbox(doc, 156, yErp, "i.O.", !isBlank && document.getElementById('erp_drehfeld')?.value === "i.O.");
+  drawCheckbox(doc, 168, yErp, "n.i.O.", !isBlank && document.getElementById('erp_drehfeld')?.value === "n.i.O.", true);
+  drawCheckbox(doc, 182, yErp, "n.a.", !isBlank && document.getElementById('erp_drehfeld')?.value === "n.a.");
 
-  y += SEK2_H + 8;
+  y += SEK2_H + 6;
 
-  // SEKTION 3: TABELLE (Kategorie "messen" = gruen)
+  // SEKTION 3: TABELLE
   const katMessen = drawKategorieTitel(doc, "3. MESSTECHNISCHE PRÜFUNGEN DER STROMKREISE", y, 'messen');
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.8);
+  doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.", 13.5, y + 3.6);
+  doc.text("Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.", 10, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -479,18 +486,18 @@ function generatePDF(isBlank = false) {
     "Bsp",
     "Schukosteckdose Lichtregie",
     "NYM-J 3G 1,5 mm2",
-    "0,08 Ohm\n(max. 0,30)",
+    "0,08 Ohm",
     "> 500 MOhm\n(500 V DC)",
     "B 16A",
-    "0,35 Ohm /\n657 A (min. 80 A)",
-    "Typ A (30 mA)\n19 mA / 12 ms\nbei 5x IdN",
-    "1,2 V\n(<= 50 V AC)"
+    "0,35 Ohm / 657 A",
+    "Typ A (30 mA)\n19 mA / 12 ms @ 5x",
+    "1,2 V"
   ];
 
   if (isBlank) {
     tableRows.push(BEISPIEL_ZEILE_VDE);
-    // 12 Leerzeilen fuellen Seite 1 des Leerformulars vollstaendig aus
-    for (let i = 1; i <= 12; i++) tableRows.push([i, "", "", "", "", "", "", "", ""]);
+    // Zeilenzahl so gewaehlt, dass das GESAMTE Leerformular auf eine A4-Seite passt
+    for (let i = 1; i <= 7; i++) tableRows.push([i, "", "", "", "", "", "", "", ""]);
   } else {
     const cards = document.querySelectorAll('.circuit-card');
     cards.forEach((card, idx) => {
@@ -546,23 +553,23 @@ function generatePDF(isBlank = false) {
       const isRcdUngeprueft = hatRcd && (fehlt(rcdImess) || fehlt(rcdTa));
       const isRcdOut = isTaOut || isImessOut || isRcdUngeprueft;
 
+      // Kompakt in zwei Zeilen (spart Bauhoehe -> mehr Stromkreise je Seite)
       let rcdText = `${rcdTyp} (${rcdIdn})`;
       if (hatRcd) {
         rcdText += isRcdUngeprueft
           ? `\nnicht geprüft`
-          : `\n${rcdImess} mA / ${rcdTa} ms bei ${rcdPruefstrom}x IdN`;
+          : `\n${rcdImess} mA / ${rcdTa} ms @ ${rcdPruefstrom}x`;
       }
 
       const uMessVal = card.querySelector('.c-umess').value;
-      const uMaxVal = card.querySelector('.c-ul-max').value;
       const uNum = parseFloat(uMessVal.replace(',', '.'));
       const limitU = (card.querySelector('.c-spannung-art')?.value === 'DC') ? 120 : 50;
       const isUOut = !isNaN(uNum) && uNum > limitU;
 
       // withUnit haengt "V" nur an, wenn die Einheit nicht schon eingetippt wurde
       // (fruehere Ausgabe: "1.2 V V")
-      let uText = uMessVal ? withUnit(uMessVal, 'V') : '-';
-      if (uMaxVal) uText += `\n(${uMaxVal})`;
+      // Der Grenzwert steht bereits im Tabellenkopf -> hier nur der Messwert
+      const uText = uMessVal ? withUnit(uMessVal, 'V') : '-';
 
       if (isRpeOut || isRisoOut || isIkOut || isRcdOut || isUOut) anyMeasurementOut = true;
 
@@ -611,7 +618,8 @@ function generatePDF(isBlank = false) {
     // margin.top gilt fuer alle FOLGESEITEN: haelt den Abstand zum Seitenkopf ein.
     // margin.bottom bestimmt, wann umgebrochen wird - so laeuft nichts in die Fusszeile.
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 8 : 5, overflow: 'linebreak' },
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 6.5 : 5, overflow: 'linebreak',
+              cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
       // Beispielzeile im Leerformular grau/kursiv absetzen
       if (isBlank && data.section === 'body' && data.row.index === 0) {
@@ -632,21 +640,31 @@ function generatePDF(isBlank = false) {
   const eigeneZeilen = eigeneRoh
     ? eigeneRoh.split(/\r?\n/).map(z => z.trim()).filter(Boolean).map(z => cleanStr(z))
     : [];
-  const eigeneAnzahl = isBlank ? 4 : Math.max(eigeneZeilen.length, 1);
+  const eigeneAnzahl = isBlank ? 2 : Math.max(eigeneZeilen.length, 1);
 
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
+  const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
+
+  const selectedErdung = Array.from(document.querySelectorAll('.erdung-cb:checked')).map(cb => cb.value);
+  // Im ausgefuellten Protokoll werden die angehakten Punkte als Fliesstext
+  // gedruckt (eine Zeile) statt als Kaestchenraster (drei Zeilen) - das spart
+  // Bauhoehe, ohne Information zu verlieren. Das Leerformular behaelt die
+  // Kaestchen, weil man dort ankreuzen koennen muss.
+  const erdungAlsText = !isBlank;
+  const erdungZeilenHoehe = erdungAlsText ? ZA : 3 * ZA;
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
-  const OFF_MESS1 = 11, OFF_MESS2 = 16, OFF_PUNKT = 21, OFF_ERD_LABEL = 27, OFF_CB = 32;
-  const offEigenLabel = OFF_CB + 3 * 5 + 2;
-  const offEigenStart = offEigenLabel + 4.5;
-  const offErgebnis   = offEigenStart + eigeneAnzahl * 4.5 + 2;
-  const offTermin     = offErgebnis + 6;
-  const offBemLabel   = offTermin + 6;
-  const offBemStart   = offBemLabel + 4.5;
-  const boxHeight     = offBemStart + bemZeilen * 4.5 + 3;
+  const OFF_R = 10;
+  const OFF_PUNKT = OFF_R + ZA;
+  const OFF_ERD = OFF_PUNKT + ZA;
+  const offEigenLabel = OFF_ERD + erdungZeilenHoehe + 1;
+  const offEigenStart = offEigenLabel + 4.2;
+  const offErgebnis   = offEigenStart + eigeneAnzahl * 4.2 + 1.5;
+  const offTermin     = offErgebnis + 5.5;
+  const offBemLabel   = offTermin + 5.5;
+  const offBemStart   = offBemLabel + 4.2;
+  const boxHeight     = offBemStart + bemZeilen * 4.2 + 2.5;
 
   // Passt der Block nicht mehr komplett auf die Seite -> sauber umbrechen
   finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
@@ -654,57 +672,56 @@ function generatePDF(isBlank = false) {
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-
-  const selectedErdung = Array.from(document.querySelectorAll('.erdung-cb:checked')).map(cb => cb.value);
+  doc.setFontSize(7.2);
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
   if (isErdungOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, `Erdungswiderstand R_E (Richtwert <= ${ERDUNG_RE_GRENZWERT} Ohm):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ohm') : '', 14, finalY + OFF_MESS1, 88, isBlank);
+  drawFeldZeile(doc, `Erdungswiderstand R_E (<= ${ERDUNG_RE_GRENZWERT} Ohm):`,
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ohm') : '', 13, finalY + OFF_R, 90, isBlank);
   if (isErdungOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
 
   drawFeldZeile(doc, "Durchgängigkeit PE/PA R_PA (<= 1,0 Ohm):",
-                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 108, finalY + OFF_MESS1, 88, isBlank);
+                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 107, finalY + OFF_R, 90, isBlank);
 
-  // MESSPUNKT / BEZUGSPUNKT - neu, damit nachvollziehbar ist, WO gemessen wurde
-  drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, UV, PA-Schiene):",
-                feldWert('erdung_messpunkt'), 14, finalY + OFF_MESS2, 182, isBlank);
-  drawFeldZeile(doc, "Gemessen gegen (2. Messpunkt):",
-                feldWert('erdung_bezugspunkt'), 14, finalY + OFF_PUNKT, 182, isBlank);
+  // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
+  drawFeldZeile(doc, "Messpunkt (HES/UV/PA-Schiene):", feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 90, isBlank);
+  drawFeldZeile(doc, "Gemessen gegen:", feldWert('erdung_bezugspunkt'), 107, finalY + OFF_PUNKT, 90, isBlank);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Gemessen an Hauptkomponenten:", 14, finalY + OFF_ERD_LABEL);
+  doc.setFontSize(7.2);
+  doc.text("Gemessen an:", 13, finalY + OFF_ERD);
   doc.setFont("helvetica", "normal");
 
-  const cbX = [36, 78, 116, 158];
-  const zeile1 = finalY + OFF_CB, zeile2 = zeile1 + 5, zeile3 = zeile2 + 5;
-
-  drawCheckbox(doc, cbX[0], zeile1, "Fundamenterder", !isBlank && selectedErdung.includes("Fundamenterder"));
-  drawCheckbox(doc, cbX[1], zeile1, "Blitzschutz", !isBlank && selectedErdung.includes("Blitzschutzanlage"));
-  drawCheckbox(doc, cbX[2], zeile1, "Hauptwasserleitung", !isBlank && selectedErdung.includes("Hauptwasserleitung"));
-  drawCheckbox(doc, cbX[3], zeile1, "Heizung", !isBlank && selectedErdung.includes("Heizungsanlage"));
-
-  drawCheckbox(doc, cbX[0], zeile2, "PA-Schiene", !isBlank && selectedErdung.includes("Potenzialausgleichsschiene"));
-  drawCheckbox(doc, cbX[1], zeile2, "Gebäudekonstr.", !isBlank && selectedErdung.includes("Gebäudekonstruktion"));
-  drawCheckbox(doc, cbX[2], zeile2, "Wasserleitung", !isBlank && selectedErdung.includes("Wasserleitung"));
-  drawCheckbox(doc, cbX[3], zeile2, "Klimaanlage", !isBlank && selectedErdung.includes("Klimaanlage"));
-
-  drawCheckbox(doc, cbX[0], zeile3, "Hauptschutzleiter", !isBlank && selectedErdung.includes("Hauptschutzleiter"));
-  drawCheckbox(doc, cbX[1], zeile3, "Traverse/Tribüne", !isBlank && selectedErdung.includes("Traverse/Tribüne"));
-  drawCheckbox(doc, cbX[2], zeile3, "Gasleitung", !isBlank && selectedErdung.includes("Gasleitung"));
+  if (erdungAlsText) {
+    drawFittedText(doc, selectedErdung.length ? selectedErdung.join(', ') : '-', 35, finalY + OFF_ERD, 162, 7.2, 5.4);
+    doc.setFontSize(7.2);
+  } else {
+    const cbX = [35, 77, 116, 158];
+    const zeile1 = finalY + OFF_ERD, zeile2 = zeile1 + ZA, zeile3 = zeile2 + ZA;
+    drawCheckbox(doc, cbX[0], zeile1, "Fundamenterder", false);
+    drawCheckbox(doc, cbX[1], zeile1, "Blitzschutz", false);
+    drawCheckbox(doc, cbX[2], zeile1, "Hauptwasserleitung", false);
+    drawCheckbox(doc, cbX[3], zeile1, "Heizung", false);
+    drawCheckbox(doc, cbX[0], zeile2, "PA-Schiene", false);
+    drawCheckbox(doc, cbX[1], zeile2, "Gebäudekonstr.", false);
+    drawCheckbox(doc, cbX[2], zeile2, "Wasserleitung", false);
+    drawCheckbox(doc, cbX[3], zeile2, "Klimaanlage", false);
+    drawCheckbox(doc, cbX[0], zeile3, "Hauptschutzleiter", false);
+    drawCheckbox(doc, cbX[1], zeile3, "Traverse/Tribüne", false);
+    drawCheckbox(doc, cbX[2], zeile3, "Gasleitung", false);
+  }
 
   // EIGENE MESSSTELLEN (Freitext bzw. leere Linien im Leerformular)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Weitere Messstellen (Messstelle – Messwert – Bewertung):", 14, finalY + offEigenLabel);
+  doc.setFontSize(7.2);
+  doc.text("Weitere Messstellen (Messstelle – Messwert – Bewertung):", 13, finalY + offEigenLabel);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   if (isBlank || eigeneZeilen.length === 0) {
-    drawSchreibLinien(doc, 14, finalY + offEigenStart + 1, 182, eigeneAnzahl, 4.5);
+    drawSchreibLinien(doc, 13, finalY + offEigenStart + 1, 184, eigeneAnzahl, 4.2);
   } else {
-    eigeneZeilen.forEach((z, i) => doc.text(z, 14, finalY + offEigenStart + i * 4.5));
+    eigeneZeilen.forEach((z, i) => doc.text(z, 13, finalY + offEigenStart + i * 4.2));
   }
 
   const maengelVal = document.getElementById('res_maengel')?.value || "";
@@ -712,14 +729,14 @@ function generatePDF(isBlank = false) {
   const hatMaengel = !hatKeineMaengel && maengelVal !== "";
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("Prüfergebnis:", 14, finalY + offErgebnis);
-  drawCheckbox(doc, 36, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.setFontSize(7.5);
+  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
+  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 78, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  doc.text("Prüfplakette erteilt:", 122, finalY + offErgebnis);
-  drawCheckbox(doc, 152, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 164, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.text("Prüfplakette erteilt:", 120, finalY + offErgebnis);
+  drawCheckbox(doc, 150, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 162, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -728,29 +745,19 @@ function generatePDF(isBlank = false) {
     terminText = parts.length === 2 ? `${parts[1]} / ${parts[0]}` : terminVal;
   }
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, 14, finalY + offTermin, 88, isBlank);
+  doc.setFontSize(7.2);
+  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, 13, finalY + offTermin, 90, isBlank);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Bemerkungen / Mängel:", 14, finalY + offBemLabel);
+  doc.setFontSize(7.2);
+  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 14, finalY + offBemStart + 1, 182, bemZeilen, 4.5);
+    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 14, finalY + offBemStart);
+    doc.text(splitBemerkung, 13, finalY + offBemStart);
   }
-
-  finalY += boxHeight + 6;
-  finalY = pdfPlatzPruefen(doc, finalY, 36);   // Platz fuer Bestaetigung + Unterschriften
-
-  // GEWÄHRLEISTUNG & UNTERSCHRIFTEN
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
-  drawCheckbox(doc, 58, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && document.getElementById('res_gewaehrleistung')?.value === "Ja");
-  drawCheckbox(doc, 115, finalY, "Nein (Sicherheitsrisiko)", !isBlank && document.getElementById('res_gewaehrleistung')?.value === "Nein", true);
 
   // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
   // BEI MÄNGELN, SICHERHEITSRISIKO ODER N.I.O.-ERGEBNISSEN MUSS EINE WARNUNG STEHEN
@@ -759,19 +766,37 @@ function generatePDF(isBlank = false) {
   const anyErpNiO = ['erp_anlage', 'erp_schutz', 'erp_drehfeld'].some(id => document.getElementById(id)?.value === 'n.i.O.');
   const hasIssues = !isBlank && (hatMaengel || gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO || anyMeasurementOut || isErdungOut);
 
-  const complianceText = hasIssues
-    ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
-    : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+  const complianceText = isBlank
+    // Im Leerformular waere die Konformitaetsaussage eine unbelegte Behauptung -
+    // dort steht nur der Hinweis, dass sie nach der Pruefung anzukreuzen ist.
+    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
+    : hasIssues
+      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
+      : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+
+  doc.setFontSize(6.5);
+  const complianceLines = doc.splitTextToSize(complianceText, 190);
+
+  // Bedarf fuer Bestaetigungszeile + Hinweistext + Unterschriftenblock exakt
+  // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
+  const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
+  finalY += boxHeight + 5;
+  finalY = pdfPlatzPruefen(doc, finalY, abschlussHoehe);
+
+  // GEWÄHRLEISTUNG & UNTERSCHRIFTEN
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
+  drawCheckbox(doc, 58, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
+  drawCheckbox(doc, 115, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
   doc.text(complianceLines, 10, finalY + 4);
   doc.setTextColor(...textColor);
 
-  finalY += 4 + complianceLines.length * 3.2 + 3;
-  finalY = pdfPlatzPruefen(doc, finalY, 20);
+  finalY += 4 + complianceLines.length * 3.2 + 2;
 
   // ORT UND DATUM DER UNTERZEICHNUNG (Datum kommt jetzt aus dem Formularfeld
   // 'unterschrift_datum'; frueher stand dort immer eine leere Linie)
@@ -795,11 +820,13 @@ function generatePDF(isBlank = false) {
   doc.text(`${ortDatum} – Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
   // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
-  drawProtokollSeitenkoepfe(doc, { ...VDE0100_KOPF, protokollNr, pruefNr, datum, revision: FORMULAR_REVISION });
+  drawProtokollSeitenkoepfe(doc, {
+    ...VDE0100_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: FORMULAR_REVISION
+  });
 
   const filename = isBlank
     ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
-    : `Pruefprotokoll_${protokollNr}_${datum.replace(/\./g, '-')}.pdf`;
+    : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
 
   savePdfCompatible(doc, filename);
 }

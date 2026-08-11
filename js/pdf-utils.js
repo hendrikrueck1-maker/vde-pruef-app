@@ -183,40 +183,39 @@ function pdfPlatzPruefen(doc, y, benoetigteHoehe) {
 }
 
 /* ---------------------------------------------------------------------------
- *  FARBLICHE ABGRENZUNG DER PRUEFABLAUF-KATEGORIEN
+ *  DEZENTE ABGRENZUNG DER PRUEFABLAUF-KATEGORIEN (GRAUSTUFEN)
  * ---------------------------------------------------------------------------
- *  Jede Kategorie (Stammdaten / Besichtigen / Messen / Erdung / Ergebnis)
- *  bekommt einen eigenen, dezenten Farbton. Die gleichen Farben werden im
- *  Web-Formular ueber css/style.css (.kat-*) verwendet, damit Bildschirm und
- *  Ausdruck denselben Aufbau zeigen.
+ *  Bewusst KEINE Buntfarben: aufeinanderfolgende Abschnitte wechseln nur
+ *  zwischen zwei sehr hellen Grautoenen. Das gliedert das Blatt, bleibt aber
+ *  ein sachliches Pruefprotokoll und druckt auch auf S/W-Geraeten sauber.
+ *  Titel und Tabellenkopf bleiben im Hausblau (PDF_PRIMARY).
  * ------------------------------------------------------------------------ */
+const PDF_TON_A = [252, 253, 254];   // nahezu weiss
+const PDF_TON_B = [242, 245, 248];   // ein Hauch dunkler
+
+// Zuordnung Abschnitt -> Ton. Benachbarte Abschnitte bekommen den jeweils
+// anderen Ton, dadurch entsteht die abwechselnde Gliederung.
 const PDF_KAT = {
-  stamm:    { bg: [239, 246, 255], rand: [147, 197, 253], akzent: [29, 78, 216],  kopf: [219, 234, 254] },
-  sicht:    { bg: [255, 251, 235], rand: [252, 211, 77],  akzent: [180, 83, 9],   kopf: [254, 243, 199] },
-  messen:   { bg: [240, 253, 244], rand: [134, 239, 172], akzent: [21, 128, 61],  kopf: [220, 252, 231] },
-  erdung:   { bg: [245, 243, 255], rand: [196, 181, 253], akzent: [109, 40, 217], kopf: [237, 233, 254] },
-  ergebnis: { bg: [248, 250, 252], rand: [203, 213, 225], akzent: [15, 23, 42],   kopf: [241, 245, 249] }
+  stamm:    { bg: PDF_TON_A, rand: PDF_BOX_BORDER, akzent: PDF_PRIMARY, kopf: [226, 232, 240] },
+  sicht:    { bg: PDF_TON_B, rand: PDF_BOX_BORDER, akzent: PDF_PRIMARY, kopf: [226, 232, 240] },
+  messen:   { bg: PDF_TON_A, rand: PDF_BOX_BORDER, akzent: PDF_PRIMARY, kopf: [226, 232, 240] },
+  erdung:   { bg: PDF_TON_B, rand: PDF_BOX_BORDER, akzent: PDF_PRIMARY, kopf: [226, 232, 240] },
+  ergebnis: { bg: PDF_TON_A, rand: PDF_BOX_BORDER, akzent: PDF_PRIMARY, kopf: [226, 232, 240] }
 };
 
-// Zeichnet eine farbig hinterlegte Kategoriebox mit Titelzeile.
-// Rueckgabe: das Farbschema, damit der Aufrufer z. B. den Tabellenkopf
-// in derselben Farbe einfaerben kann.
+// Abschnittsbox mit Titelzeile.
 function drawKategorieBox(doc, { y, h, titel, kat, x = PDF_MARGIN_LEFT, w = PDF_CONTENT_WIDTH }) {
   const c = PDF_KAT[kat] || PDF_KAT.ergebnis;
   doc.setDrawColor(...c.rand);
   doc.setFillColor(...c.bg);
-  doc.setLineWidth(0.25);
-  doc.roundedRect(x, y, w, h, 1.5, 1.5, 'FD');
-
-  // farbiger Balken an der linken Kante -> Kategorie auf einen Blick erkennbar
-  doc.setFillColor(...c.akzent);
-  doc.rect(x + 0.6, y + 1.4, 1.6, h - 2.8, 'F');
+  doc.setLineWidth(0.2);
+  doc.roundedRect(x, y, w, h, 1, 1, 'FD');
 
   if (titel) {
     doc.setTextColor(...c.akzent);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(titel, x + 4.5, y + 5.5);
+    doc.text(titel, x + 3, y + 5);
   }
 
   doc.setTextColor(...PDF_TEXT);
@@ -226,15 +225,13 @@ function drawKategorieBox(doc, { y, h, titel, kat, x = PDF_MARGIN_LEFT, w = PDF_
   return c;
 }
 
-// Ueberschrift ueber einer Tabelle, farblich passend zur Kategorie.
+// Ueberschrift ueber einer Tabelle.
 function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
   const c = PDF_KAT[kat] || PDF_KAT.ergebnis;
-  doc.setFillColor(...c.akzent);
-  doc.rect(x, y - 3.4, 1.6, 4.2, 'F');
   doc.setTextColor(...c.akzent);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(titel, x + 3.5, y);
+  doc.text(titel, x, y);
   doc.setTextColor(...PDF_TEXT);
   doc.setFont('helvetica', 'normal');
   return c;
@@ -326,12 +323,33 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
     doc.setLineWidth(0.25);
     doc.roundedRect(PDF_HEADER_BOX_X, 4.5, 75, 15, 1, 1, 'FD');
 
+    // Leere Werte (Leerformular) werden als Schreiblinie ausgegeben - vorher
+    // stand dort ein Platzhaltertext wie "PR-JJJJ-MM-TT-XXX", auf den man
+    // nichts eintragen konnte.
+    const kopfFeld = (label, wert, yy) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.8);
+      doc.setTextColor(...PDF_PRIMARY);
+      doc.text(label, 127.5, yy);
+      const lw = doc.getStringUnitWidth(label) * 6.8 / doc.internal.scaleFactor;
+      const wertText = wert === undefined || wert === null ? '' : String(wert).trim();
+      if (wertText) {
+        doc.setFont("helvetica", "normal");
+        doc.text(wertText, 127.5 + lw + 1.5, yy);
+      } else {
+        doc.setDrawColor(...PDF_LINE);
+        doc.setLineWidth(0.15);
+        doc.line(127.5 + lw + 1.5, yy + 0.9, 197.5, yy + 0.9);
+        doc.setDrawColor(...PDF_BOX_BORDER);
+      }
+    };
+
+    kopfFeld("Protokoll-Nr.:", protokollNr, 8);
+    kopfFeld("Prüflings-ID:", pruefNr, 11.5);
+    kopfFeld("Datum:", datum, 15);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(6.8);
     doc.setTextColor(...PDF_PRIMARY);
-    doc.text(`Protokoll-Nr.: ${protokollNr}`, 127.5, 8);
-    doc.text(`Prüflings-ID: ${pruefNr}`, 127.5, 11.5);
-    doc.text(`Datum: ${datum || '____.____.20__'}`, 127.5, 15);
     doc.text(`Seite ${i} von ${totalPages}`, 127.5, 18.5);
 
     // Revisionsstand: macht spaeter nachvollziehbar, mit welcher Formularversion
