@@ -90,6 +90,18 @@
            onchange="importAppData(this.files[0]); this.value='';">
     <span id="appVersionHint" style="margin-left:auto; align-self:center; font-size:0.75rem; color:var(--secondary);"></span>
   </div>
+
+  <h2 class="kat-stamm">5. Version & Update</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Die App aktualisiert sich normalerweise selbst. Kommt eine neue Version nicht an,
+    hier manuell suchen oder den Offline-Speicher zurücksetzen
+    (Stammdaten und Zähler bleiben dabei erhalten).
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <button type="button" class="btn btn-secondary" onclick="nachUpdateSuchen()">🔄 Nach Update suchen</button>
+    <button type="button" class="btn btn-secondary" onclick="appZuruecksetzenMitFrage()">🧹 Offline-Speicher zurücksetzen</button>
+    <span id="versionsInfo" style="font-size:0.75rem; color:var(--secondary);"></span>
+  </div>
 </div>
 
 <script>
@@ -113,6 +125,31 @@
       ordnerHinweisAktualisieren();
     });
   }
+
+  /* Version & Update ------------------------------------------------------ */
+  function appZuruecksetzenMitFrage() {
+    if (!confirm('Offline-Speicher zurücksetzen?\n\n' +
+                 'Alle zwischengespeicherten Dateien werden neu vom Server geladen.\n' +
+                 'Stammdaten, Protokollzähler und Zwischenspeicher bleiben erhalten.')) return;
+    appZuruecksetzen();
+  }
+
+  // Zeigt an, welche Version der Service Worker gerade ausliefert
+  (function versionsInfoAnzeigen() {
+    var el = document.getElementById('versionsInfo');
+    if (!el) return;
+    el.textContent = 'App: ' + APP_VERSION;
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(function (reg) {
+      if (!reg.active) return;
+      navigator.serviceWorker.addEventListener('message', function (ev) {
+        if (ev.data && ev.data.type === 'VERSION') {
+          el.textContent = 'App: ' + APP_VERSION + ' · Offline-Cache: ' + (ev.data.swVersion || '?');
+        }
+      });
+      reg.active.postMessage({ type: 'GET_VERSION' });
+    }).catch(function () {});
+  })();
 
   function ordnerHinweisAktualisieren() {
     var el = document.getElementById('ordnerHinweis');

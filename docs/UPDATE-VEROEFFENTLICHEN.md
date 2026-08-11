@@ -4,19 +4,31 @@ Gilt für: <https://hendrikrueck1-maker.github.io/vde-pruef-app/>
 
 ---
 
-## 0. Vorher: Versionsnummer erhöhen (wichtig!)
+## 0. Vorher: Versionsnummer an ZWEI Stellen erhöhen (wichtig!)
 
-In `js/app-config.js` steht ganz oben:
+**Stelle 1 —** `js/app-config.js`, ganz oben:
 
 ```js
 var APP_VERSION = '2.2.0';
 ```
 
-**Diese Zahl muss bei jeder Änderung hochgezählt werden.** Der Service Worker
-benutzt sie als Namen für den Offline-Cache. Ohne Erhöhung behalten alle
-installierten Geräte die alte Version — auch nach einem Neustart.
+**Stelle 2 —** `sw.js`, ganz oben:
 
-Faustregel: kleine Korrekturen → `2.1.1`, neue Felder/Funktionen → `2.2.0`.
+```js
+const SW_VERSION = '2.2.0';
+```
+
+Beide Zahlen müssen **gleich** sein und bei **jeder** Änderung hochgezählt werden.
+
+Warum zwei Stellen? Ein Browser installiert einen neuen Service Worker nur dann,
+wenn sich der Inhalt von `sw.js` **selbst** geändert hat. Änderungen an anderen
+Dateien reichen nicht: Der alte Service Worker bleibt aktiv und liefert weiter
+die alten Dateien aus seinem Offline-Cache. Genau deshalb kann die neue Version
+auf GitHub liegen, während das Handy noch die alte anzeigt.
+
+**`sw.js` deshalb immer mit hochladen**, auch wenn sonst nichts daran geändert wurde.
+
+Faustregel: kleine Korrekturen → `2.2.1`, neue Felder/Funktionen → `2.3.0`.
 
 ---
 
@@ -30,16 +42,20 @@ Faustregel: kleine Korrekturen → `2.1.1`, neue Felder/Funktionen → `2.2.0`.
    Bei dieser Version sind das:
 
    ```
+   sw.js                  <-- IMMER mitschicken, sonst kommt kein Update an!
    index.html
    vde0100.html
    anschlusspruefung.html
    geraetepruefung.html
+   manifest.json
    css/style.css
    js/app-config.js
+   js/pwa.js
    js/pdf-utils.js
    js/pdf-generator.js
    js/anschluss-generator.js
    js/geraete-generator.js
+   icons/                 <-- kompletter Ordner (fehlte bisher im Repository!)
    docs/UPDATE-VEROEFFENTLICHEN.md
    ```
 
@@ -91,6 +107,20 @@ Die App ist eine PWA. Sie prüft beim Start selbst, ob es eine neue Version gibt
    letzten Tag löschen. Angemeldete Konten und Passwörter bleiben erhalten.
 4. Seite erneut öffnen, danach die installierte App starten.
 
+### Neu ab 2.2.0: Update direkt in der App auslösen
+
+Auf der Startseite gibt es unten den Abschnitt **„Version & Update“**:
+
+- **🔄 Nach Update suchen** – fragt sofort beim Server nach. Liegt dort eine
+  neuere Version, erscheint das Update-Banner.
+- **🧹 Offline-Speicher zurücksetzen** – löscht alle zwischengespeicherten
+  Dateien und meldet den Service Worker ab; danach lädt die App alles neu vom
+  Server. **Stammdaten, Protokollzähler und Zwischenspeicher bleiben erhalten**
+  (die liegen in einem anderen Speicherbereich).
+
+Daneben steht, welche Version läuft und welche Version der Offline-Cache hat.
+Weichen die beiden Zahlen voneinander ab, hilft „Offline-Speicher zurücksetzen“.
+
 ### Notfall (Version bleibt hartnäckig alt)
 
 1. **Vorher: Sicherung exportieren!** Startseite → „⬇️ Sicherung exportieren“.
@@ -102,7 +132,43 @@ Die App ist eine PWA. Sie prüft beim Start selbst, ob es eine neue Version gibt
 
 ---
 
+## 2b. „App installieren“ erscheint nicht mehr?
+
+Chrome bietet die Installation nur an, wenn das Manifest **erreichbare Icons**
+in 192 px und 512 px angibt. Im Repository fehlte der Ordner `icons/` komplett —
+die Dateien liefen dadurch auf einen 404 und Chrome hat die App als nicht
+installierbar eingestuft.
+
+Abhilfe: den Ordner **`icons/` mit allen 7 Dateien** hochladen
+(`icon-192.png`, `icon-512.png`, `icon-192-maskable.png`, `icon-512-maskable.png`,
+`icon-1024.png`, `apple-touch-icon.png`, `favicon-32.png`).
+
+Prüfen lässt sich das direkt im Browser: <https://hendrikrueck1-maker.github.io/vde-pruef-app/icons/icon-192.png>
+muss das App-Symbol zeigen und darf keine 404-Seite liefern.
+
+Weitere Gründe, warum kein Installations-Hinweis kommt:
+
+- Die App ist auf dem Gerät **bereits installiert** (dann ist das Verhalten korrekt).
+- Sie wurde schon einmal installiert und wieder gelöscht – Chrome fragt dann eine
+  Weile nicht erneut. Über ⋮ → **„App installieren“** geht es trotzdem.
+- Die Seite wurde nicht über **https** geöffnet.
+
 ## 3. Was in Version 2.2.0 neu ist
+
+**Update-Mechanismus (der Grund, warum 2.2.0 nicht ankam)**
+
+- `sw.js` hat jetzt eine eigene `SW_VERSION`. Dadurch ändert sich die Datei bei
+  jedem Release und der Browser erkennt das Update zuverlässig.
+- Der Service Worker wird mit `updateViaCache: 'none'` registriert und
+  `js/app-config.js` per `?v=` geladen – vorher kam die Versionsdatei aus dem
+  HTTP-Cache, sodass die neue Nummer gar nicht bemerkt wurde.
+- Die App sucht beim Start, beim Wechsel in den Vordergrund und beim
+  Online-Gehen aktiv nach Updates (höchstens einmal pro Minute).
+- Zusätzliches Sicherheitsnetz: Die laufende Version wird direkt mit der Version
+  auf dem Server verglichen. Weicht sie ab, erscheint ein Banner – auch dann,
+  wenn der Service-Worker-Mechanismus klemmt.
+- Neue Knöpfe „Nach Update suchen“ und „Offline-Speicher zurücksetzen“.
+
 
 - **Keine Vorbelegungen mehr** bei Absicherung, RCD-Typ, Bemessungsfehlerstrom
   und RCD-Prüfstrom. Diese Angaben müssen bewusst eingetragen werden; ein

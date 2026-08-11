@@ -15,11 +15,28 @@
  *  im Wurzelverzeichnis – ohne Aenderung.
  * ========================================================================== */
 
-/* Konfiguration + Dateiliste laden (relativ zum Speicherort dieser Datei) */
-importScripts('js/app-config.js');
+/* ============================================================================
+ *  WICHTIG BEI JEDEM RELEASE: SW_VERSION MIT HOCHZAEHLEN!
+ * ----------------------------------------------------------------------------
+ *  Ein Browser installiert einen neuen Service Worker NUR, wenn sich der
+ *  Inhalt DIESER Datei (sw.js) byteweise geaendert hat. Aenderungen an
+ *  js/app-config.js oder anderen Dateien reichen NICHT: der alte Service
+ *  Worker bleibt aktiv und liefert weiter die alten Dateien aus dem Cache -
+ *  die App zeigt dann trotz erfolgreichem Upload die alte Version.
+ *
+ *  Deshalb steht die Version hier ein zweites Mal. Sie muss identisch zu
+ *  APP_VERSION in js/app-config.js sein.
+ * ========================================================================== */
+const SW_VERSION = '2.2.0';
+
+/* Konfiguration + Dateiliste laden (relativ zum Speicherort dieser Datei).
+ * Der Parameter ?v= erzwingt eine frische Kopie: importScripts wird sonst aus
+ * dem HTTP-Cache bedient (Standard updateViaCache: 'imports') und APP_VERSION
+ * waere weiterhin der alte Wert. */
+importScripts('js/app-config.js?v=' + SW_VERSION);
 
 const BASE       = self.registration.scope;            // z.B. .../vde-pruef-app/
-const CACHE_NAME = 'vde-pruefprotokoll-' + APP_VERSION;
+const CACHE_NAME = 'vde-pruefprotokoll-' + SW_VERSION;
 
 /* Relative Eintraege in absolute URLs umwandeln */
 const PRECACHE_URLS = ALL_ASSETS.map(function (u) {
@@ -67,6 +84,11 @@ self.addEventListener('fetch', (event) => {
   let url;
   try { url = new URL(req.url); } catch (e) { return; }
   if (url.origin !== self.location.origin) return;      // externe Requests durchlassen
+
+  // Versions-/Diagnoseabfragen duerfen NIE aus dem Cache kommen.
+  // (Ohne diesen Bypass wuerde caches.match(..., {ignoreSearch:true}) den
+  //  Cache-Buster ignorieren und die alte Datei zurueckgeben.)
+  if (url.searchParams.has('nocache')) return;
 
   /* 1) Seitenaufrufe (HTML): Network-First */
   const wantsHTML = req.mode === 'navigate' ||
@@ -130,6 +152,16 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
   if (data && data.type === 'GET_VERSION') {
-    event.source && event.source.postMessage({ type: 'VERSION', version: APP_VERSION });
+    event.source && event.source.postMessage({
+      type: 'VERSION', version: APP_VERSION, swVersion: SW_VERSION, cache: CACHE_NAME
+    });
+  }
+  // Notfall-Reset: alle Caches leeren (z. B. ueber den Knopf auf der Startseite)
+  if (data && data.type === 'CLEAR_CACHES') {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => event.source && event.source.postMessage({ type: 'CACHES_CLEARED' }))
+    );
   }
 });

@@ -14,7 +14,12 @@
       // UND unter https://<name>.github.io/<repo>/ ohne Anpassung
       var swUrl = new URL('sw.js', document.baseURI).toString();
       var swScope = new URL('./', document.baseURI).toString();
-      navigator.serviceWorker.register(swUrl, { scope: swScope })
+
+      // updateViaCache: 'none' -> sw.js UND die per importScripts geladenen
+      // Dateien werden bei der Update-Pruefung immer frisch vom Server geholt.
+      // Mit dem Standardwert 'imports' kam js/app-config.js aus dem HTTP-Cache
+      // und eine neue Versionsnummer wurde nicht bemerkt.
+      navigator.serviceWorker.register(swUrl, { scope: swScope, updateViaCache: 'none' })
         .then(function (reg) {
           swRegistration = reg;
 
@@ -30,6 +35,21 @@
               }
             });
           });
+
+          // Aktiv nach Updates suchen: beim Start und jedes Mal, wenn die App
+          // wieder in den Vordergrund kommt (hoechstens alle 60 Sekunden).
+          let letztePruefung = 0;
+          function updatePruefen() {
+            if (Date.now() - letztePruefung < 60000) return;
+            letztePruefung = Date.now();
+            reg.update().catch(function () {});
+            pruefeVersionUeberNetz();
+          }
+          updatePruefen();
+          document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') updatePruefen();
+          });
+          window.addEventListener('online', updatePruefen);
         })
         .catch(function (err) {
           console.warn('[PWA] Service Worker Registrierung fehlgeschlagen:', err);
@@ -43,7 +63,88 @@
         window.location.reload();
       });
     });
+  } else {
+    window.addEventListener('load', pruefeVersionUeberNetz);
   }
+
+  /* ---------- 1b. Sicherheitsnetz: Versionsvergleich direkt am Server -------
+   * Falls der Service-Worker-Mechanismus einmal klemmt (z. B. weil sw.js
+   * unveraendert blieb), faellt das hier trotzdem auf: die laufende
+   * APP_VERSION wird mit der Version auf dem Server verglichen.
+   * ?nocache= wird vom Service Worker durchgereicht (siehe sw.js). */
+  function pruefeVersionUeberNetz() {
+    if (typeof APP_VERSION === 'undefined') return;
+    fetch('js/app-config.js?nocache=' + Date.now(), { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.text() : null; })
+      .then(function (txt) {
+        if (!txt) return;
+        const m = txt.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (m && m[1] !== APP_VERSION) showServerUpdateBanner(m[1]);
+      })
+      .catch(function () { /* offline -> nichts tun */ });
+  }
+
+  function showServerUpdateBanner(serverVersion) {
+    if (document.querySelector('.pwa-banner[data-typ="server"]')) return;
+    const el = makeBanner(
+      '<span class="pwa-text">🔄 Auf dem Server liegt Version <b>' + serverVersion +
+      '</b>, hier läuft <b>' + APP_VERSION + '</b>.</span>' +
+      '<button class="pwa-primary" data-act="hard">Jetzt aktualisieren</button>' +
+      '<button class="pwa-ghost" data-act="later">Später</button>'
+    );
+    el.dataset.typ = 'server';
+    el.querySelector('[data-act="hard"]').onclick = function () {
+      el.remove();
+      appZuruecksetzen();
+    };
+    el.querySelector('[data-act="later"]').onclick = function () { el.remove(); };
+  }
+
+  /* ---------- 1c. Notfall-Reset (auch von der Startseite aufrufbar) --------
+   * Loescht alle Offline-Caches und meldet den Service Worker ab, danach
+   * wird neu geladen. Eingaben in localStorage (Stammdaten, Zaehler,
+   * Zwischenspeicher) bleiben dabei erhalten. */
+  function appZuruecksetzen() {
+    const schritte = [];
+    if (window.caches && caches.keys) {
+      schritte.push(caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }));
+    }
+    if ('serviceWorker' in navigator) {
+      schritte.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }));
+    }
+    Promise.all(schritte).catch(function () {}).then(function () {
+      // Cache-Buster in der URL erzwingt einen echten Neuaufbau
+      const u = new URL(window.location.href);
+      u.searchParams.set('reload', Date.now());
+      window.location.replace(u.toString());
+    });
+  }
+  window.appZuruecksetzen = appZuruecksetzen;
+  window.pruefeVersionUeberNetz = pruefeVersionUeberNetz;
+
+  // Manuelle Update-Suche (Knopf auf der Startseite)
+  window.nachUpdateSuchen = function () {
+    if (!swRegistration) { pruefeVersionUeberNetz(); return; }
+    swRegistration.update()
+      .then(function () {
+        if (swRegistration.waiting) { showUpdateBanner(swRegistration.waiting); return; }
+        pruefeVersionUeberNetz();
+        setTimeout(function () {
+          if (!document.querySelector('.pwa-banner')) {
+            const el = makeBanner(
+              '<span class="pwa-text">✅ Die App ist aktuell (Version ' + APP_VERSION + ').</span>' +
+              '<button class="pwa-primary" data-act="ok">OK</button>'
+            );
+            el.querySelector('[data-act="ok"]').onclick = function () { el.remove(); };
+          }
+        }, 1500);
+      })
+      .catch(function () { pruefeVersionUeberNetz(); });
+  };
 
   /* ---------- 2. Styles ---------- */
   const css = document.createElement('style');
