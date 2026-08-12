@@ -179,6 +179,19 @@ function validateFeedNorms(cardId) {
     const num = parseFloat(taElem.value.replace(',', '.'));
     if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
   } else if (taElem) taElem.classList.remove('out-of-norm');
+
+  // Ist ein RCD eingetragen, muss er auch geprueft worden sein
+  // (DIN VDE 0100-600 Abschn. 6.4.3.7). Fehlende Messwerte werden markiert,
+  // statt stillschweigend als "-" gedruckt zu werden. Diese Pruefung fehlte in
+  // der Anschlusspruefung bisher komplett - ein nie ausgeloester RCD fiel
+  // dadurch niemandem auf.
+  const imessMarkElem = card.querySelector('.c-rcd-imess');
+  const hatRcd = rcdTypElem && rcdTypElem.value.trim() !== '' && !/ohne\s*rcd/i.test(rcdTypElem.value);
+  [imessMarkElem, taElem].forEach(el => {
+    if (!el) return;
+    if (hatRcd && rcdWertFehlt(el.value)) el.classList.add('missing-value');
+    else el.classList.remove('missing-value');
+  });
 }
 
 function feedHasOutOfNorm(card) {
@@ -231,6 +244,23 @@ const ANSCHLUSS_KOPF = {
 const ANSCHLUSS_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
 
 function generatePDFAnschluss(isBlank = false) {
+  /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
+   * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
+   * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
+   * Gilt nie fuer das Leerformular. */
+  const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
+  const maengelZustand = getMaengelZustand(maengelVal);
+  if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
+    alert(MAENGEL_BEHOBEN_HINWEIS);
+    document.getElementById('res_bemerkungen')?.focus();
+    return;
+  }
+
+  /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
+   * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
+  const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
+  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -269,7 +299,9 @@ function generatePDFAnschluss(isBlank = false) {
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
-  const kopfPruefNr = isBlank ? "" : pruefNr;
+  // Auch im AUSGEFUELLTEN Protokoll darf kein Ausfuell-Platzhalter stehen: ist
+  // die Prueflings-ID leer, zeichnet kopfFeld() dort eine Schreiblinie.
+  const kopfPruefNr = isBlank ? "" : feldWert('pruefungsnummer');
 
   // HEADER: zentrale Funktion aus pdf-utils.js. Sie skaliert Titel und Normzeile
   // automatisch auf die verfuegbaren 112 mm, damit sie die Infobox oben rechts
@@ -338,18 +370,24 @@ function generatePDFAnschluss(isBlank = false) {
   const sichtLabels = [
     "1. Verteiler/Zählerschr.", "2. Steckvorr./Kuppl.", "3. Zuleitung/Kabel",
     "4. Kennzeichnung", "5. Zugänglichkeit", "6. Not-Aus/Hauptschalter",
-    "7. Witterungsschutz", "8. Berührungsschutz", "9. Prüfplakette Verteiler"
+    "7. Witterungsschutz", "8. Berührungsschutz", "9. Prüfplakette"
   ];
   const SICHT_LABEL_X = [13, 76, 139];
   const SICHT_CB_X    = [42, 105, 165];
-  const SICHT_LABEL_W = 27;
+  // In der dritten Spalte stiess die Beschriftung bisher ohne Abstand an das
+  // i.O.-Kaestchen (139 + 27 = 166 gegen Kaestchen bei 165). Die verfuegbare
+  // Textbreite ist dort deshalb auf 23 mm begrenzt (Ende 162, also 3 mm Luft);
+  // die laengste Beschriftung wurde zusaetzlich gekuerzt. Das Kaestchen bleibt
+  // bei 165, damit die dritte Box ("n.a.") rechts nicht ueber den Satzspiegel
+  // hinauslaeuft.
+  const SICHT_LABEL_W = [27, 27, 23];
 
   sichtLabels.forEach((label, i) => {
     const spalte = Math.floor(i / 3);
     const zeile = i % 3;
     const yy = y + 10 + zeile * ZA;
     doc.setFontSize(7);
-    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W, 7, 5.4);
+    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W[spalte], 7, 5.4);
     doc.setFontSize(7);
     drawCheckbox(doc, SICHT_CB_X[spalte], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
     drawCheckbox(doc, SICHT_CB_X[spalte] + 11, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
@@ -379,6 +417,9 @@ function generatePDFAnschluss(isBlank = false) {
 
   const tableRows = [];
   let anyFeedMeasurementOut = false;
+  // Fehlende ANGABEN werden getrennt gefuehrt: sie machen das Protokoll
+  // unvollstaendig, kehren aber den Freigabetext nicht um.
+  let anyDokumentationsmangel = false;
   // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
   const BEISPIEL_ZEILE_AP = [
     "Bsp",
@@ -426,24 +467,36 @@ function generatePDFAnschluss(isBlank = false) {
       let zsik = '-';
       if (zs || ik) zsik = `${zs || '-'} Ohm / ${ik || '-'} A`;
 
-      const rcdTyp = card.querySelector('.c-rcd-typ').value || '-';
-      const rcdIdn = card.querySelector('.c-rcd-idn').value || '-';
+      // Die frueheren "|| '-'"-Vorgaben erzeugten Zellen wie "- (-)". Die
+      // Rohwerte gehen jetzt unveraendert in die gemeinsame Auswertung.
+      const rcdTyp = card.querySelector('.c-rcd-typ').value;
+      const rcdIdn = card.querySelector('.c-rcd-idn').value;
       const rcdImess = card.querySelector('.c-rcd-imess').value;
       const rcdTa = card.querySelector('.c-rcd-ta').value;
-      const rcdPruefstrom = card.querySelector('.c-rcd-pruefstrom')?.value || '1';
-      const istSelektivPdf = /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(rcdTyp);
-      const taMaxPdf = getRcdMaxAusloesezeitMs(rcdPruefstrom, istSelektivPdf);
+      // KEIN Fallback auf '1': ein nicht gewaehlter Pruefstrom darf im
+      // Beweisdokument nicht als gewaehlte Messbedingung erscheinen.
+      const rcdPruefstrom = card.querySelector('.c-rcd-pruefstrom')?.value || '';
+
+      // Identische Auswertung wie im Anlagenprotokoll (pdf-utils.js): damit
+      // erkennt auch die Anschlusspruefung eingetragene, aber ungepruefte RCD.
+      const rcdZelle = buildRcdZelle({
+        typ: rcdTyp, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
+      });
+
       const taNum = parseFloat(rcdTa.replace(',', '.'));
-      const isTaOut = !isNaN(taNum) && taNum > taMaxPdf;
+      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
       const idnRange = getRcdIdnRangeMa(rcdIdn);
       const imessNum = parseFloat(rcdImess.replace(',', '.'));
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
-      const isRcdOut = isTaOut || isImessOut;
+      // Zelle rot: sowohl bei fehlender Angabe als auch bei echter Beanstandung.
+      const isRcdOut = isTaOut || isImessOut || rcdZelle.isOut;
+      // In die GESAMTBEWERTUNG geht nur ein, was die Sicherheit betrifft.
+      const isRcdBeanstandung = isTaOut || isImessOut || rcdZelle.isPruefungUnvollstaendig;
+      if (rcdZelle.isDokumentationsmangel) anyDokumentationsmangel = true;
 
-      let rcdText = `${rcdTyp} (${rcdIdn})`;
-      if (rcdImess || rcdTa) rcdText += `\n${rcdImess || '-'} mA / ${rcdTa || '-'} ms @ ${rcdPruefstrom}x`;
+      const rcdText = rcdZelle.text;
 
-      if (isRpeOut || isIkOut || isRcdOut) anyFeedMeasurementOut = true;
+      if (isRpeOut || isIkOut || isRcdBeanstandung) anyFeedMeasurementOut = true;
 
       tableRows.push([
         idx + 1,
@@ -473,6 +526,11 @@ function generatePDFAnschluss(isBlank = false) {
     ]],
     body: tableRows,
     theme: 'grid',
+    // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
+    // auf der Folgeseite haette keine Zeilennummer mehr und waere keiner Messung
+    // zuzuordnen. Passt die Zeile nicht mehr, wandert sie komplett auf die
+    // naechste Seite (der Tabellenkopf wird dort automatisch wiederholt).
+    rowPageBreak: 'avoid',
     headStyles: {
       fillColor: katMessen.kopf, textColor: katMessen.akzent,
       fontSize: 5.6, fontStyle: 'bold', halign: 'center', valign: 'middle',
@@ -542,27 +600,38 @@ function generatePDFAnschluss(isBlank = false) {
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, Erdspieß, Fundamenterder):",
                 feldWert('pa_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
 
-  const maengelVal = document.getElementById('res_maengel')?.value || "";
-  const hatKeineMaengel = maengelVal.startsWith("Keine");
-  const hatMaengel = !hatKeineMaengel && maengelVal !== "";
+  /* --- DREI ZUSTAENDE STATT ZWEI (identisch zum Anlagenprotokoll) --------- */
+  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
+  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
+  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
+
+  const leistungVal = document.getElementById('res_leistung_ausreichend')?.value || '';
+  const freigabeVal = document.getElementById('res_freigabe')?.value || 'Ja';
+  const anySichtNiOFrueh = Array.from(s).some(el => el?.value === 'n.i.O.');
+  // Beanstandungen unabhaengig von der Auswahl - nur ohne sie darf "behoben"
+  // positiv ausgehen.
+  const restBeanstandungen = !isBlank && (freigabeVal === 'Nein' || leistungVal === 'Nein' ||
+                             anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut);
+  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
   drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 78, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  const leistungVal = document.getElementById('res_leistung_ausreichend')?.value || '';
-  doc.text("Leistung ausreichend:", 120, finalY + offErgebnis);
-  drawCheckbox(doc, 152, finalY + offErgebnis, "Ja", !isBlank && leistungVal === "Ja");
-  drawCheckbox(doc, 163, finalY + offErgebnis, "Nein", !isBlank && leistungVal === "Nein", true);
-  // "n.a." war im Formular waehlbar, im PDF aber nicht darstellbar
-  drawCheckbox(doc, 178, finalY + offErgebnis, "n.a.", !isBlank && leistungVal === "n.a.");
-
-  const freigabeVal = document.getElementById('res_freigabe')?.value || 'Ja';
   doc.text("Freigabe zur Nutzung:", 13, finalY + offFreigabe);
   drawCheckbox(doc, 45, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja");
   drawCheckbox(doc, 56, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", true);
+
+  // "Leistung ausreichend" steht jetzt in dieser Zeile: die Ergebniszeile
+  // darueber braucht die volle Breite fuer das dritte Ankreuzfeld.
+  doc.text("Leistung ausreichend:", 100, finalY + offFreigabe);
+  drawCheckbox(doc, 132, finalY + offFreigabe, "Ja", !isBlank && leistungVal === "Ja");
+  drawCheckbox(doc, 143, finalY + offFreigabe, "Nein", !isBlank && leistungVal === "Nein", true);
+  // "n.a." war im Formular waehlbar, im PDF aber nicht darstellbar
+  drawCheckbox(doc, 158, finalY + offFreigabe, "n.a.", !isBlank && leistungVal === "n.a.");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
@@ -577,17 +646,29 @@ function generatePDFAnschluss(isBlank = false) {
 
   finalY += boxHeight + 5;
 
-  const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
-  const hasIssues = !isBlank && (hatMaengel || freigabeVal === 'Nein' || leistungVal === 'Nein' || anySichtNiO || anyFeedMeasurementOut || isErdungOut);
+  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
+  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+
+  // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT freigegeben" schreibt.
+  if (freigabeWidersprichtBefund(isBlank, hasIssues, freigabeVal)) {
+    alert(freigabeWiderspruchHinweis('Freigabe zur Nutzung'));
+    document.getElementById('res_freigabe')?.focus();
+    return;
+  }
 
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : hasIssues
       ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei der Sichtprüfung, eine nicht ausreichende Anschlussleistung oder ein Sicherheitsrisiko festgestellt. Der Übergabepunkt ist in diesem Zustand NICHT freigegeben. Eine Nutzung ist erst nach Beseitigung der genannten Mängel und erneuter Prüfung zulässig."
-      : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.";
+      : behobenOk
+        ? MAENGEL_BEHOBEN_TEXT_ANSCHLUSS
+        : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.";
+
+  // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
+  const complianceGesamt = complianceText + (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
 
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
   // Umbruch nur, wenn Hinweistext + Unterschriftenblock wirklich nicht mehr passen
   finalY = pdfPlatzPruefen(doc, finalY, complianceLines.length * 3.2 + 6 + 16);
 
@@ -609,13 +690,13 @@ function generatePDFAnschluss(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} – Übergebende/-r (Netzbetreiber/Bereitsteller)`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Übergebende/-r (Netzbetreiber/Bereitsteller)`, 10, finalY + 15);
 
   if (!isBlank && !padUebernehmer.isEmpty()) {
     doc.addImage(padUebernehmer.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
   doc.line(115, finalY + 12, 200, finalY + 12);
-  doc.text(`${ortDatum} – Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
+  doc.text(`${ortDatum} - Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
 
   drawProtokollSeitenkoepfe(doc, {
     ...ANSCHLUSS_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: ANSCHLUSS_REVISION
@@ -625,11 +706,20 @@ function generatePDFAnschluss(isBlank = false) {
     ? `Anschlusspruefung_Uebergabepunkt_Leerformular.pdf`
     : `Anschlusspruefung_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
 
-  savePdfCompatible(doc, filename);
+  /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
+   * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
+   * ein Leerformular ebenfalls nicht. */
+  Promise.resolve(savePdfCompatible(doc, filename)).then(function (gespeichert) {
+    if (isBlank || gespeichert === false) return;
+    verbraucheProtokollNummer(nummerRoh, 'AP');
+    protokollNummerNachPdf('AP');
+  });
 }
 
 // AUTOSAVE
-const ANSCHLUSS_AUTOSAVE_KEY = 'anschluss_protocol_autosave';
+// Einheitliches Praefix 'vde_': der alte Schluessel 'anschluss_protocol_autosave'
+// wurde von der Datensicherung nicht erfasst (siehe storage.js).
+const ANSCHLUSS_AUTOSAVE_KEY = 'vde_autosave_ap';
 
 const ANSCHLUSS_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
@@ -685,7 +775,10 @@ function restoreAnschlussState(state) {
 
   Object.entries(state.fields || {}).forEach(([id, val]) => {
     const el = document.getElementById(id);
-    if (el) el.value = val;
+    if (!el) return;
+    // Ein wiederhergestelltes Formular behaelt SEINE Protokollnummer.
+    if (id === 'protokollnummer' && !String(val || '').trim()) return;
+    el.value = val;
   });
 
   if (state.veranstaltung !== undefined) {
@@ -757,9 +850,9 @@ function resetAnschlussForm() {
 function neuesAnschlussProtokoll() {
   if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular werden zurückgesetzt.')) return;
 
-  const nr = updateProtokollCounter(true, 'AP');
+  const nr = naechsteProtokollNummer('AP');
   resetAnschlussForm();
   document.getElementById('protokollnummer').value = nr;
   clearAnschlussAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
 }

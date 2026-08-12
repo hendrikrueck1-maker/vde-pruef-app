@@ -1,5 +1,18 @@
 // GEMEINSAME HILFSFUNKTIONEN FÜR ALLE PROTOKOLLTYPEN (PDF-ERZEUGUNG, FORMULAR-HELPER)
 
+/* ---------------------------------------------------------------------------
+ *  ZEICHEN AUF DEN SICHER DARSTELLBAREN VORRAT ABBILDEN
+ * ---------------------------------------------------------------------------
+ *  Die Standardschrift des PDF (Helvetica) wird nicht eingebettet. Zeichen
+ *  ausserhalb des Basisvorrats gehen je nach Anzeigeprogramm still verloren -
+ *  aus "1,5 mm²" wird dann "1,5 mm". Ein Querschnitt ohne Einheit ist im
+ *  Protokoll mehrdeutig, deshalb wird konsequent auf ASCII abgebildet.
+ *
+ *  Betroffen sind nicht nur Tabellenzellen: Bemerkungen und Anlagen-
+ *  bezeichnungen werden oft aus Word oder Mail kopiert und bringen typografische
+ *  Anfuehrungszeichen, Halbgeviertstriche und geschuetzte Leerzeichen mit.
+ *  Im FORMULAR bleibt alles unveraendert - nur die PDF-Ausgabe wird umgesetzt.
+ * ------------------------------------------------------------------------ */
 function cleanStr(text) {
   if (!text) return "";
   return String(text)
@@ -8,7 +21,25 @@ function cleanStr(text) {
     .replace(/Ω/g, "Ohm")
     .replace(/Δ/g, "d")
     .replace(/µ/g, "u")
-    .replace(/°/g, " deg");
+    .replace(/°/g, " deg")
+    // Hochgestellte Ziffern: Querschnitt "mm²" -> "mm2" (so steht es auch in
+    // der Musterzeile des Leerformulars)
+    .replace(/²/g, "2")
+    .replace(/³/g, "3")
+    // Halbgeviert-/Geviertstrich und typografische Anfuehrungszeichen aus
+    // kopierten Freitexten
+    .replace(/[–—]/g, "-")
+    .replace(/[„“”«»]/g, '"')
+    .replace(/[‚‘’]/g, "'")
+    .replace(/…/g, "...")
+    // Rechenzeichen, die in Bemerkungen und Messnotizen vorkommen
+    .replace(/≈/g, "~")
+    .replace(/±/g, "+/-")
+    .replace(/×/g, "x")
+    // Mittelpunkt wird als Trennzeichen verwendet (z. B. "Prüfung · Nachmessung")
+    .replace(/·/g, "-")
+    // Geschuetzte und schmale Leerzeichen wie normale Leerzeichen behandeln
+    .replace(/[\u00A0\u202F\u2009\u2007]/g, " ");
 }
 
 function drawCheckbox(doc, x, y, label, isChecked = false, isRed = false) {
@@ -113,13 +144,20 @@ function getAbleitstromBezeichnung(schutzklasse) {
 // 150 ms bei 2x I_dn, 40 ms bei 5x I_dn. Der oft pauschal genannte Wert von
 // 40 ms gilt AUSSCHLIESSLICH fuer die Pruefung mit 5x I_dn.
 // Selektive RCD (Typ S) duerfen laenger brauchen: 500 / 200 / 150 ms.
-// STANDARD-PRUEFSTROM FUER DIE AUSLOESEZEIT-/AUSLOESESTROMMESSUNG.
-// In der Praxis wird mit 5 x I_dn geprueft (schnellster Nachweis, Grenzwert
-// 40 ms). Dieser Wert ist deshalb in allen Formularen vorausgewaehlt.
+// UEBLICHER PRUEFSTROM IN DER PRAXIS: 5 x I_dn (schnellster Nachweis,
+// Grenzwert 40 ms). NUR ALS ANZEIGE-/VORSCHLAGSWERT gedacht - er wird bewusst
+// NICHT vorausgewaehlt und darf im PDF-Pfad niemals stillschweigend fuer einen
+// fehlenden Eintrag einspringen. Welcher Pruefstrom verwendet wurde, kann nur
+// die pruefende Person wissen; eine Annahme waere eine erfundene Messbedingung.
 const RCD_PRUEFSTROM_STANDARD = '5';
 
+// Ohne angegebenen Pruefstrom gibt es KEINEN definierten Grenzwert -> null.
+// Frueher wurde hier still RCD_PRUEFSTROM_STANDARD eingesetzt; dadurch bewertete
+// das PDF eine Ausloesezeit gegen eine Messbedingung, die der Pruefer nie
+// angegeben hatte. Ein Grenzwert ohne bekannte Pruefbedingung ist wertlos.
 function getRcdMaxAusloesezeitMs(pruefstrom, istSelektiv) {
-  const faktor = String(pruefstrom || RCD_PRUEFSTROM_STANDARD).replace(/[^\d]/g, '');
+  const faktor = String(pruefstrom == null ? '' : pruefstrom).replace(/[^\d]/g, '');
+  if (faktor === '') return null;
   if (istSelektiv) {
     if (faktor === '5') return 150;
     if (faktor === '2') return 200;
@@ -129,6 +167,207 @@ function getRcdMaxAusloesezeitMs(pruefstrom, istSelektiv) {
   if (faktor === '2') return 150;
   return 300;
 }
+
+/* ---------------------------------------------------------------------------
+ *  RCD-ZELLE FUER DIE PROTOKOLLTABELLEN  (Anlagen- UND Anschlusspruefung)
+ * ---------------------------------------------------------------------------
+ *  WARUM ZENTRAL: Die Bewertung eines RCD-Eintrags ist in beiden Protokollen
+ *  fachlich identisch. Solange sie doppelt gepflegt wurde, fehlte in der
+ *  Anschlusspruefung die Erkennung ungepruefter RCD komplett.
+ *
+ *  REGELN:
+ *  1. Gemessene Werte werden IMMER gedruckt - auch wenn das Typ-Feld leer
+ *     blieb. Eine durchgefuehrte Messung darf nie aus dem Beweisdokument
+ *     verschwinden (DIN VDE 0100-600 Abschn. 6.4.3.7: Messergebnisse sind zu
+ *     dokumentieren). Fehlt der Typ, ist das ein Dokumentationsmangel und wird
+ *     als solcher markiert - kein Grund, die Messung zu unterschlagen.
+ *  2. Der Pruefstrom bestimmt nach DIN EN 61008-1/61009-1 den Grenzwert der
+ *     Ausloesezeit (300/150/40 ms bei 1/2/5 x I_dn). Ohne Angabe gibt es keinen
+ *     Grenzwert -> keine Bewertung, stattdessen Dokumentationsmangel. Es wird
+ *     NIE ein Pruefstrom angenommen, den der Pruefer nicht gewaehlt hat.
+ *  3. Ein eingetragener RCD ohne Messwerte ist ein Pruefmangel und wird rot
+ *     markiert, statt unauffaellig als "-" zu erscheinen.
+ *  4. Es entsteht nie eine Zelle, die nur aus "()" oder "-" besteht, wenn
+ *     Messwerte vorliegen.
+ * ------------------------------------------------------------------------ */
+/* ZWEI VERSCHIEDENE ARTEN VON BEANSTANDUNG - BEWUSST GETRENNT
+ *   isDokumentationsmangel: eine ANGABE fehlt (Typ, Pruefstrom). Die Zelle wird
+ *     rot markiert, weil das Protokoll insoweit unvollstaendig ist. Es ist aber
+ *     KEINE Aussage ueber die Sicherheit der Anlage - eine vergessene
+ *     Typangabe macht keinen Stromkreis gefaehrlich und darf deshalb nicht den
+ *     Freigabetext umkehren.
+ *   isPruefungUnvollstaendig: die MESSUNG fehlt ganz oder halb. Damit ist die
+ *     Wirksamkeit der Schutzmassnahme nicht nachgewiesen (DIN VDE 0100-600
+ *     Abschn. 6.4.3.7) - das ist eine echte Beanstandung und kehrt den
+ *     Freigabetext um.
+ * Beide faerben die Zelle rot; nur die zweite wirkt auf die Gesamtbewertung. */
+function rcdWertFehlt(v) {
+  const t = String(v == null ? '' : v).trim();
+  return t === '' || t === '-';
+}
+
+function istRcdSelektiv(typ) {
+  return /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(String(typ || ''));
+}
+
+// Liefert Text und Bewertungsflags fuer die RCD-Spalte.
+function buildRcdZelle(roh) {
+  const typ = String(roh.typ || '').trim();
+  const idn = String(roh.idn || '').trim();
+  const imess = String(roh.imess || '').trim();
+  const ta = String(roh.ta || '').trim();
+  const pruefstrom = String(roh.pruefstrom || '').trim();
+
+  const ohneRcd = /ohne\s*rcd/i.test(typ);
+  const typAngegeben = typ !== '' && !ohneRcd;
+  const hatImess = !rcdWertFehlt(imess);
+  const hatTa = !rcdWertFehlt(ta);
+  const hatMesswerte = hatImess || hatTa;
+
+  // Gar nichts eingetragen -> schlichter Strich, keine leeren Klammern.
+  if (!typAngegeben && !ohneRcd && idn === '' && !hatMesswerte) {
+    return { text: '-', isOut: false, isDokumentationsmangel: false, isPruefungUnvollstaendig: false, taMax: null };
+  }
+
+  let dokuMangel = false;
+  const zeilen = [];
+
+  // --- Kopfzeile: Typ (I_dn) ---
+  if (ohneRcd) {
+    zeilen.push('Ohne RCD');
+  } else if (typAngegeben) {
+    zeilen.push(idn ? `${typ} (${idn})` : typ);
+  } else {
+    // Messwerte oder I_dn ohne Typ: Angabe fehlt, Messung bleibt trotzdem stehen.
+    zeilen.push(idn ? `Typ nicht angegeben (${idn})` : 'Typ nicht angegeben');
+    dokuMangel = true;
+  }
+
+  // --- Messzeile ---
+  if (ohneRcd && hatMesswerte) {
+    // Widerspruch: "Ohne RCD" gewaehlt, aber es liegen Ausloesewerte vor. Die
+    // Werte zu verschweigen waere derselbe Fehler wie sie zu erfinden.
+    zeilen.push(`${hatImess ? imess : '-'} mA / ${hatTa ? ta : '-'} ms`);
+    zeilen.push('Widerspruch: Messwerte trotz "Ohne RCD"');
+    return { text: zeilen.join('\n'), isOut: true, isDokumentationsmangel: true, isPruefungUnvollstaendig: false, taMax: null };
+  }
+
+  if (ohneRcd) {
+    return { text: 'Ohne RCD', isOut: false, isDokumentationsmangel: false, isPruefungUnvollstaendig: false, taMax: null };
+  }
+
+  if (!hatMesswerte) {
+    // Eingetragener RCD ohne jede Messung -> Pruefmangel (Regel 3).
+    // Eingetragener RCD, aber keinerlei Messung: die Wirksamkeit der
+    // Schutzmassnahme ist damit NICHT nachgewiesen -> echte Beanstandung.
+    zeilen.push('nicht geprüft');
+    return { text: zeilen.join('\n'), isOut: true, isDokumentationsmangel: false, isPruefungUnvollstaendig: true, taMax: null };
+  }
+
+  const taMax = pruefstrom ? getRcdMaxAusloesezeitMs(pruefstrom, istRcdSelektiv(typ)) : null;
+  let messzeile = `${hatImess ? imess : '-'} mA / ${hatTa ? ta : '-'} ms`;
+  if (taMax !== null) {
+    messzeile += ` @ ${pruefstrom}x`;
+  } else {
+    // Regel 2: lieber ehrlich "nicht angegeben" als ein erfundenes "@ 1x".
+    messzeile += ' (Prüfstrom nicht angegeben)';
+    dokuMangel = true;
+  }
+  zeilen.push(messzeile);
+
+  // Unvollstaendige Messung: der vorhandene Wert bleibt sichtbar, die Luecke
+  // wird benannt. Frueher verschwand in diesem Fall der gemessene Wert hinter
+  // einem pauschalen "nicht geprüft".
+  // Die RCD-Pruefung umfasst Ausloesestrom UND Ausloesezeit - fehlt eine der
+  // beiden Groessen, ist die Schutzmassnahme nur halb nachgewiesen.
+  let pruefungUnvollstaendig = false;
+  if (!hatImess || !hatTa) {
+    zeilen.push(`Messung unvollständig (${!hatImess ? 'I_dmess' : 't_A'} fehlt)`);
+    pruefungUnvollstaendig = true;
+  }
+
+  return {
+    text: zeilen.join('\n'),
+    isOut: dokuMangel || pruefungUnvollstaendig,
+    isDokumentationsmangel: dokuMangel,
+    isPruefungUnvollstaendig: pruefungUnvollstaendig,
+    taMax: taMax
+  };
+}
+
+/* ---------------------------------------------------------------------------
+ *  PRUEFERGEBNIS: DREI ZUSTAENDE STATT ZWEI
+ * ---------------------------------------------------------------------------
+ *  Das Formular kennt "Keine Mängel", "Mängel festgestellt und behoben" und
+ *  "Mängel festgestellt". Die PDF-Logik kannte nur zwei Zustaende und ordnete
+ *  "behoben" den offenen Maengeln zu. Ergebnis war ein Dokument, das oben
+ *  "Sicherer Gebrauch: Ja" ankreuzte und darunter das Gegenteil behauptete.
+ * ------------------------------------------------------------------------ */
+const MAENGEL_KEINE = 'keine';
+const MAENGEL_BEHOBEN = 'behoben';
+const MAENGEL_OFFEN = 'offen';
+const MAENGEL_UNBESTIMMT = '';
+
+function getMaengelZustand(wert) {
+  const v = String(wert || '').trim();
+  if (v === '') return MAENGEL_UNBESTIMMT;
+  if (/behoben/i.test(v)) return MAENGEL_BEHOBEN;
+  if (/^keine/i.test(v)) return MAENGEL_KEINE;
+  return MAENGEL_OFFEN;
+}
+
+// Text fuer den Zustand "behoben". Er darf nur erscheinen, wenn im Protokoll
+// KEINE offenen Beanstandungen mehr stehen - das wird beim Aufruf geprueft.
+const MAENGEL_BEHOBEN_TEXT_ANLAGE =
+  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Die elektrische Anlage entspricht im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.';
+const MAENGEL_BEHOBEN_TEXT_ANSCHLUSS =
+  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Der Übergabepunkt entspricht im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.';
+const MAENGEL_BEHOBEN_TEXT_GERAETE =
+  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Die geprüften Geräte entsprechen im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.';
+
+// Ohne Beschreibung, WAS behoben wurde, ist die Aussage "Mängel behoben"
+// wertlos und im Streitfall nicht belegbar. Gilt nur fuer ausgefuellte PDFs.
+function maengelBehobenBemerkungFehlt(zustand, bemerkungWert) {
+  return zustand === MAENGEL_BEHOBEN && String(bemerkungWert || '').trim() === '';
+}
+
+/* ---------------------------------------------------------------------------
+ *  ZWEITER WIDERSPRUCHSPFAD: FREIGABE TROTZ BEANSTANDUNG
+ * ---------------------------------------------------------------------------
+ *  Auch ohne den Zustand "behoben" laesst sich ein widerspruechliches Dokument
+ *  erzeugen: "Mängel festgestellt" auswaehlen und trotzdem "Sicherer Gebrauch
+ *  gewährleistet: Ja" stehen lassen. Das PDF kreuzt dann "Ja" an und schreibt
+ *  darunter "Ein sicherer Gebrauch ist NICHT gewährleistet".
+ *
+ *  Die automatische Umkehrung des Freigabetextes bleibt unangetastet - sie ist
+ *  der eigentliche Schutzmechanismus. Stattdessen wird das Ankreuzfeld an ihr
+ *  gemessen: passt beides nicht zusammen, entsteht kein Dokument. Der Prueferin
+ *  bleibt die Wahl, die Beanstandung auszuraeumen oder das Feld auf "Nein" zu
+ *  setzen - beides fuehrt zu einem in sich stimmigen Protokoll.
+ * ------------------------------------------------------------------------ */
+function freigabeWidersprichtBefund(isBlank, hasIssues, freigabeWert) {
+  return !isBlank && hasIssues && String(freigabeWert || '') === 'Ja';
+}
+
+function freigabeWiderspruchHinweis(feldName) {
+  return 'Widerspruch im Prüfergebnis:\n\n' +
+    'Das Protokoll enthält Beanstandungen (Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis), ' +
+    'gleichzeitig steht "' + feldName + '" auf "Ja".\n\n' +
+    'Ein Protokoll, das beides behauptet, ist als Nachweis wertlos. Bitte entweder die Beanstandungen ' +
+    'ausräumen und erneut messen oder "' + feldName + '" auf "Nein" setzen.\n\n' +
+    'Das PDF wurde deshalb nicht erstellt.';
+}
+
+/* Fehlende Angaben werden im Freigabetext benannt, statt nur rot in einer
+ * Tabellenzelle zu stehen. Sie kehren die Aussage nicht um - sie sagen, dass
+ * das Protokoll an dieser Stelle unvollstaendig ist. */
+const DOKU_MANGEL_ZUSATZ =
+  ' Hinweis: In der Tabelle sind Angaben rot markiert, die zur vollständigen Dokumentation fehlen (z. B. RCD-Typ oder verwendeter Prüfstrom). Das Protokoll ist insoweit unvollständig und sollte ergänzt werden.';
+
+const MAENGEL_BEHOBEN_HINWEIS =
+  'Bitte im Feld "Bemerkungen / Mängel" beschreiben, WELCHE Mängel festgestellt und wie sie behoben wurden.\n\n' +
+  'Die Auswahl "Mängel festgestellt und behoben" ist ohne diese Beschreibung nicht nachvollziehbar. ' +
+  'Das PDF wurde deshalb nicht erstellt.';
 
 // MAX. SCHUTZLEITERWIDERSTAND (Ohm): 0,3 Ohm BIS 5m LEITUNGSLÄNGE,
 // DANACH +0,1 Ohm JE ANGEFANGENE 7,5m (Prüfstrom mind. 200mA)
@@ -358,7 +597,8 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
       doc.setFont("helvetica", "normal");
       doc.setFontSize(5.5);
       doc.setTextColor(...PDF_MUTED);
-      doc.text(revision, PDF_MARGIN_LEFT, PDF_FOOTER_Y);
+      // auch der Revisionsvermerk laeuft ueber cleanStr (er enthaelt "·")
+      doc.text(cleanStr(revision), PDF_MARGIN_LEFT, PDF_FOOTER_Y);
       doc.text(`Seite ${i} / ${totalPages}`, 200, PDF_FOOTER_Y, { align: 'right' });
     }
     doc.setTextColor(...PDF_TEXT);
@@ -532,13 +772,17 @@ function pdfDirektDownload(blob, filename) {
   }, 60000);
 }
 
+/* Rueckgabe: true  = Datei wurde ausgegeben (Download/Ordner/Teilen)
+ *            false = Nutzer hat abgebrochen oder es ging schief
+ * Der Aufrufer entscheidet daran, ob die Protokollnummer verbraucht wird -
+ * ein abgebrochener Teilen-Dialog darf keine Nummer kosten. */
 async function savePdfCompatible(doc, filename) {
   let blob;
   try {
     blob = doc.output('blob');
   } catch (e) {
-    try { doc.save(filename); } catch (e2) { alert('PDF konnte nicht erzeugt werden.'); }
-    return;
+    try { doc.save(filename); return true; } catch (e2) { alert('PDF konnte nicht erzeugt werden.'); }
+    return false;
   }
 
   const modus = getPdfSpeichernModus();
@@ -554,7 +798,7 @@ async function savePdfCompatible(doc, filename) {
         await writer.write(blob);
         await writer.close();
         showNotification('PDF gespeichert: ' + filename, 'success');
-        return;
+        return true;
       }
     } catch (e) { /* faellt unten auf den normalen Download zurueck */ }
   }
@@ -566,9 +810,10 @@ async function savePdfCompatible(doc, filename) {
     if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
       try {
         await navigator.share({ files: [file], title: filename });
-        return;
+        return true;
       } catch (err) {
-        if (err && err.name === 'AbortError') return;   // Nutzer hat abgebrochen
+        // Abbruch im Teilen-Menue: keine Datei entstanden -> keine Nummer verbrauchen
+        if (err && err.name === 'AbortError') return false;
         // sonst: normaler Download als Rueckfallebene
       }
     }
@@ -577,12 +822,13 @@ async function savePdfCompatible(doc, filename) {
   /* --- 3. Standard: direkter Download in den Download-Ordner --- */
   try {
     pdfDirektDownload(blob, filename);
-    return;
+    return true;
   } catch (e) { /* weiter */ }
 
   /* --- 4. Notfall --- */
-  try { doc.save(filename); }
+  try { doc.save(filename); return true; }
   catch (e) {
     alert('PDF konnte nicht gespeichert werden. Bitte die Seite im Browser (statt als App) öffnen.');
   }
+  return false;
 }

@@ -92,44 +92,136 @@ function syncGebaeudeSelect(value) {
 // Praefix "PR-" aus. Folge: ein Pruefprotokoll, eine Anschlusspruefung und eine
 // Geraetepruefung, die am selben Tag erstellt wurden, trugen alle dieselbe Nummer
 // (z. B. PR-2026-08-11-001). Damit war kein Dokument mehr eindeutig identifizierbar.
-const PROTOKOLL_PRAEFIXE = { PR: 'Prüfprotokoll', AP: 'Anschlussprüfung', GP: 'Geräteprüfung' };
+const PROTOKOLL_PRAEFIXE = { PR: 'Prüfprotokoll', AP: 'Anschlussprüfung', GP: 'Geräteprüfung', EB: 'Errichterbescheinigung' };
 
-function updateProtokollCounter(forceNew, praefix = 'PR') {
+/* WANN WIRD EINE NUMMER VERBRAUCHT?
+ * Frueher beim Oeffnen des Formulars. Wer das Formular schloss, neu lud oder
+ * die App neu startete, bekam dieselbe Nummer erneut - zwei verschiedene
+ * Anlagen konnten so unter identischer Nummer dokumentiert werden.
+ *
+ * Jetzt gilt: Beim Oeffnen wird die naechste freie Nummer nur VORGESCHLAGEN.
+ * Verbraucht (= Zaehler hochgesetzt) wird sie erst, wenn tatsaechlich ein
+ * ausgefuelltes PDF entstanden ist. Das Leerformular verbraucht nie eine Nummer.
+ * Der gespeicherte Zaehler bedeutet damit: "zuletzt VERBRAUCHTE Nummer". */
+
+function protokollZaehlerKeys(praefix) {
   if (!PROTOKOLL_PRAEFIXE[praefix]) praefix = 'PR';
-
-  const today = new Date().toISOString().split('T')[0];
-  const dateKey = `vde_last_date_${praefix}`;
-  const cntKey = `vde_counter_${praefix}`;
-
-  const lastDate = localStorage.getItem(dateKey);
-  let counter = parseInt(localStorage.getItem(cntKey) || '0', 10);
-
-  if (lastDate !== today) {
-    counter = 1;
-  } else if (forceNew) {
-    counter += 1;
-  } else if (counter === 0) {
-    counter = 1;
-  }
-
-  localStorage.setItem(dateKey, today);
-  localStorage.setItem(cntKey, counter);
-  return `${praefix}-${today}-${String(counter).padStart(3, '0')}`;
+  return { praefix: praefix, dateKey: `vde_last_date_${praefix}`, cntKey: `vde_counter_${praefix}` };
 }
 
+// Naechste freie Nummer BERECHNEN, ohne etwas zu speichern (reiner Vorschlag).
+function naechsteProtokollNummer(praefix = 'PR') {
+  const k = protokollZaehlerKeys(praefix);
+  const today = new Date().toISOString().split('T')[0];
+  const lastDate = localStorage.getItem(k.dateKey);
+  const counter = parseInt(localStorage.getItem(k.cntKey) || '0', 10);
+  // Tageswechsel setzt die laufende Nummer zurueck.
+  const naechste = (lastDate !== today) ? 1 : counter + 1;
+  return `${k.praefix}-${today}-${String(naechste).padStart(3, '0')}`;
+}
+
+/* Rueckwaertskompatibel: aeltere Aufrufe von updateProtokollCounter() liefern
+ * weiterhin eine Nummer, verbrauchen sie aber nicht mehr. Der Parameter
+ * forceNew hat dadurch keine Wirkung mehr und bleibt nur der Signatur wegen
+ * erhalten. */
+function updateProtokollCounter(forceNew, praefix = 'PR') {
+  return naechsteProtokollNummer(praefix);
+}
+
+/* --- Liste der tatsaechlich vergebenen Nummern ---------------------------
+ * Dient der Doppelvergabe-Warnung. Bewusst eine schlichte Liste in
+ * localStorage: sie muss nur "kenne ich diese Nummer schon?" beantworten. */
+const VERGEBENE_NUMMERN_KEY = 'vde_vergebene_nummern';
+const VERGEBENE_NUMMERN_MAX = 500;
+
+function ladeVergebeneNummern() {
+  try {
+    const roh = localStorage.getItem(VERGEBENE_NUMMERN_KEY);
+    const liste = roh ? JSON.parse(roh) : [];
+    return Array.isArray(liste) ? liste : [];
+  } catch (e) { return []; }
+}
+
+function istNummerVergeben(nummer) {
+  return !!nummer && ladeVergebeneNummern().indexOf(nummer) !== -1;
+}
+
+function merkeVergebeneNummer(nummer) {
+  if (!nummer) return;
+  const liste = ladeVergebeneNummern();
+  if (liste.indexOf(nummer) !== -1) return;
+  liste.push(nummer);
+  // aelteste Eintraege verwerfen, damit der Speicher nicht unbegrenzt waechst
+  while (liste.length > VERGEBENE_NUMMERN_MAX) liste.shift();
+  try { localStorage.setItem(VERGEBENE_NUMMERN_KEY, JSON.stringify(liste)); } catch (e) {}
+}
+
+/* Vor dem Erzeugen eines ausgefuellten PDF aufrufen. Liefert false, wenn die
+ * Nutzerin die Doppelvergabe NICHT bestaetigt hat. */
+function protokollNummerFreigeben(nummer) {
+  if (!istNummerVergeben(nummer)) return true;
+  return confirm(
+    `Die Protokollnummer ${nummer} wurde in dieser App bereits für ein fertiges PDF vergeben.\n\n` +
+    `Zwei Protokolle mit derselben Nummer sind nicht mehr eindeutig zuzuordnen.\n\n` +
+    `Trotzdem fortfahren?`);
+}
+
+/* Nach dem erfolgreichen Erzeugen eines ausgefuellten PDF aufrufen:
+ * Zaehler auf diese Nummer setzen und sie als vergeben vermerken. */
+function verbraucheProtokollNummer(nummer, praefix = 'PR') {
+  merkeVergebeneNummer(nummer);
+
+  // Von Hand geaenderte Nummern (abweichendes Format) duerfen den Zaehler
+  // nicht durcheinanderbringen - sie werden nur in der Liste vermerkt.
+  const m = /^([A-Z]{2})-(\d{4}-\d{2}-\d{2})-(\d{1,4})$/.exec(String(nummer || '').trim());
+  if (!m) return;
+
+  const k = protokollZaehlerKeys(m[1]);
+  if (k.praefix !== m[1]) return;
+
+  const datum = m[2];
+  const nr = parseInt(m[3], 10);
+  const lastDate = localStorage.getItem(k.dateKey);
+  const aktuell = parseInt(localStorage.getItem(k.cntKey) || '0', 10);
+
+  if (lastDate !== datum) {
+    localStorage.setItem(k.dateKey, datum);
+    localStorage.setItem(k.cntKey, String(nr));
+  } else if (nr > aktuell) {
+    localStorage.setItem(k.cntKey, String(nr));
+  }
+}
+
+/* Nach dem PDF: naechste freie Nummer ins Feld setzen und kurz melden. */
+function protokollNummerNachPdf(praefix = 'PR') {
+  const elem = document.getElementById('protokollnummer');
+  if (!elem) return;
+  const naechste = naechsteProtokollNummer(praefix);
+  elem.value = naechste;
+  // Zwischenstand mitziehen, sonst stuende nach einem Neuladen wieder die
+  // bereits verbrauchte Nummer im Formular.
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  if (typeof showNotification === 'function') {
+    showNotification(`Nummer vergeben. Nächstes Protokoll: ${naechste}`, 'success');
+  }
+}
+
+/* Beim Oeffnen: nur vorschlagen. Ein vorhandener Autosave-Stand ueberschreibt
+ * den Vorschlag anschliessend mit seiner eigenen Nummer (siehe restore*State),
+ * damit ein wiederhergestelltes Formular seine urspruengliche Nummer behaelt. */
 function initProtokollNummer(praefix = 'PR') {
   const elem = document.getElementById('protokollnummer');
-  if (elem) elem.value = updateProtokollCounter(false, praefix);
+  if (elem) elem.value = naechsteProtokollNummer(praefix);
 }
 
 function neuesProtokoll() {
   if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular (Stromkreise, Prüfergebnisse, Unterschriften) werden zurückgesetzt.')) return;
 
-  const nr = updateProtokollCounter(true);
+  const nr = naechsteProtokollNummer('PR');
   resetVdeForm();
   document.getElementById('protokollnummer').value = nr;
   clearAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
 }
 
 /* ============================================================================
@@ -139,11 +231,27 @@ function neuesProtokoll() {
  *  in eine JSON-Datei. Wichtig auf iPad/iPhone: iOS kann den Browserspeicher
  *  nach längerer Nichtnutzung löschen.
  * ========================================================================== */
+/* SICHERUNGS-FILTER
+ * Frueher wurde nur auf 'vde_' gefiltert. Die Autosave-Schluessel der Geraete-
+ * und Anschlusspruefung hiessen aber 'geraete_protocol_autosave' bzw.
+ * 'anschluss_protocol_autosave' - genau diese beiden Zwischenstaende landeten
+ * NIE in der Sicherung. Auf dem iPad, wo iOS den Browserspeicher loeschen kann
+ * (der Grund fuer die Sicherung), gingen sie damit verloren.
+ *
+ * Ab 3.0.0 heissen alle Autosave-Schluessel einheitlich 'vde_autosave_*'
+ * (siehe migriereAutosaveSchluessel). Die alten Praefixe bleiben im Filter als
+ * Sicherheitsnetz stehen, damit auch Geraete mit noch nicht migriertem Stand
+ * vollstaendig gesichert werden. */
+const BACKUP_PRAEFIXE = ['vde_', 'geraete_', 'anschluss_'];
+
 function sammleAppDaten() {
   const daten = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.indexOf('vde_') === 0) daten[key] = localStorage.getItem(key);
+    if (!key) continue;
+    for (let p = 0; p < BACKUP_PRAEFIXE.length; p++) {
+      if (key.indexOf(BACKUP_PRAEFIXE[p]) === 0) { daten[key] = localStorage.getItem(key); break; }
+    }
   }
   return {
     typ: 'vde-pruefprotokoll-backup',
@@ -152,6 +260,35 @@ function sammleAppDaten() {
     daten: daten
   };
 }
+
+/* ---------------------------------------------------------------------------
+ *  EINMALIGE UMBENENNUNG DER AUTOSAVE-SCHLUESSEL AUF EIN EINHEITLICHES PRAEFIX
+ * ---------------------------------------------------------------------------
+ *  Laeuft beim Laden jeder Seite, bevor ein Formular seinen Zwischenstand
+ *  liest. Vorhandene Staende werden umkopiert und der alte Schluessel entfernt;
+ *  ist der neue Schluessel schon belegt, gewinnt der neue (dann wurde bereits
+ *  mit der neuen Version gearbeitet). Danach ist der Aufruf wirkungslos.
+ * ------------------------------------------------------------------------ */
+const AUTOSAVE_UMBENENNUNGEN = [
+  ['vde_protocol_autosave', 'vde_autosave_pr'],
+  ['anschluss_protocol_autosave', 'vde_autosave_ap'],
+  ['geraete_protocol_autosave', 'vde_autosave_gp']
+];
+
+function migriereAutosaveSchluessel() {
+  try {
+    for (let i = 0; i < AUTOSAVE_UMBENENNUNGEN.length; i++) {
+      const alt = AUTOSAVE_UMBENENNUNGEN[i][0];
+      const neu = AUTOSAVE_UMBENENNUNGEN[i][1];
+      const wert = localStorage.getItem(alt);
+      if (wert === null) continue;
+      if (localStorage.getItem(neu) === null) localStorage.setItem(neu, wert);
+      localStorage.removeItem(alt);
+    }
+  } catch (e) { /* Speicher nicht verfuegbar - Autosave ist ohnehin best effort */ }
+}
+
+migriereAutosaveSchluessel();
 
 function exportAppData() {
   const inhalt = JSON.stringify(sammleAppDaten(), null, 2);
@@ -176,6 +313,39 @@ function downloadBlob(blob, name) {
   setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 30000);
 }
 
+/* Klartext-Bericht statt einer nackten Zahl: vor dem Einspielen soll erkennbar
+ * sein, WAS in der Datei steckt - und hinterher, was wiederhergestellt wurde. */
+function beschreibeSicherung(daten) {
+  const hat = function (k) { return Object.prototype.hasOwnProperty.call(daten, k); };
+  const zeilen = [];
+
+  zeilen.push('• Stammdaten: ' + (hat('vde_master_data') ? 'ja' : 'nein'));
+
+  const staende = [
+    ['vde_autosave_pr', 'vde_protocol_autosave', 'Anlagenprüfung'],
+    ['vde_autosave_ap', 'anschluss_protocol_autosave', 'Anschlussprüfung'],
+    ['vde_autosave_gp', 'geraete_protocol_autosave', 'Geräteprüfung']
+  ];
+  const vorhanden = staende.filter(function (s) { return hat(s[0]) || hat(s[1]); })
+                           .map(function (s) { return s[2]; });
+  zeilen.push('• Zwischenstände: ' + vorhanden.length +
+              (vorhanden.length ? ' (' + vorhanden.join(', ') + ')' : ''));
+
+  const zaehler = Object.keys(PROTOKOLL_PRAEFIXE)
+    .filter(function (p) { return hat('vde_counter_' + p); })
+    .map(function (p) { return p + ': ' + daten['vde_counter_' + p]; });
+  zeilen.push('• Protokollzähler: ' + (zaehler.length ? zaehler.join(', ') : 'keine'));
+
+  if (hat(VERGEBENE_NUMMERN_KEY)) {
+    let n = 0;
+    try { n = (JSON.parse(daten[VERGEBENE_NUMMERN_KEY]) || []).length; } catch (e) {}
+    zeilen.push('• Bereits vergebene Nummern: ' + n);
+  }
+
+  zeilen.push('• Einträge insgesamt: ' + Object.keys(daten).length);
+  return zeilen.join('\n') + '\n';
+}
+
 function importAppData(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -186,11 +356,14 @@ function importAppData(file) {
         alert('Das ist keine gültige Sicherungsdatei dieser App.');
         return;
       }
-      const anzahl = Object.keys(obj.daten).length;
-      if (!confirm('Sicherung vom ' + String(obj.erstellt).slice(0, 10) + ' einspielen?\n' +
-                   anzahl + ' Einträge werden überschrieben.')) return;
+      const bericht = beschreibeSicherung(obj.daten);
+      if (!confirm('Sicherung vom ' + String(obj.erstellt).slice(0, 10) +
+                   ' (App-Version ' + obj.version + ') einspielen?\n\n' + bericht +
+                   '\nVorhandene Daten auf diesem Gerät werden überschrieben.')) return;
       Object.keys(obj.daten).forEach(function (k) { localStorage.setItem(k, obj.daten[k]); });
-      alert('Sicherung eingespielt. Die Seite wird neu geladen.');
+      // Sicherungen aelterer Versionen bringen die alten Autosave-Schluessel mit
+      migriereAutosaveSchluessel();
+      alert('Sicherung eingespielt:\n\n' + bericht + '\nDie Seite wird neu geladen.');
       location.reload();
     } catch (e) {
       alert('Datei konnte nicht gelesen werden: ' + e.message);

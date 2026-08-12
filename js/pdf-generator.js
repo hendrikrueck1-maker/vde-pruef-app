@@ -234,7 +234,9 @@ function validateCardNorms(cardId) {
   // Fehlende Messwerte werden markiert, statt stillschweigend als "-" zu drucken.
   const imessEl = card.querySelector('.c-rcd-imess');
   const hatRcd = rcdTypElem && rcdTypElem.value.trim() !== '' && !/ohne\s*rcd/i.test(rcdTypElem.value);
-  const messwertFehlt = v => !v || v.trim() === '' || v.trim() === '-';
+  // messwertFehlt lag hier als eigene Kopie - jetzt zentral (pdf-utils.js),
+  // damit Anlagen- und Anschlusspruefung dieselbe Regel verwenden.
+  const messwertFehlt = rcdWertFehlt;
   [imessEl, taElem].forEach(el => {
     if (!el) return;
     if (hatRcd && messwertFehlt(el.value)) el.classList.add('missing-value');
@@ -302,8 +304,10 @@ function fillExampleData() {
   // RCD dokumentierte. Die Pruefung ist nach DIN VDE 0100-600 zwingend.
   // Werte ohne Einheit eintragen - die Einheit haengt der Generator an.
   // Prüfstrom 5 x I_dn ist der Standard -> Auslösezeiten entsprechend unter 40 ms
-  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1.5 mm²', rpe: '0.08', riso: '> 500', sich: 'B 10A', zs: '0.35', ik: '657', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', umess: '1.2' });
-  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2.5 mm²', rpe: '0.12', riso: '450', sich: 'B 16A', zs: '0.42', ik: '547', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', umess: '2.4' });
+  // Typ und I_dn muessen mitgegeben werden: die Beispieldaten sind das
+  // Musterprotokoll der App und duerfen keine unvollstaendige RCD-Zelle erzeugen.
+  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1.5 mm²', rpe: '0.08', riso: '> 500', sich: 'B 10A', zs: '0.35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', umess: '1.2' });
+  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2.5 mm²', rpe: '0.12', riso: '450', sich: 'B 16A', zs: '0.42', ik: '547', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', umess: '2.4' });
 }
 
 // KOPFDATEN DES PROTOKOLLS (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet)
@@ -315,6 +319,23 @@ const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017
 
 // GENERATOR FÜR DAS PDF-DOKUMENT
 function generatePDF(isBlank = false) {
+  /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
+   * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
+   * eine nicht belegbare Behauptung. Deshalb Abbruch VOR dem Aufbau des PDF.
+   * Das Leerformular ist davon nie betroffen - dort wird nichts behauptet. */
+  const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
+  const maengelZustand = getMaengelZustand(maengelVal);
+  if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
+    alert(MAENGEL_BEHOBEN_HINWEIS);
+    document.getElementById('res_bemerkungen')?.focus();
+    return;
+  }
+
+  /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
+   * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
+  const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
+  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   
@@ -365,7 +386,10 @@ function generatePDF(isBlank = false) {
   // Im Leerformular bleiben Kopf-Felder leer -> die Kopfbox zeichnet dort
   // Schreiblinien, auf die von Hand eingetragen werden kann.
   const kopfProtokollNr = isBlank ? "" : protokollNr;
-  const kopfPruefNr = isBlank ? "" : pruefNr;
+  // Auch im AUSGEFUELLTEN Protokoll darf kein Ausfuell-Platzhalter stehen: ist
+  // die Prueflings-ID leer, zeichnet kopfFeld() dort eine Schreiblinie. Ein
+  // "__________" in einem fertigen Dokument sieht aus wie ein vergessenes Feld.
+  const kopfPruefNr = isBlank ? "" : feldWert('pruefungsnummer');
 
   // HEADER: zentrale Funktion aus pdf-utils.js, passt die Schriftgroesse
   // automatisch an die verfuegbare Breite an (verhindert Ueberdrucken der Infobox)
@@ -487,6 +511,9 @@ function generatePDF(isBlank = false) {
 
   const tableRows = [];
   let anyMeasurementOut = false;
+  // Fehlende ANGABEN werden getrennt gefuehrt: sie machen das Protokoll
+  // unvollstaendig, kehren aber den Freigabetext nicht um.
+  let anyDokumentationsmangel = false;
 
   // BEISPIELZEILE IM LEERFORMULAR: zeigt Format, Einheiten und plausible Werte.
   // Sie wird grau/kursiv gesetzt und als "Bsp." gekennzeichnet, damit sie nicht
@@ -550,30 +577,32 @@ function generatePDF(isBlank = false) {
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
       const rcdImess = card.querySelector('.c-rcd-imess').value;
       const rcdTa = card.querySelector('.c-rcd-ta').value;
-      const rcdPruefstrom = card.querySelector('.c-rcd-pruefstrom')?.value || '1';
-      const istSelektiv = /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(rcdTyp);
-      // Grenzwert richtet sich nach dem tatsaechlich verwendeten Pruefstrom
-      const taMax = getRcdMaxAusloesezeitMs(rcdPruefstrom, istSelektiv);
+      // KEIN Fallback auf '1': ein nicht gewaehlter Pruefstrom darf im
+      // Beweisdokument nicht als gewaehlte Messbedingung erscheinen.
+      const rcdPruefstrom = card.querySelector('.c-rcd-pruefstrom')?.value || '';
+
+      // Zelltext und Dokumentationsmaengel zentral aufbauen (siehe pdf-utils.js).
+      // Messwerte erscheinen dadurch auch dann, wenn das Typ-Feld leer blieb.
+      const rcdZelle = buildRcdZelle({
+        typ: rcdTyp, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
+      });
+
+      // Ausloesezeit nur bewerten, wenn der Pruefstrom bekannt ist - sonst gibt
+      // es keinen definierten Grenzwert (DIN EN 61008-1/61009-1).
       const taNum = parseFloat(rcdTa.replace(',', '.'));
-      const isTaOut = !isNaN(taNum) && taNum > taMax;
+      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
       const idnRange = getRcdIdnRangeMa(rcdIdn);
       const imessNum = parseFloat(rcdImess.replace(',', '.'));
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
 
-      // Ein eingetragener RCD ohne Messwerte ist ein Dokumentationsmangel und
-      // wird jetzt als solcher markiert, statt unauffaellig als "-" zu erscheinen.
-      const hatRcd = rcdTyp.trim() !== '' && !/ohne\s*rcd/i.test(rcdTyp);
-      const fehlt = v => !v || v.trim() === '' || v.trim() === '-';
-      const isRcdUngeprueft = hatRcd && (fehlt(rcdImess) || fehlt(rcdTa));
-      const isRcdOut = isTaOut || isImessOut || isRcdUngeprueft;
-
-      // Kompakt in zwei Zeilen (spart Bauhoehe -> mehr Stromkreise je Seite)
-      let rcdText = `${rcdTyp} (${rcdIdn})`;
-      if (hatRcd) {
-        rcdText += isRcdUngeprueft
-          ? `\nnicht geprüft`
-          : `\n${rcdImess} mA / ${rcdTa} ms @ ${rcdPruefstrom}x`;
-      }
+      // Zelle rot: sowohl bei fehlender Angabe als auch bei echter Beanstandung.
+      const isRcdOut = isTaOut || isImessOut || rcdZelle.isOut;
+      // In die GESAMTBEWERTUNG geht nur ein, was die Sicherheit betrifft.
+      // Eine fehlende Typ- oder Prüfstromangabe macht das Protokoll
+      // unvollstaendig, aber nicht die Anlage unsicher.
+      const isRcdBeanstandung = isTaOut || isImessOut || rcdZelle.isPruefungUnvollstaendig;
+      if (rcdZelle.isDokumentationsmangel) anyDokumentationsmangel = true;
+      const rcdText = rcdZelle.text;
 
       const uMessVal = card.querySelector('.c-umess').value;
       const uNum = parseFloat(uMessVal.replace(',', '.'));
@@ -585,7 +614,7 @@ function generatePDF(isBlank = false) {
       // Der Grenzwert steht bereits im Tabellenkopf -> hier nur der Messwert
       const uText = uMessVal ? withUnit(uMessVal, 'V') : '-';
 
-      if (isRpeOut || isRisoOut || isIkOut || isRcdOut || isUOut) anyMeasurementOut = true;
+      if (isRpeOut || isRisoOut || isIkOut || isRcdBeanstandung || isUOut) anyMeasurementOut = true;
 
       tableRows.push([
         idx + 1,
@@ -618,6 +647,11 @@ function generatePDF(isBlank = false) {
     ]],
     body: tableRows,
     theme: 'grid',
+    // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
+    // auf der Folgeseite haette keine Zeilennummer mehr und waere keiner Messung
+    // zuzuordnen. Passt die Zeile nicht mehr, wandert sie komplett auf die
+    // naechste Seite (der Tabellenkopf wird dort automatisch wiederholt).
+    rowPageBreak: 'avoid',
     headStyles: {
       fillColor: katMessen.kopf, textColor: katMessen.akzent,
       fontSize: 5.6, fontStyle: 'bold', halign: 'center', valign: 'middle',
@@ -685,19 +719,28 @@ function generatePDF(isBlank = false) {
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
                 feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
 
-  const maengelVal = document.getElementById('res_maengel')?.value || "";
-  const hatKeineMaengel = maengelVal.startsWith("Keine");
-  const hatMaengel = !hatKeineMaengel && maengelVal !== "";
+  /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
+   * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
+   * ein Sonderfall von "Mängel festgestellt". */
+  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
+  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
+  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
+
+  /* Beanstandungen, die UNABHAENGIG von dieser Auswahl im Protokoll stehen.
+   * Nur wenn keine davon uebrig ist, darf "behoben" positiv ausgehen - sonst
+   * liesse sich der Widerspruch durch die Auswahl einfach umdrehen. */
+  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
+  const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
+  const anyErpNiO = ['erp_anlage', 'erp_schutz', 'erp_drehfeld'].some(id => document.getElementById(id)?.value === 'n.i.O.');
+  const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO || anyMeasurementOut || isErdungOut);
+  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
   drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 78, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
-
-  doc.text("Prüfplakette erteilt:", 120, finalY + offErgebnis);
-  drawCheckbox(doc, 150, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 162, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -708,6 +751,14 @@ function generatePDF(isBlank = false) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
   drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, 13, finalY + offTermin, 90, isBlank);
+
+  // Die Prüfplakette steht jetzt in dieser Zeile: die Ergebniszeile darueber
+  // braucht die volle Breite fuer das dritte Ankreuzfeld ("Mängel behoben").
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.2);
+  doc.text("Prüfplakette erteilt:", 120, finalY + offTermin);
+  drawCheckbox(doc, 150, finalY + offTermin, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 162, finalY + offTermin, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
@@ -722,10 +773,17 @@ function generatePDF(isBlank = false) {
 
   // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
   // BEI MÄNGELN, SICHERHEITSRISIKO ODER N.I.O.-ERGEBNISSEN MUSS EINE WARNUNG STEHEN
-  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
-  const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
-  const anyErpNiO = ['erp_anlage', 'erp_schutz', 'erp_drehfeld'].some(id => document.getElementById(id)?.value === 'n.i.O.');
-  const hasIssues = !isBlank && (hatMaengel || gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO || anyMeasurementOut || isErdungOut);
+  /* Ein "behoben" mit noch offenen roten Werten bleibt ein Mangelprotokoll -
+   * sonst koennte man den Widerspruch einfach in die andere Richtung erzeugen. */
+  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
+  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+
+  // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT gewährleistet" schreibt.
+  if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
+    alert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+    document.getElementById('res_gewaehrleistung')?.focus();
+    return;
+  }
 
   const complianceText = isBlank
     // Im Leerformular waere die Konformitaetsaussage eine unbelegte Behauptung -
@@ -733,10 +791,15 @@ function generatePDF(isBlank = false) {
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : hasIssues
       ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
-      : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+      : behobenOk
+        ? MAENGEL_BEHOBEN_TEXT_ANLAGE
+        : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+
+  // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
+  const complianceGesamt = complianceText + (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
 
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
 
   // Bedarf fuer Bestaetigungszeile + Hinweistext + Unterschriftenblock exakt
   // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
@@ -772,13 +835,13 @@ function generatePDF(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} – Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
   doc.line(115, finalY + 12, 200, finalY + 12);
-  doc.text(`${ortDatum} – Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
   // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
   drawProtokollSeitenkoepfe(doc, {
@@ -789,7 +852,14 @@ function generatePDF(isBlank = false) {
     ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
     : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
 
-  savePdfCompatible(doc, filename);
+  /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
+   * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
+   * ein Leerformular ebenfalls nicht. */
+  Promise.resolve(savePdfCompatible(doc, filename)).then(function (gespeichert) {
+    if (isBlank || gespeichert === false) return;
+    verbraucheProtokollNummer(nummerRoh, 'PR');
+    protokollNummerNachPdf('PR');
+  });
 }
 
 function initSignaturePads() {
@@ -801,7 +871,10 @@ function initSignaturePads() {
 
 // AUTOSAVE DES AKTUELLEN FORMULARS (localStorage), DAMIT EIN VERSEHENTLICHER
 // RELOAD NICHT ALLE BEREITS EINGETRAGENEN MESSWERTE VERWIRFT
-const AUTOSAVE_KEY = 'vde_protocol_autosave';
+// Einheitliches Praefix 'vde_' fuer ALLE Autosave-Schluessel, damit die
+// Datensicherung sie zuverlaessig erfasst (migriereAutosaveSchluessel in
+// storage.js benennt vorhandene Staende beim Start um).
+const AUTOSAVE_KEY = 'vde_autosave_pr';
 
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'pruefnorm', 'netzsystem',
@@ -853,7 +926,12 @@ function restoreProtocolState(state) {
 
   Object.entries(state.fields || {}).forEach(([id, val]) => {
     const el = document.getElementById(id);
-    if (el) el.value = val;
+    if (!el) return;
+    // Ein wiederhergestelltes Formular behaelt SEINE Protokollnummer. Nur wenn
+    // im Zwischenstand keine steht, bleibt der Vorschlag von
+    // initProtokollNummer() erhalten - sonst stuende dort ploetzlich nichts.
+    if (id === 'protokollnummer' && !String(val || '').trim()) return;
+    el.value = val;
   });
 
   if (state.anlage_bez !== undefined) {

@@ -59,12 +59,12 @@ function addDeviceCard(data = {}) {
       </div>
       <div class="form-group">
         <label class="checkbox-item" style="margin-top: 20px;">
-          <input type="checkbox" class="c-heizelement" ${data.heizelement ? 'checked' : ''} onchange="validateDeviceNorms(${cardCounter})"> Gerät mit Heizelement
+          <input type="checkbox" class="c-heizelement" ${(data.heizelement || String(data.heizleistung || '').trim() !== '') ? 'checked' : ''} onchange="heizelementGeaendert(${cardCounter})"> Gerät mit Heizelement
         </label>
       </div>
       <div class="form-group">
         <label>Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" value="${data.heizleistung || ''}" placeholder="z. B. 2.0" oninput="validateDeviceNorms(${cardCounter})">
+        <input type="text" inputmode="decimal" class="c-heizleistung" value="${data.heizleistung || ''}" placeholder="z. B. 2.0" oninput="heizleistungGeaendert(${cardCounter})">
         <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
       </div>
     </div>
@@ -116,6 +116,31 @@ function addDeviceCard(data = {}) {
   validateDeviceNorms(cardCounter);
 }
 
+/* Haekchen umgeschaltet: ohne Heizelement ist eine Heizleistung gegenstandslos
+ * und wird geleert, damit keine widerspruechliche Angabe stehen bleibt. */
+function heizelementGeaendert(cardId) {
+  const card = document.getElementById(`device_${cardId}`);
+  if (!card) return;
+  const cb = card.querySelector('.c-heizelement');
+  const feld = card.querySelector('.c-heizleistung');
+  if (cb && feld && !cb.checked) feld.value = '';
+  validateDeviceNorms(cardId);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+/* Heizleistung eingetragen -> es handelt sich um ein Geraet mit Heizelement.
+ * Das Haekchen wird mitgesetzt, damit R_ISO- und Ableitstrom-Grenzwert
+ * zusammenpassen. */
+function heizleistungGeaendert(cardId) {
+  const card = document.getElementById(`device_${cardId}`);
+  if (!card) return;
+  const cb = card.querySelector('.c-heizelement');
+  const feld = card.querySelector('.c-heizleistung');
+  if (cb && feld && feld.value.trim() !== '') cb.checked = true;
+  validateDeviceNorms(cardId);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
 function validateDeviceNorms(cardId) {
   const card = document.getElementById(`device_${cardId}`);
   if (!card) return;
@@ -125,17 +150,62 @@ function validateDeviceNorms(cardId) {
   const laenge = card.querySelector('.c-laenge').value;
   const heizleistung = card.querySelector('.c-heizleistung')?.value;
 
+  /* HEIZELEMENT UND HEIZLEISTUNG GEHOEREN ZUSAMMEN
+   * Das Haekchen steuert den R_ISO-Grenzwert (DIN EN 50699), das Feld
+   * Heizleistung den Ableitstrom-Grenzwert. Wer nur eines von beiden ausfuellt,
+   * bekommt eine halb angepasste Bewertung.
+   * Diese Funktion LIEST den Zustand nur - das Umschalten der beiden Felder
+   * erledigen heizelementGeaendert()/heizleistungGeaendert(). Wuerde hier
+   * beides gleichzeitig geregelt, haetten sich die Regeln gegenseitig
+   * aufgehoben (Haekchen abwaehlen -> Feld noch gefuellt -> sofort wieder
+   * gesetzt). */
+  const heizCheckbox = card.querySelector('.c-heizelement');
+  const heizLeistungElem = card.querySelector('.c-heizleistung');
+  if (heizCheckbox && heizLeistungElem) {
+    if (!heizCheckbox.checked) {
+      heizLeistungElem.disabled = true;
+      heizLeistungElem.required = false;
+      heizLeistungElem.classList.remove('missing-value');
+    } else {
+      // Haekchen gesetzt -> Heizleistung ist Pflicht (sie veraendert den
+      // zulaessigen Schutzleiterstrom)
+      heizLeistungElem.disabled = false;
+      heizLeistungElem.required = true;
+      if (heizLeistungElem.value.trim() === '') heizLeistungElem.classList.add('missing-value');
+      else heizLeistungElem.classList.remove('missing-value');
+    }
+  }
+  const hatHeizelementJetzt = heizCheckbox ? heizCheckbox.checked : hatHeizelement;
+  // Ohne Haekchen zaehlt eine (evtl. noch stehende) Heizleistung nicht mit.
+  const heizleistungJetzt = heizCheckbox && heizCheckbox.checked ? heizleistung : '';
+
+  /* R_PE NUR BEI SCHUTZKLASSE I
+   * Schutzisolierte (SK II) und Schutzkleinspannungs-Geraete (SK III) haben
+   * keinen Schutzleiter - ein R_PE-Grenzwert ist dort gegenstandslos. Frueher
+   * wurde trotzdem einer eingeblendet. */
   const rpeElem = card.querySelector('.c-rpe');
+  const rpeGilt = schutzklasse === 'I';
   const rpeMax = getRpeMaxDevice(laenge);
   const rpeLimitLabel = document.getElementById(`rpe_limit_${cardId}`);
-  if (rpeLimitLabel) rpeLimitLabel.textContent = `[max. ${rpeMax.toFixed(2)} Ohm]`;
-  if (rpeElem.value.trim() !== '') {
-    const num = parseFloat(rpeElem.value.replace(',', '.'));
-    if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
-  } else rpeElem.classList.remove('out-of-norm');
+  if (rpeLimitLabel) rpeLimitLabel.textContent = rpeGilt ? `[max. ${rpeMax.toFixed(2)} Ohm]` : '[n.a. – kein Schutzleiter]';
+  if (!rpeGilt) {
+    rpeElem.value = '';
+    rpeElem.disabled = true;
+    rpeElem.placeholder = 'n.a.';
+    rpeElem.classList.remove('out-of-norm');
+  } else {
+    rpeElem.disabled = false;
+    rpeElem.placeholder = 'z. B. 0.20';
+    if (rpeElem.value.trim() !== '') {
+      const num = parseFloat(rpeElem.value.replace(',', '.'));
+      if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
+    } else rpeElem.classList.remove('out-of-norm');
+  }
 
   const risoElem = card.querySelector('.c-riso');
-  const risoMin = getIsoMin(schutzklasse, hatHeizelement);
+  // Haekchen-Stand NACH der Kopplung verwenden, sonst weichen R_ISO- und
+  // Ableitstrom-Grenzwert voneinander ab.
+  const risoMin = getIsoMin(schutzklasse, hatHeizelementJetzt);
   const risoLimitLabel = document.getElementById(`riso_limit_${cardId}`);
   if (risoLimitLabel) risoLimitLabel.textContent = risoMin !== null ? `[min. ${risoMin} MOhm]` : '';
   if (risoElem.value.trim() !== '') {
@@ -148,7 +218,7 @@ function validateDeviceNorms(cardId) {
   } else risoElem.classList.remove('out-of-norm');
 
   const ableitElem = card.querySelector('.c-ableitstrom');
-  const ableitMax = getAbleitstromMax(schutzklasse, heizleistung);
+  const ableitMax = getAbleitstromMax(schutzklasse, heizleistungJetzt);
   const ableitLimitLabel = document.getElementById(`ableit_limit_${cardId}`);
   if (ableitLimitLabel) {
     ableitLimitLabel.textContent = ableitMax !== null
@@ -194,6 +264,42 @@ const GERAETE_KOPF = {
 const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
 
 function generatePDFGeraete(isBlank = false) {
+  /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
+   * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
+   * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
+   * Gilt nie fuer das Leerformular. */
+  const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
+  const maengelZustand = getMaengelZustand(maengelVal);
+  if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
+    alert(MAENGEL_BEHOBEN_HINWEIS);
+    document.getElementById('res_bemerkungen')?.focus();
+    return;
+  }
+
+  /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
+   * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
+  const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
+  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+
+  /* Heizelement ohne Heizleistung: der zulaessige Schutzleiterstrom haengt nach
+   * DIN EN 50699 von der Heizleistung ab. Ohne sie wuerde gegen 3,5 mA statt
+   * gegen den hoeheren zulaessigen Wert geprueft - das Ergebnis waere falsch. */
+  if (!isBlank) {
+    const ohneLeistung = Array.from(document.querySelectorAll('#devicesContainer .feed-card'))
+      .map((c, i) => ({ nr: i + 1, c }))
+      .filter(o => o.c.querySelector('.c-heizelement')?.checked &&
+                   String(o.c.querySelector('.c-heizleistung')?.value || '').trim() === '');
+    if (ohneLeistung.length) {
+      alert('Bei Gerät ' + ohneLeistung.map(o => '#' + o.nr).join(', ') +
+            ' ist "Heizelement" angekreuzt, aber keine Heizleistung eingetragen.\n\n' +
+            'Der zulässige Schutzleiterstrom hängt nach DIN EN 50699 von der Heizleistung ab. ' +
+            'Ohne diese Angabe wäre die Bewertung des Ableitstroms nicht belastbar.\n\n' +
+            'Das PDF wurde deshalb nicht erstellt.');
+      ohneLeistung[0].c.querySelector('.c-heizleistung')?.focus();
+      return;
+    }
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -240,7 +346,9 @@ function generatePDFGeraete(isBlank = false) {
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
-  const kopfPruefNr = isBlank ? "" : pruefNr;
+  // Auch im AUSGEFUELLTEN Protokoll darf kein Ausfuell-Platzhalter stehen: ist
+  // die Prueflings-ID leer, zeichnet kopfFeld() dort eine Schreiblinie.
+  const kopfPruefNr = isBlank ? "" : feldWert('pruefungsnummer');
 
   drawProtokollHeader(doc, GERAETE_KOPF);
 
@@ -344,10 +452,15 @@ function generatePDFGeraete(isBlank = false) {
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeMax = getRpeMaxDevice(laengeVal);
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
-      const isRpeOut = !isNaN(rpeNum) && rpeNum > rpeMax;
+      // SK II/III haben keinen Schutzleiter -> R_PE ist nicht anwendbar.
+      // "n.a." sagt das ausdruecklich; ein blosser Strich liesse offen, ob nur
+      // die Messung fehlt.
+      const rpeGiltPdf = sk === 'I';
+      const isRpeOut = rpeGiltPdf && !isNaN(rpeNum) && rpeNum > rpeMax;
       // Grenzwert mitdrucken: er haengt von der Leitungslaenge ab und war fuer
       // den Leser des PDF sonst nicht nachvollziehbar.
-      const rpeText = rpeVal ? `${rpeVal} Ohm\n(max. ${rpeMax.toFixed(2)})` : '-';
+      const rpeText = !rpeGiltPdf ? 'n.a.'
+        : (rpeVal ? `${rpeVal} Ohm\n(max. ${rpeMax.toFixed(2)})` : '-');
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
@@ -374,7 +487,8 @@ function generatePDFGeraete(isBlank = false) {
         cleanStr(`${bez}${typ !== '-' ? ' (' + typ + ')' : ''}`),
         cleanStr(invnr),
         `Kl. ${sk}`,
-        laengeVal ? `${laengeVal} m` : '-',
+        // auch dieses Feld ist Freitext -> ueber cleanStr ausgeben
+        laengeVal ? cleanStr(`${laengeVal} m`) : '-',
         makeCell(cleanStr(sichtText), sichtNiO),
         makeCell(cleanStr(funktion), isFunktionOut),
         makeCell(cleanStr(rpeText), isRpeOut),
@@ -401,6 +515,11 @@ function generatePDFGeraete(isBlank = false) {
     ]],
     body: tableRows,
     theme: 'grid',
+    // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
+    // auf der Folgeseite haette keine Zeilennummer mehr und waere keiner Messung
+    // zuzuordnen. Passt die Zeile nicht mehr, wandert sie komplett auf die
+    // naechste Seite (der Tabellenkopf wird dort automatisch wiederholt).
+    rowPageBreak: 'avoid',
     headStyles: {
       fillColor: katMessen.kopf, textColor: katMessen.akzent,
       fontSize: 5.4, fontStyle: 'bold', halign: 'center', valign: 'middle',
@@ -434,8 +553,11 @@ function generatePDFGeraete(isBlank = false) {
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
   const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
 
+  // Die Ergebniszeile braucht seit dem dritten Ankreuzfeld ("Mängel behoben")
+  // die volle Breite -> die Prüfplakette bekommt eine eigene Zeile.
   const offErgebnis = 11;
-  const offBemLabel = offErgebnis + 6;
+  const offPlakette = offErgebnis + 5.5;
+  const offBemLabel = offPlakette + 5.5;
   const offBemStart = offBemLabel + 4.2;
   const boxHeight   = offBemStart + bemZeilen * 4.2 + 2.5;
 
@@ -446,19 +568,29 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
 
-  const maengelVal = document.getElementById('res_maengel')?.value || "";
-  const hatKeineMaengel = maengelVal.startsWith("Keine");
-  const hatMaengel = !hatKeineMaengel && maengelVal !== "";
+  /* --- DREI ZUSTAENDE STATT ZWEI (identisch zu den anderen Protokollen) --- */
+  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
+  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
+  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
+
+  // Beanstandungen unabhaengig von der Auswahl - nur ohne sie darf "behoben"
+  // positiv ausgehen.
+  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
+  const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anyDeviceOut);
+  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
   drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 78, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  doc.text("Prüfplakette erteilt:", 120, finalY + offErgebnis);
-  drawCheckbox(doc, 150, finalY + offErgebnis, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 162, finalY + offErgebnis, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("Prüfplakette erteilt:", 13, finalY + offPlakette);
+  drawCheckbox(doc, 45, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 57, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
@@ -473,14 +605,23 @@ function generatePDFGeraete(isBlank = false) {
 
   finalY += boxHeight + 5;
 
-  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
-  const hasIssues = !isBlank && (hatMaengel || gewaehrleistungVal === 'Nein' || anyDeviceOut);
+  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
+  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+
+  // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT ... betrieben werden" schreibt.
+  if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
+    alert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+    document.getElementById('res_gewaehrleistung')?.focus();
+    return;
+  }
 
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : hasIssues
       ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
-      : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+      : behobenOk
+        ? MAENGEL_BEHOBEN_TEXT_GERAETE
+        : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
 
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceText, 190);
@@ -511,13 +652,13 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} – Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
   doc.line(115, finalY + 12, 200, finalY + 12);
-  doc.text(`${ortDatum} – Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
   drawProtokollSeitenkoepfe(doc, {
     ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: GERAETE_REVISION
@@ -527,11 +668,20 @@ function generatePDFGeraete(isBlank = false) {
     ? `Geraetepruefung_50678_50699_Leerformular.pdf`
     : `Geraetepruefung_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
 
-  savePdfCompatible(doc, filename);
+  /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
+   * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
+   * ein Leerformular ebenfalls nicht. */
+  Promise.resolve(savePdfCompatible(doc, filename)).then(function (gespeichert) {
+    if (isBlank || gespeichert === false) return;
+    verbraucheProtokollNummer(nummerRoh, 'GP');
+    protokollNummerNachPdf('GP');
+  });
 }
 
 // AUTOSAVE
-const GERAETE_AUTOSAVE_KEY = 'geraete_protocol_autosave';
+// Einheitliches Praefix 'vde_': der alte Schluessel 'geraete_protocol_autosave'
+// wurde von der Datensicherung nicht erfasst (siehe storage.js).
+const GERAETE_AUTOSAVE_KEY = 'vde_autosave_gp';
 
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
@@ -573,7 +723,10 @@ function restoreGeraeteState(state) {
 
   Object.entries(state.fields || {}).forEach(([id, val]) => {
     const el = document.getElementById(id);
-    if (el) el.value = val;
+    if (!el) return;
+    // Ein wiederhergestelltes Formular behaelt SEINE Protokollnummer.
+    if (id === 'protokollnummer' && !String(val || '').trim()) return;
+    el.value = val;
   });
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
@@ -631,9 +784,9 @@ function resetGeraeteForm() {
 function neuesGeraeteProtokoll() {
   if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular werden zurückgesetzt.')) return;
 
-  const nr = updateProtokollCounter(true, 'GP');
+  const nr = naechsteProtokollNummer('GP');
   resetGeraeteForm();
   document.getElementById('protokollnummer').value = nr;
   clearGeraeteAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
 }
