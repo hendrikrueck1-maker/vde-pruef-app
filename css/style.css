@@ -210,6 +210,108 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
    Zeigegeräten ohne feine Auflösung (Finger), am Desktop mit Maus bleibt die
    kompakte Darstellung erhalten.
    -------------------------------------------------------------------------- */
+
+/* ============================================================================
+ *  ARCHIV (ab 4.0.0)
+ * ----------------------------------------------------------------------------
+ *  Bewusst als Liste, nicht als Kachelraster: auf dem Handy sollen möglichst
+ *  viele Protokolle gleichzeitig sichtbar sein, und die Zeile ist mit einer
+ *  Hand erreichbar. Farben und Abstände folgen dem übrigen Formularstil.
+ * ========================================================================== */
+.archiv-suche { margin: 14px 0 10px; }
+.archiv-suche input[type="search"] { height: 44px; font-size: 16px; }
+
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.chip {
+  min-height: 40px; padding: 0 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: #ffffff; color: var(--secondary);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.chip span { opacity: 0.65; font-weight: 500; }
+.chip-aktiv { background: var(--primary); border-color: var(--primary); color: #ffffff; }
+
+.archiv-leiste {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  flex-wrap: wrap; background: #e8eef5; border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;
+  font-size: 0.85rem; font-weight: 600; color: var(--primary);
+}
+
+.archiv-monat {
+  font-size: 0.72rem; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--secondary); margin: 16px 0 6px;
+}
+
+.archiv-zeile {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 12px; margin-bottom: 6px; min-height: 56px;
+}
+.archiv-zeile:hover { border-color: var(--accent); }
+.archiv-zeile-gewaehlt { border-color: var(--primary); background: #f4f8fc; }
+.archiv-check { width: 22px; height: 22px; flex: none; }
+.archiv-kuerzel {
+  width: 34px; height: 34px; flex: none; border-radius: 6px; background: #e8eef5;
+  color: var(--primary); font-size: 0.78rem; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+}
+.archiv-mitte { flex: 1; min-width: 0; }
+.archiv-nr { font-size: 0.92rem; font-weight: 600; color: #0f172a; }
+.archiv-sub { font-size: 0.76rem; color: var(--secondary); margin-top: 2px; }
+.archiv-rechts { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.archiv-status { font-size: 0.68rem; font-weight: bold; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+.archiv-datum { font-size: 0.72rem; color: #94a3b8; }
+
+.archiv-leer {
+  border: 1px dashed var(--border); border-radius: 6px; padding: 24px;
+  text-align: center; color: var(--secondary); font-size: 0.85rem;
+}
+.archiv-leer p { margin: 8px auto 14px; max-width: 46ch; line-height: 1.5; }
+.archiv-fuss { font-size: 0.72rem; color: #94a3b8; line-height: 1.5; margin-top: 18px; }
+
+/* display:flex würde das hidden-Attribut überstimmen */
+[hidden] { display: none !important; }
+
+.archiv-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 9998;
+}
+.archiv-dialog {
+  background: #ffffff; width: min(560px, 100%); max-height: 88vh; overflow: auto;
+  border-radius: 10px 10px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.2);
+}
+@media (min-width: 720px) {
+  .archiv-overlay { align-items: center; padding: 24px; }
+  .archiv-dialog { border-radius: 10px; }
+}
+.archiv-dialog-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.archiv-dialog-typ { font-size: 0.7rem; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; color: var(--secondary); }
+.archiv-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 16px 0 0; font-size: 0.85rem; }
+.archiv-dl dt { color: var(--secondary); }
+.archiv-dl dd { margin: 0; color: #0f172a; font-weight: 600; text-align: right; }
+.archiv-dialog-aktionen { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.archiv-dialog-aktionen .btn { flex: 1 1 auto; min-height: 44px; }
+.archiv-hinweis { font-size: 0.72rem; color: var(--secondary); line-height: 1.5; margin: 12px 0 0; }
+
+/* Startseite: Kurzübersicht des Archivs */
+.start-archiv {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px 14px;
+}
+.start-archiv-zahl { font-size: 1.6rem; font-weight: bold; color: var(--primary); line-height: 1; }
+.start-archiv-text { flex: 1; min-width: 180px; font-size: 0.8rem; color: var(--secondary); line-height: 1.45; }
+.start-archiv .btn { text-decoration: none; }
+
+/* Formular wurde aus einer Archiv-Vorlage angelegt */
+.vorlage-hinweis {
+  background: #fef9c3; border: 1px solid #ca8a04; border-radius: 6px;
+  padding: 10px 12px; margin-bottom: 14px; font-size: 0.82rem;
+  line-height: 1.5; color: #713f12;
+}
+
 @media (pointer: coarse) {
   .quick-btn {
     min-height: 44px;
@@ -219,4 +321,9 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
   .quick-btn-group { gap: 8px; margin-top: 6px; }
   /* Auch die "Entfernen"-Knöpfe an den Karten sind sonst schwer zu treffen */
   .btn-danger { min-height: 44px; padding: 10px 14px; font-size: 0.82rem; }
+}
+
+@media (pointer: coarse) {
+  .chip { min-height: 44px; }
+  .archiv-zeile { min-height: 60px; }
 }

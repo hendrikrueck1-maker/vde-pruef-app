@@ -41,6 +41,12 @@
   ],
   "shortcuts": [
     {
+      "name": "Archiv – erstellte Protokolle",
+      "short_name": "Archiv",
+      "url": "./archiv.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Anlagenprüfung (VDE 0100/0105)",
       "short_name": "Anlage",
       "url": "./vde0100.html",

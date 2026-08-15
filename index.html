@@ -22,6 +22,7 @@
   <script src="js/pwa.js" defer></script>
 
   <script src="js/storage.js"></script>
+  <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
 </head>
 <body>
@@ -32,7 +33,22 @@
     <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;">Stadttheater Konstanz Prüfsystem</span>
   </div>
 
-  <h2 class="kat-stamm">1. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
+  <h2 class="kat-messen">1. Protokoll starten</h2>
+  <div class="protocol-grid" id="protocolGrid"></div>
+
+
+  <h2 class="kat-ergebnis">2. Archiv – erstellte Protokolle</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Jedes fertige PDF wird zusätzlich hier im Gerät abgelegt – auch wenn der Download-Ordner
+    später aufgeräumt wird. Leerformulare werden nicht archiviert.
+  </p>
+  <div class="start-archiv">
+    <div class="start-archiv-zahl" id="archivZahl">–</div>
+    <div class="start-archiv-text" id="archivText">Archiv wird gelesen …</div>
+    <a href="archiv.html" class="btn">Archiv öffnen</a>
+  </div>
+
+  <h2 class="kat-stamm">3. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
   </p>
@@ -54,7 +70,7 @@
     </div>
   </form>
 
-  <h2 class="kat-stamm">2. PDF-Speicherort</h2>
+  <h2 class="kat-stamm">4. PDF-Speicherort</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Legt fest, was beim Erzeugen eines PDF passiert. Standard ist der direkte Download –
     es öffnet sich dann kein Teilen-Fenster mehr.
@@ -75,10 +91,7 @@
     </div>
   </div>
 
-  <h2 class="kat-messen">3. Protokoll-Typ auswählen</h2>
-  <div class="protocol-grid" id="protocolGrid"></div>
-
-  <h2 class="kat-ergebnis">4. Datensicherung</h2>
+  <h2 class="kat-ergebnis">5. Datensicherung</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Stammdaten und Zähler als Datei sichern – empfohlen vor längerem Offline-Einsatz
     und auf iPad/iPhone, da iOS Browserdaten nach längerer Nichtnutzung löschen kann.
@@ -91,7 +104,7 @@
     <span id="appVersionHint" style="margin-left:auto; align-self:center; font-size:0.75rem; color:var(--secondary);"></span>
   </div>
 
-  <h2 class="kat-stamm">5. Version & Update</h2>
+  <h2 class="kat-stamm">6. Version & Update</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Die App aktualisiert sich normalerweise selbst. Kommt eine neue Version nicht an,
     hier manuell suchen oder den Offline-Speicher zurücksetzen
@@ -108,6 +121,28 @@
   loadMasterDataToDashboard();
   renderProtokollKacheln();
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
+  archivUebersichtLaden();
+
+  /* Archiv-Kurzübersicht ---------------------------------------------------
+   * Zeigt auf der Startseite, wie viele Protokolle abgelegt sind und welches
+   * zuletzt erzeugt wurde - ohne dafür das Archiv öffnen zu müssen. */
+  function archivUebersichtLaden() {
+    if (typeof archivAlle !== 'function') return;
+    archivAlle().then(function (liste) {
+      var zahl = document.getElementById('archivZahl');
+      var text = document.getElementById('archivText');
+      zahl.textContent = liste.length;
+      if (!liste.length) {
+        text.textContent = 'Noch keine Protokolle abgelegt. Das erste fertige PDF landet automatisch hier.';
+        return;
+      }
+      var letzte = liste[0];
+      var typ = archivTyp(letzte.praefix);
+      text.textContent = 'Zuletzt: ' + (letzte.nummer || letzte.dateiname) + ' · ' + typ.label +
+        (letzte.gebaeude ? ' · ' + letzte.gebaeude : '') +
+        ' · ' + archivDatumKurz(letzte.pruefdatum || letzte.erstellt.slice(0, 10));
+    });
+  }
 
   /* PDF-Speicherort ------------------------------------------------------- */
   document.getElementById('pdf_speichern_modus').value = getPdfSpeichernModus();

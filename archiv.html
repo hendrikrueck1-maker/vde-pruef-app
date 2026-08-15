@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Archiv – VDE Prüfprotokoll Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <meta name="description" content="Alle erstellten Prüfprotokolle als PDF im Gerät – offline durchsuchbar.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Archiv">
+  <meta name="format-detection" content="telephone=no">
+
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+  <script src="js/storage.js"></script>
+  <script src="js/archiv.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <h1>Archiv – alle erstellten Protokolle</h1>
+    <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Startseite</a>
+  </div>
+
+  <div class="archiv-suche">
+    <input type="search" id="suchfeld" placeholder="Nummer, Gebäude, Prüfer, Dateiname …"
+           oninput="listeZeichnen()" autocomplete="off">
+    <div class="chip-row" id="chipRow"></div>
+  </div>
+
+  <div class="archiv-leiste" id="auswahlLeiste" hidden>
+    <span id="auswahlText">0 ausgewählt</span>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button type="button" class="btn btn-secondary" onclick="auswahlTeilen()">Teilen / Sichern</button>
+      <button type="button" class="btn btn-danger" onclick="auswahlLoeschen()">Löschen</button>
+      <button type="button" class="btn btn-secondary" onclick="auswahlLeeren()">Auswahl aufheben</button>
+    </div>
+  </div>
+
+  <div id="liste"></div>
+
+  <p class="archiv-fuss" id="fussnote"></p>
+</div>
+
+<!-- Detailansicht ------------------------------------------------------- -->
+<div class="archiv-overlay" id="detail" hidden>
+  <div class="archiv-dialog" role="dialog" aria-modal="true" aria-labelledby="detailTitel">
+    <div class="archiv-dialog-kopf">
+      <div>
+        <div class="archiv-dialog-typ" id="detailTyp"></div>
+        <h2 id="detailTitel" style="margin:2px 0 0; background:none; border:none; padding:0; font-size:1.05rem;"></h2>
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="detailSchliessen()">Schließen</button>
+    </div>
+    <dl class="archiv-dl" id="detailDaten"></dl>
+    <div class="archiv-dialog-aktionen">
+      <button type="button" class="btn" onclick="detailOeffnen()">PDF öffnen</button>
+      <button type="button" class="btn btn-secondary" onclick="detailTeilen()">Teilen / Sichern</button>
+      <button type="button" class="btn btn-secondary" onclick="detailVorlage()" id="btnVorlage">Erneut prüfen (Vorlage)</button>
+      <button type="button" class="btn btn-danger" onclick="detailLoeschen()">Aus Archiv löschen</button>
+    </div>
+    <p class="archiv-hinweis" id="vorlageHinweis">
+      „Erneut prüfen“ legt ein neues Formular mit den beschreibenden Angaben dieses Protokolls an
+      (Bezeichnungen, Standort, Schutzklasse, Leitungslängen). Alle Messwerte, Sicht- und
+      Funktionsbewertungen, Unterschriften und das Gesamtergebnis bleiben leer und müssen neu
+      erfasst werden.
+    </p>
+  </div>
+</div>
+
+<script>
+  var alleEintraege = [];
+  var filterTyp = 'alle';
+  var auswahl = {};
+  var aktuellerEintrag = null;
+
+  laden();
+
+  function laden() {
+    archivAlle().then(function (liste) {
+      alleEintraege = liste;
+      chipsZeichnen();
+      listeZeichnen();
+    });
+  }
+
+  function gefiltert() {
+    var suche = (document.getElementById('suchfeld').value || '').toLowerCase().trim();
+    return alleEintraege.filter(function (e) {
+      if (filterTyp !== 'alle' && e.praefix !== filterTyp) return false;
+      if (!suche) return true;
+      var heu = [e.nummer, e.gebaeude, e.pruefer, e.dateiname, archivTyp(e.praefix).label,
+                 archivDatumKurz(e.pruefdatum)].join(' ').toLowerCase();
+      return heu.indexOf(suche) !== -1;
+    });
+  }
+
+  function chipsZeichnen() {
+    var row = document.getElementById('chipRow');
+    row.innerHTML = '';
+    var typen = [['alle', 'Alle']].concat(Object.keys(ARCHIV_TYPEN).map(function (p) {
+      return [p, ARCHIV_TYPEN[p].kurz];
+    }));
+    typen.forEach(function (t) {
+      var anzahl = t[0] === 'alle'
+        ? alleEintraege.length
+        : alleEintraege.filter(function (e) { return e.praefix === t[0]; }).length;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (filterTyp === t[0] ? ' chip-aktiv' : '');
+      b.innerHTML = t[1] + ' <span>' + anzahl + '</span>';
+      b.onclick = function () { filterTyp = t[0]; chipsZeichnen(); listeZeichnen(); };
+      row.appendChild(b);
+    });
+  }
+
+  function listeZeichnen() {
+    var ziel = document.getElementById('liste');
+    var liste = gefiltert();
+    ziel.innerHTML = '';
+
+    if (!alleEintraege.length) {
+      ziel.innerHTML = '<div class="archiv-leer"><strong>Noch keine Protokolle im Archiv.</strong>' +
+        '<p>Ab Version 4.0.0 wird jedes fertige PDF automatisch hier abgelegt – zusätzlich zum ' +
+        'Download oder Teilen. Leerformulare werden nicht archiviert.</p>' +
+        '<a class="btn" style="text-decoration:none; display:inline-block;" href="index.html">Protokoll erstellen</a></div>';
+      fussnoteSetzen();
+      return;
+    }
+    if (!liste.length) {
+      ziel.innerHTML = '<div class="archiv-leer"><strong>Kein Treffer.</strong>' +
+        '<p>Andere Suchbegriffe oder Filter wählen.</p></div>';
+      fussnoteSetzen();
+      return;
+    }
+
+    var aktuellerMonat = '';
+    liste.forEach(function (e) {
+      var monat = archivMonatLabel(e.erstellt);
+      if (monat !== aktuellerMonat) {
+        aktuellerMonat = monat;
+        var h = document.createElement('div');
+        h.className = 'archiv-monat';
+        h.textContent = monat;
+        ziel.appendChild(h);
+      }
+      ziel.appendChild(zeileBauen(e));
+    });
+    fussnoteSetzen();
+  }
+
+  function zeileBauen(e) {
+    var typ = archivTyp(e.praefix);
+    var status = archivStatus(e);
+
+    var zeile = document.createElement('div');
+    zeile.className = 'archiv-zeile' + (auswahl[e.id] ? ' archiv-zeile-gewaehlt' : '');
+
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.className = 'archiv-check';
+    box.checked = !!auswahl[e.id];
+    box.setAttribute('aria-label', 'Protokoll ' + e.nummer + ' auswählen');
+    box.onclick = function (ev) {
+      ev.stopPropagation();
+      if (box.checked) auswahl[e.id] = true; else delete auswahl[e.id];
+      listeZeichnen();
+      auswahlLeisteAktualisieren();
+    };
+    zeile.appendChild(box);
+
+    var kuerzel = document.createElement('div');
+    kuerzel.className = 'archiv-kuerzel';
+    kuerzel.textContent = e.praefix;
+    zeile.appendChild(kuerzel);
+
+    var mitte = document.createElement('div');
+    mitte.className = 'archiv-mitte';
+    var nr = document.createElement('div');
+    nr.className = 'archiv-nr';
+    nr.textContent = e.nummer || e.dateiname;
+    mitte.appendChild(nr);
+    var sub = document.createElement('div');
+    sub.className = 'archiv-sub';
+    sub.textContent = [typ.label, e.gebaeude, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
+      .filter(Boolean).join(' · ');
+    mitte.appendChild(sub);
+    zeile.appendChild(mitte);
+
+    var rechts = document.createElement('div');
+    rechts.className = 'archiv-rechts';
+    var badge = document.createElement('span');
+    badge.className = 'archiv-status';
+    badge.style.background = status.bg;
+    badge.style.color = status.fg;
+    badge.textContent = status.text;
+    rechts.appendChild(badge);
+    var datum = document.createElement('span');
+    datum.className = 'archiv-datum';
+    datum.textContent = archivDatumKurz(e.pruefdatum) || archivDatumKurz(e.erstellt.slice(0, 10));
+    rechts.appendChild(datum);
+    zeile.appendChild(rechts);
+
+    zeile.onclick = function () { detailZeigen(e.id); };
+    return zeile;
+  }
+
+  function fussnoteSetzen() {
+    var bytes = alleEintraege.reduce(function (s, e) { return s + (e.groesse || 0); }, 0);
+    document.getElementById('fussnote').textContent =
+      alleEintraege.length + ' Protokolle · ' + archivGroesse(bytes) +
+      ' im Gerätespeicher dieser App. Die PDFs bleiben offline verfügbar und werden nicht ' +
+      'automatisch gelöscht. Sie liegen nur auf diesem Gerät – vor einem Gerätewechsel bitte teilen oder sichern.';
+  }
+
+  /* ---- Mehrfachauswahl ------------------------------------------------- */
+  function auswahlIds() { return Object.keys(auswahl); }
+
+  function auswahlLeisteAktualisieren() {
+    var n = auswahlIds().length;
+    var leiste = document.getElementById('auswahlLeiste');
+    leiste.hidden = n === 0;
+    document.getElementById('auswahlText').textContent =
+      n + (n === 1 ? ' Protokoll ausgewählt' : ' Protokolle ausgewählt');
+  }
+
+  function auswahlLeeren() { auswahl = {}; listeZeichnen(); auswahlLeisteAktualisieren(); }
+
+  function auswahlTeilen() {
+    var ids = auswahlIds();
+    var eintraege = alleEintraege.filter(function (e) { return ids.indexOf(e.id) !== -1; });
+    archivPdfTeilen(eintraege);
+  }
+
+  function auswahlLoeschen() {
+    var ids = auswahlIds();
+    if (!ids.length) return;
+    if (!confirm(ids.length + ' Protokoll(e) endgültig aus dem Archiv löschen?\n\n' +
+                 'Bereits heruntergeladene oder geteilte PDFs bleiben davon unberührt.')) return;
+    archivLoeschen(ids).then(function () { auswahl = {}; auswahlLeisteAktualisieren(); laden(); });
+  }
+
+  /* ---- Detail ---------------------------------------------------------- */
+  function detailZeigen(id) {
+    aktuellerEintrag = alleEintraege.filter(function (e) { return e.id === id; })[0];
+    if (!aktuellerEintrag) return;
+    var e = aktuellerEintrag;
+    var typ = archivTyp(e.praefix);
+    var status = archivStatus(e);
+
+    document.getElementById('detailTyp').textContent = typ.label;
+    document.getElementById('detailTitel').textContent = e.nummer || e.dateiname;
+
+    var zeilen = [
+      ['Prüfdatum', archivDatumKurz(e.pruefdatum) || '–'],
+      ['Erstellt', archivDatumKurz(e.erstellt.slice(0, 10)) + ', ' + e.erstellt.slice(11, 16) + ' Uhr'],
+      ['Gebäude / Bereich', e.gebaeude || '–'],
+      ['Prüfer/-in', e.pruefer || '–'],
+      [typ.einheit, e.anzahl || '–'],
+      ['Gesamtbewertung', e.maengel || '–'],
+      ['Ergebnis', status.text],
+      ['Nächster Termin', archivDatumKurz(e.naechsterTermin) || '–'],
+      ['Datei', e.dateiname + ' · ' + archivGroesse(e.groesse)],
+      ['Erstellt mit', 'App-Version ' + (e.appVersion || '?')]
+    ];
+    var dl = document.getElementById('detailDaten');
+    dl.innerHTML = '';
+    zeilen.forEach(function (z) {
+      var dt = document.createElement('dt'); dt.textContent = z[0];
+      var dd = document.createElement('dd'); dd.textContent = z[1];
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+
+    var btn = document.getElementById('btnVorlage');
+    var moeglich = !!e.formState;
+    btn.disabled = !moeglich;
+    btn.style.opacity = moeglich ? '1' : '0.5';
+    document.getElementById('vorlageHinweis').style.display = moeglich ? 'block' : 'none';
+
+    document.getElementById('detail').hidden = false;
+  }
+
+  function detailSchliessen() { document.getElementById('detail').hidden = true; aktuellerEintrag = null; }
+  function detailOeffnen() { if (aktuellerEintrag) archivPdfOeffnen(aktuellerEintrag); }
+  function detailTeilen() { if (aktuellerEintrag) archivPdfTeilen(aktuellerEintrag); }
+
+  function detailLoeschen() {
+    if (!aktuellerEintrag) return;
+    if (!confirm('Protokoll ' + (aktuellerEintrag.nummer || aktuellerEintrag.dateiname) +
+                 ' endgültig aus dem Archiv löschen?')) return;
+    archivLoeschen(aktuellerEintrag.id).then(function () { detailSchliessen(); laden(); });
+  }
+
+  function detailVorlage() {
+    if (!aktuellerEintrag) return;
+    var typ = archivTyp(aktuellerEintrag.praefix);
+    if (!confirm('Neues ' + typ.label + '-Formular aus ' + (aktuellerEintrag.nummer || 'diesem Protokoll') + ' anlegen?\n\n' +
+                 'Übernommen werden nur beschreibende Angaben. Alle Messwerte und Bewertungen ' +
+                 'bleiben leer.\n\nEin vorhandener Zwischenstand in diesem Formular wird überschrieben.')) return;
+    var ziel = archivVorlageUebernehmen(aktuellerEintrag);
+    if (!ziel) { alert('Für dieses Protokoll wurde kein Formularstand mitgespeichert.'); return; }
+    location.href = ziel;
+  }
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !document.getElementById('detail').hidden) detailSchliessen();
+  });
+</script>
+</body>
+</html>

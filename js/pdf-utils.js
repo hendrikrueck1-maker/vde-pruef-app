@@ -776,7 +776,24 @@ function pdfDirektDownload(blob, filename) {
  *            false = Nutzer hat abgebrochen oder es ging schief
  * Der Aufrufer entscheidet daran, ob die Protokollnummer verbraucht wird -
  * ein abgebrochener Teilen-Dialog darf keine Nummer kosten. */
-async function savePdfCompatible(doc, filename) {
+/* Ab 4.0.0 nimmt savePdfCompatible einen dritten Parameter "meta" entgegen
+ * (aus archivMetaSammeln). Ist er gesetzt und handelt es sich nicht um ein
+ * Leerformular, wandert das erzeugte PDF zusaetzlich ins App-Archiv. Der
+ * Archiveintrag ist eine Zugabe - schlaegt er fehl, bleibt die Datei selbst
+ * unberuehrt und der Rueckgabewert unveraendert. */
+async function savePdfCompatible(doc, filename, meta) {
+  const gespeichert = await pdfDateiAusgeben(doc, filename);
+  if (gespeichert !== false && meta && !meta.isBlank && typeof archivPdfAblegen === 'function') {
+    try {
+      const blob = doc.output('blob');
+      const eintrag = await archivPdfAblegen(blob, Object.assign({ dateiname: filename }, meta));
+      if (eintrag) showNotification('Im Archiv abgelegt: ' + (meta.nummer || filename), 'success');
+    } catch (e) { console.warn('[Archiv] nicht abgelegt:', e); }
+  }
+  return gespeichert;
+}
+
+async function pdfDateiAusgeben(doc, filename) {
   let blob;
   try {
     blob = doc.output('blob');

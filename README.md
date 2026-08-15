@@ -60,6 +60,22 @@ beim ersten Hochladen.
 - 📱 Responsive Design für Desktop und Mobile
 - 🔄 Beispieldaten zum schnellen Einstieg
 
+## 🗄️ Archiv (neu in 4.0.0)
+
+Jedes **ausgefüllte** PDF wird beim Erzeugen zusätzlich im Gerät abgelegt
+(`archiv.html`, Speicher: IndexedDB). Der Download bzw. das Teilen bleibt
+unverändert – das Archiv kommt oben drauf.
+
+- Suche über Nummer, Gebäude, Prüfer und Dateiname, Filter je Protokolltyp
+- Zeile antippen → Detailansicht mit PDF öffnen, Teilen/Sichern, Löschen
+- **Erneut prüfen (Vorlage):** legt ein neues Formular mit den beschreibenden
+  Angaben an. Alle Messwerte, Sicht- und Funktionsbewertungen, Unterschriften
+  und das Gesamtergebnis bleiben leer – ein übernommener Messwert wäre eine
+  Messung, die nie stattgefunden hat.
+- Leerformulare werden nicht archiviert.
+- Die Daten liegen ausschließlich auf dem Gerät. Vor einem Gerätewechsel die
+  PDFs teilen oder sichern; die JSON-Sicherung enthält das Archiv **nicht**.
+
 ## 📂 Dateistruktur
 
 ```
@@ -327,7 +343,7 @@ Anpassungen und Modifikationen sind erlaubt.
 
 ---
 
-**Version:** 1.1  
+**Version:** 4.0.0  
 **Letztes Update:** 2026-08-11  
 **Status:** ✅ Produktiv
 

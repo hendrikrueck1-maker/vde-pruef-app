@@ -139,3 +139,22 @@ Capacitor-Assets wurden auf den aktuellen Stand gebracht.
 **Nicht automatisch prüfbar** (Sandbox ohne Browser): die tatsächliche
 Installation auf einem Gerät. Dafür der Test in `INSTALLATION.md`:
 App installieren → Flugmodus → App starten.
+
+
+## Archiv (ab 4.0.0)
+
+`js/archiv.js` kapselt eine IndexedDB-Datenbank `vde_archiv` (Store
+`protokolle`, keyPath `id`). Ein Eintrag enthält den PDF-Blob, die
+Metadaten aus dem Formular (`archivMetaSammeln`) und den Autosave-Stand des
+Formulars (für „Erneut prüfen").
+
+`savePdfCompatible(doc, dateiname, meta)` hat einen dritten Parameter
+bekommen. Die eigentliche Dateiausgabe steckt unverändert in
+`pdfDateiAusgeben()`; der Wrapper legt danach – nur bei Erfolg und nur für
+ausgefüllte Protokolle – die Kopie im Archiv ab. Schlägt das Archivieren fehl,
+bleibt der Rückgabewert und damit die Zählerlogik unberührt.
+
+Die Vorlagenfunktion `archivStateAlsVorlage()` leert jedes Feld, dessen Name
+auf `ARCHIV_CLEAR_MUSTER` passt (Messgrößen, Sicht-/Funktionsbewertung,
+Ergebnis, Unterschriften, Termine). Die Regel ist absichtlich großzügig: lieber
+ein beschreibendes Feld zu viel leeren als einen alten Messwert übernehmen.

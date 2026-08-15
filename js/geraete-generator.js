@@ -671,7 +671,8 @@ function generatePDFGeraete(isBlank = false) {
   /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
    * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
    * ein Leerformular ebenfalls nicht. */
-  Promise.resolve(savePdfCompatible(doc, filename)).then(function (gespeichert) {
+  Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('GP', nummerRoh, filename, isBlank)))
+    .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'GP');
     protokollNummerNachPdf('GP');

@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '3.0.0';
+var APP_VERSION = '4.0.0';
 
 /* ---------------------------------------------------------------------------
  * 2. PROTOKOLLE
@@ -99,10 +99,12 @@ var PROTOKOLLE = [
 var CORE_ASSETS = [
   './',
   'index.html',
+  'archiv.html',
   'manifest.json',
   'css/style.css',
   'js/app-config.js',
   'js/storage.js',
+  'js/archiv.js',
   'js/pdf-utils.js',
   'js/pwa.js',
   'js/vendor/jspdf.umd.min.js',
