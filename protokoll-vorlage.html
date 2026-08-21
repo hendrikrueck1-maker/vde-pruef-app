@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!-- ============================================================================
+     VORLAGE FÜR EIN NEUES PROTOKOLL
+     ----------------------------------------------------------------------------
+     So gehst du vor (Details in docs/ERWEITERN.md):
+
+       1. Diese Datei in den HAUPTORDNER kopieren und umbenennen,
+          z. B. nach "meinprotokoll.html".
+       2. Die Datei vorlage/protokoll-vorlage-generator.js nach
+          "js/meinprotokoll-generator.js" kopieren.
+       3. In der neuen HTML-Datei die drei Stellen mit "ANPASSEN" bearbeiten.
+       4. In js/app-config.js einen neuen Eintrag in PROTOKOLLE ergänzen.
+       5. 0-LOKAL-TESTEN.bat starten und prüfen.
+       6. 2-AKTUALISIEREN.bat starten – fertig, die Seite ist online.
+
+     WICHTIG: Alle Pfade RELATIV lassen (css/…, js/…), niemals mit / beginnen.
+     ========================================================================= -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- ANPASSEN 1: Titel -->
+  <title>Neues Prüfprotokoll</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- ===== PWA (unverändert übernehmen) ===== -->
+  <meta name="description" content="Prüfprotokolle nach DIN VDE erstellen und als PDF ausgeben – offline nutzbar.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Protokoll">
+  <meta name="format-detection" content="telephone=no">
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+
+  <!-- ===== Bibliotheken + gemeinsame Logik (unverändert übernehmen) ===== -->
+  <script src="js/vendor/jspdf.umd.min.js"></script>
+  <script src="js/vendor/jspdf.plugin.autotable.min.js"></script>
+  <!-- Unicode-Schrift fuer die PDF-Ausgabe (Ω, Δ, ≤, ≥, ², ...) -->
+  <script src="js/vendor/liberation-sans-font.js"></script>
+  <script src="js/vendor/signature_pad.umd.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/pdf-utils.js"></script>
+  <!-- ANPASSEN 2: eigener Generator -->
+  <script src="js/protokoll-vorlage-generator.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <!-- ANPASSEN 3: Überschrift + Normbezug -->
+    <h1>Neues Prüfprotokoll</h1>
+    <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;">
+      DIN VDE XXXX
+    </span>
+  </div>
+
+  <p><a href="index.html" style="font-size:0.82rem; color:var(--accent);">&larr; Zurück zur Übersicht</a></p>
+
+  <!-- ===== Kopfdaten (kommen automatisch aus den Stammdaten) ===== -->
+  <h2>1. Kopfdaten</h2>
+  <div class="grid">
+    <div class="form-group"><label>Protokoll-Nr.:</label><input type="text" id="protokollnummer" readonly></div>
+    <div class="form-group"><label>Datum:</label><input type="date" id="datum"></div>
+    <div class="form-group"><label>Auftraggeber / Betrieb:</label><input type="text" id="auftraggeber"></div>
+    <div class="form-group"><label>Prüfer/-in:</label><input type="text" id="pruefer"></div>
+    <div class="form-group"><label>Prüfgerät:</label><input type="text" id="messgeraet"></div>
+    <div class="form-group"><label>Seriennummer:</label><input type="text" id="seriennummer"></div>
+    <div class="form-group"><label>Kalibriert bis:</label><input type="date" id="kalibriert_bis"></div>
+  </div>
+
+  <!-- ===== Ab hier die eigenen Felder einbauen ===== -->
+  <h2>2. Prüfgegenstand</h2>
+  <div class="grid">
+    <div class="form-group"><label>Bezeichnung:</label><input type="text" id="bezeichnung"></div>
+    <div class="form-group"><label>Standort:</label><input type="text" id="standort"></div>
+    <div class="form-group">
+      <label>Ergebnis:</label>
+      <select id="ergebnis">
+        <option value="bestanden">bestanden</option>
+        <option value="nicht bestanden">nicht bestanden</option>
+      </select>
+    </div>
+  </div>
+
+  <h2>3. Bemerkungen</h2>
+  <textarea id="bemerkungen" rows="4" placeholder="Festgestellte Mängel, Hinweise, empfohlene Maßnahmen …"></textarea>
+
+  <!-- ===== Unterschriften ===== -->
+  <h2>4. Unterschriften</h2>
+  <div class="grid">
+    <div class="form-group"><label>Ort:</label><input type="text" id="unterschrift_ort"></div>
+  </div>
+  <div class="sig-block">
+    <div class="sig-card">
+      <label>Prüfer/-in</label>
+      <canvas id="sig_pruefer" width="300" height="90" style="border:1px dashed var(--border); border-radius:4px; touch-action:none;"></canvas>
+      <div><button type="button" class="btn-danger" onclick="clearSignature()">Löschen</button></div>
+    </div>
+  </div>
+
+  <!-- ===== Aktionen ===== -->
+  <div class="actions">
+    <button type="button" class="btn btn-secondary" onclick="neuesVorlageProtokoll()">Neues Protokoll</button>
+    <button type="button" class="btn btn-success" onclick="generiereVorlagePdf()">📄 PDF erstellen</button>
+  </div>
+</div>
+
+<script>
+  /* Beim Laden: Stammdaten übernehmen, Nummer vergeben, Unterschriftsfeld aktivieren */
+  window.addEventListener('DOMContentLoaded', function () {
+    applyMasterDataToForm();
+    initProtokollNummer('PR');   // ANPASSEN: eigenes Präfix in storage.js ergänzen
+    document.getElementById('datum').value = new Date().toISOString().slice(0, 10);
+    // Unterschriftsfeld – Ergebnis global merken, damit der Generator es findet
+    window.padPruefer = setupSignatureCanvas('sig_pruefer');
+  });
+
+  function clearSignature() {
+    if (window.padPruefer) window.padPruefer.clear();
+  }
+
+  function neuesVorlageProtokoll() {
+    if (!confirm('Neues Formular anlegen? Alle Eingaben werden zurückgesetzt.')) return;
+    location.reload();
+  }
+</script>
+</body>
+</html>
