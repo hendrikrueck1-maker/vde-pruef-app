@@ -1,0 +1,68 @@
+{
+  "name": "VDE Prüfprotokoll Manager",
+  "short_name": "VDE Protokoll",
+  "description": "Prüfprotokolle nach DIN VDE 0100-600, 0105-100, 0701/0702 erstellen und als PDF ausgeben – offline nutzbar.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#003366",
+  "lang": "de",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities", "business"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Archiv – erstellte Protokolle",
+      "short_name": "Archiv",
+      "url": "./archiv.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Anlagenprüfung (VDE 0100/0105)",
+      "short_name": "Anlage",
+      "url": "./vde0100.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Anschlussprüfung Übergabepunkt",
+      "short_name": "Anschluss",
+      "url": "./anschlusspruefung.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Geräteprüfung (VDE 0701/0702)",
+      "short_name": "Gerät",
+      "url": "./geraetepruefung.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
