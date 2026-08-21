@@ -327,3 +327,10 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
   .chip { min-height: 44px; }
   .archiv-zeile { min-height: 60px; }
 }
+
+/* Z und I_K passen rechnerisch nicht zusammen: anderer Farbton als
+   out-of-norm, weil es kein Grenzwertverstoss ist, sondern ein Tippfehler. */
+input.wert-widerspruch {
+  border-color: #d97706 !important;
+  background: #fffbeb !important;
+}

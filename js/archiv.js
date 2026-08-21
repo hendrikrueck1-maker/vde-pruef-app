@@ -263,8 +263,53 @@ function archivPdfTeilen(eintraege) {
  *  Messung, die nie stattgefunden hat. Lieber ein Feld zu viel neu ausfuellen.
  * ========================================================================== */
 
-/* Felder, die in KEINEM Fall uebernommen werden (Namensmuster). */
-var ARCHIV_CLEAR_MUSTER = /(rpe|riso|iso|ableit|zs|z_s|^ik$|imess|^ta$|^re$|^uf$|durchgang|schleife|spannung|strom|zeit|messwert|sicht|funktion|drehfeld|ergebnis|bemerk|plakette|gewaehrleistung|freigabe|maengel|unterschrift|signatur|termin|heizleistung)/i;
+/* ---------------------------------------------------------------------------
+ *  WAS DARF UEBERNOMMEN WERDEN?  ->  POSITIVLISTE
+ * ---------------------------------------------------------------------------
+ *  Frueher stand hier ein AUSSCHLUSS-Muster ("alles, was nach Messwert
+ *  aussieht, wird geleert"). Ein Ausschlussmuster laesst jedes Feld durch, an
+ *  das beim Schreiben des Musters niemand gedacht hat - und genau das ist
+ *  passiert: t_A, U_mess, Z_L-N, I_K2, die Erproben-Punkte, die komplette
+ *  Gesamtbewertung (Maengel, Plakette, Gewaehrleistung, Bemerkungen) sowie
+ *  Protokollnummer und Pruefdatum wanderten unbemerkt in die neue Pruefung.
+ *  Der Hinweis im Formular behauptete gleichzeitig das Gegenteil.
+ *
+ *  Jetzt gilt die Umkehrung: WAS HIER NICHT STEHT, WIRD GELEERT. Ein spaeter
+ *  ergaenztes Messfeld ist dadurch automatisch auf der sicheren Seite - es
+ *  kann nur noch durch eine bewusste Ergaenzung dieser Liste uebernommen
+ *  werden.
+ *
+ *  Aufgenommen sind ausschliesslich BESCHREIBENDE Angaben: wer, wo, welche
+ *  Anlage, welche Leitung, welche Absicherung, welches Messgeraet. Alles,
+ *  was ein ERGEBNIS ist (Messwert, i.O./n.i.O., Bewertung, Freigabe,
+ *  Unterschrift, Datum, Protokollnummer), wird geleert.
+ * ------------------------------------------------------------------------ */
+var ARCHIV_UEBERNEHMEN = [
+  /* --- Kopf- und Stammdaten (alle drei Protokolltypen) --- */
+  'auftraggeber', 'gebaeude', 'gebaeude_custom', 'anlage_bez', 'veranstaltung',
+  'pruefungsnummer', 'pruefer',
+  'pruefnorm', 'pruefgrund', 'pruefart', 'pruefintervall',
+  'netzsystem', 'einspeisung', 'einspeisung_art', 'einspeisung_sonstiges',
+  'hausanschluss', 'vnb',
+  'bereitsteller_ansprechpartner', 'bereitsteller_telefon',
+  'uebergabe_standort', 'anschlussleistung_vertrag',
+  'messgeraet', 'seriennummer', 'kalibriert_bis',
+  'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
+  'erdung_messpunkt', 'pa_messpunkt', 'unterschrift_ort',
+
+  /* --- je Stromkreis (Anlagenpruefung) --- */
+  'bez', 'kabel', 'leiter', 'qs', 'sich', 'rcd_typ', 'rcd_idn', 'art', 'gefaehrdung',
+
+  /* Bewusst NICHT uebernommen: netzspannung / netzfrequenz (Anlagenpruefung)
+   * und spannung / frequenz je Uebergabepunkt (Anschlusspruefung). Sie sehen
+   * wie Nennwerte aus, sind aber bei Netzersatzanlagen und Wechselrichtern
+   * echte Messwerte - das Formular weist die Frequenz dort ausdruecklich als
+   * Pflicht-Messwert aus. Zwei Sekunden Nachtragen sind billiger als ein
+   * uebernommener Messwert, der nie gemessen wurde. */
+
+  /* --- je Geraet (Geraetepruefung): Typenschild- und Bauartangaben --- */
+  'typ', 'invnr', 'schutzklasse', 'laenge', 'heizelement', 'heizleistung'
+];
 
 function archivWertLeeren(wert) {
   if (typeof wert === 'boolean') return false;
@@ -272,31 +317,47 @@ function archivWertLeeren(wert) {
   return '';
 }
 
+function archivUebernahmeErlaubt(key) {
+  return ARCHIV_UEBERNEHMEN.indexOf(key) !== -1;
+}
+
+/* Geht rekursiv durch den gespeicherten Formularstand.
+ * WICHTIG: Container werden DURCHLAUFEN, nicht bewertet. Der frueher hier
+ * stehende Code stieg nur in Arrays ab - dadurch wurden state.fields und
+ * state.erproben (beides einfache Objekte) nie angefasst und ihr kompletter
+ * Inhalt unveraendert uebernommen. Bewertet wird immer nur der einzelne Wert
+ * an seinem Schluessel. */
+function archivVorlageBereinigen(knoten) {
+  if (Array.isArray(knoten)) {
+    return knoten.map(function (eintrag) {
+      // Liste von Objekten (Stromkreise, Uebergabepunkte, Geraete): absteigen
+      if (eintrag && typeof eintrag === 'object') return archivVorlageBereinigen(eintrag);
+      // Liste von Einzelwerten (z. B. Sichtpruefungs-Ergebnisse): immer leeren
+      return '';
+    });
+  }
+  if (knoten && typeof knoten === 'object') {
+    Object.keys(knoten).forEach(function (key) {
+      var wert = knoten[key];
+      if (wert && typeof wert === 'object') {
+        knoten[key] = archivVorlageBereinigen(wert);
+      } else if (!archivUebernahmeErlaubt(key)) {
+        knoten[key] = archivWertLeeren(wert);
+      }
+    });
+    return knoten;
+  }
+  return knoten;
+}
+
 function archivStateAlsVorlage(state) {
   if (!state || typeof state !== 'object') return null;
   var kopie = JSON.parse(JSON.stringify(state));
-
-  Object.keys(kopie).forEach(function (key) {
-    var wert = kopie[key];
-    if (Array.isArray(wert)) {
-      kopie[key] = wert.map(function (eintrag) {
-        if (eintrag && typeof eintrag === 'object') {
-          Object.keys(eintrag).forEach(function (k) {
-            if (ARCHIV_CLEAR_MUSTER.test(k)) eintrag[k] = archivWertLeeren(eintrag[k]);
-          });
-          return eintrag;
-        }
-        return '';   // z. B. die Sichtprüfungs-Liste
-      });
-      return;
-    }
-    if (ARCHIV_CLEAR_MUSTER.test(key)) kopie[key] = archivWertLeeren(wert);
-  });
-
-  // Nummer und Datum gehoeren zur neuen Pruefung, nicht zur alten.
-  kopie.protokollnummer = '';
-  kopie.datum = '';
-  return kopie;
+  /* Protokollnummer und Pruefdatum liegen in state.fields, nicht auf der
+   * obersten Ebene. Sie stehen nicht in ARCHIV_UEBERNEHMEN und werden von
+   * archivVorlageBereinigen() dadurch zuverlaessig geleert - anders als bei
+   * der frueheren Zuweisung kopie.protokollnummer = '', die ins Leere lief. */
+  return archivVorlageBereinigen(kopie);
 }
 
 /* Schreibt die bereinigte Vorlage in den Zwischenspeicher des passenden

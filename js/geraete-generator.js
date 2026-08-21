@@ -16,7 +16,10 @@ function updateNaechsterTermin() {
   const monate = parseInt(document.getElementById('pruefintervall').value, 10);
   const next = new Date();
   next.setMonth(next.getMonth() + monate);
-  document.getElementById('res_termin_date').valueAsDate = next;
+  // Lokale Monatsangabe: valueAsDate rechnet auch bei <input type="month"> in
+  // UTC und lag in den ersten Stunden des Monats einen Monat daneben.
+  document.getElementById('res_termin_date').value =
+    next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0');
 }
 
 function addDeviceCard(data = {}) {
@@ -35,15 +38,15 @@ function addDeviceCard(data = {}) {
     <div class="grid">
       <div class="form-group grid-full">
         <label>Bezeichnung / Verwendungszweck:</label>
-        <input type="text" class="c-bez" value="${data.bez || ''}" placeholder="z. B. PAR-Scheinwerfer Lichtregie">
+        <input type="text" class="c-bez" value="${attrEsc(data.bez)}" placeholder="z. B. PAR-Scheinwerfer Lichtregie">
       </div>
       <div class="form-group">
         <label>Hersteller / Typ:</label>
-        <input type="text" class="c-typ" value="${data.typ || ''}" placeholder="z. B. ADB, PAR64">
+        <input type="text" class="c-typ" value="${attrEsc(data.typ)}" placeholder="z. B. ADB, PAR64">
       </div>
       <div class="form-group">
         <label>Inventar- / Seriennummer:</label>
-        <input type="text" class="c-invnr" value="${data.invnr || ''}" placeholder="z. B. INV-0231">
+        <input type="text" class="c-invnr" value="${attrEsc(data.invnr)}" placeholder="z. B. INV-0231">
       </div>
       <div class="form-group">
         <label>Schutzklasse:</label>
@@ -55,7 +58,7 @@ function addDeviceCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Anschlussleitung Länge (m):</label>
-        <input type="text" inputmode="decimal" class="c-laenge" value="${data.laenge || ''}" placeholder="z. B. 10" oninput="validateDeviceNorms(${cardCounter})">
+        <input type="text" inputmode="decimal" class="c-laenge" value="${attrEsc(data.laenge)}" placeholder="z. B. 10" oninput="validateDeviceNorms(${cardCounter})">
       </div>
       <div class="form-group">
         <label class="checkbox-item" style="margin-top: 20px;">
@@ -64,7 +67,7 @@ function addDeviceCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" value="${data.heizleistung || ''}" placeholder="z. B. 2.0" oninput="heizleistungGeaendert(${cardCounter})">
+        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2.0" oninput="heizleistungGeaendert(${cardCounter})">
         <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
       </div>
     </div>
@@ -91,15 +94,15 @@ function addDeviceCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${data.rpe || ''}" placeholder="z. B. 0.20" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.20" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-riso" value="${data.riso || ''}" placeholder="z. B. > 100" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso)}" placeholder="z. B. > 100" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${data.ableitstrom || ''}" placeholder="z. B. 0.3" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0.3" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Messmethode Ableitstrom:</label>
@@ -270,6 +273,15 @@ function generatePDFGeraete(isBlank = false) {
    * Gilt nie fuer das Leerformular. */
   const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
   const maengelZustand = getMaengelZustand(maengelVal);
+
+  /* Offene Bewertungen (leere Auswahlfelder) abfangen - siehe pdf-utils.js. */
+  if (!isBlank) {
+    const offeneAuswahl = ersteLeereAuswahl(
+      ['.c-sicht-item', '.c-funktion', '.c-ableit-methode', '#res_maengel',
+       '#res_plakette', '#res_gewaehrleistung']);
+    if (offeneAuswahl) { offeneBewertungMelden(offeneAuswahl); return; }
+  }
+
   if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
     alert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
@@ -280,6 +292,18 @@ function generatePDFGeraete(isBlank = false) {
    * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
   const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
   if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+
+  /* Ohne einen einzigen Pruefling gibt es nichts zu bewerten. */
+  if (!isBlank && document.querySelectorAll('#devicesContainer .feed-card').length === 0) {
+    keinePrueflingeMelden('Gerät');
+    return;
+  }
+
+  /* Mindestangaben eines ausgefuellten Protokolls. */
+  if (!isBlank) {
+    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'auftraggeber']);
+    if (fehlend) { pflichtfeldMelden(fehlend); return; }
+  }
 
   /* Heizelement ohne Heizleistung: der zulaessige Schutzleiterstrom haengt nach
    * DIN EN 50699 von der Heizleistung ab. Ohne sie wuerde gegen 3,5 mA statt
@@ -380,7 +404,14 @@ function generatePDFGeraete(isBlank = false) {
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(2), spB, isBlank);
+  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot; der Hinweis
+  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
+  const isKalAbgelaufen = !isBlank &&
+    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
+                           document.getElementById('datum')?.value);
+  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
   drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
+  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
   // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
   // der Messwerte erforderlich.
   drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, z1(4), spB, isBlank);
@@ -550,6 +581,12 @@ function generatePDFGeraete(isBlank = false) {
 
   // SEKTION 3: GESAMTBEWERTUNG (Kategorie "ergebnis")
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
+  /* Schrift VOR dem Umbruch setzen: splitTextToSize misst mit der gerade
+   * aktiven Schrift. Nach doc.autoTable() ist das nicht die Schrift, mit der
+   * unten gedruckt wird - die Zeilen liefen dadurch ueber die Papierkante und
+   * die letzten Zeichen fehlten im PDF. */
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
   const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
 
@@ -623,8 +660,13 @@ function generatePDFGeraete(isBlank = false) {
         ? MAENGEL_BEHOBEN_TEXT_GERAETE
         : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
 
+  /* Der Warntext bei Maengeln wird FETT gesetzt und ist damit rund 7 %
+   * breiter als in normaler Schrift. Wurde er normal gemessen und fett
+   * gedruckt, lief er ueber die rechte Papierkante hinaus und die letzten
+   * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
+  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
+  const complianceLines = doc.splitTextToSize(complianceText + (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : ''), 190);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
   doc.setFont("helvetica", "bold");
@@ -675,7 +717,7 @@ function generatePDFGeraete(isBlank = false) {
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'GP');
-    protokollNummerNachPdf('GP');
+    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave);
   });
 }
 
@@ -727,10 +769,15 @@ function restoreGeraeteState(state) {
     if (!el) return;
     // Ein wiederhergestelltes Formular behaelt SEINE Protokollnummer.
     if (id === 'protokollnummer' && !String(val || '').trim()) return;
+    /* Leere Datumsangaben aus einer Archiv-Vorlage duerfen die Vorbelegung
+     * (heutiges Datum, Folgetermin) nicht ueberschreiben. */
+    if ((id === 'datum' || id === 'unterschrift_datum' || id === 'res_termin_date') &&
+        !String(val || '').trim()) return;
     el.value = val;
   });
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
+  validateKalibrierung();
 
   if (state.devices && state.devices.length) {
     document.getElementById('devicesContainer').innerHTML = '';
@@ -740,8 +787,12 @@ function restoreGeraeteState(state) {
       const d = state.devices[i];
       const sichtEls = card.querySelectorAll('.c-sicht-item');
       (d.sicht || []).forEach((val, j) => { if (sichtEls[j]) sichtEls[j].value = val; });
-      if (d.funktion) card.querySelector('.c-funktion').value = d.funktion;
-      if (d.ableit_methode) card.querySelector('.c-ableit-methode').value = d.ableit_methode;
+      /* Auch LEERE Werte setzen: eine aus dem Archiv uebernommene Vorlage
+       * liefert Funktionspruefung und Messverfahren bewusst leer. Mit der
+       * frueheren Kurzpruefung blieb der Vorgabewert "i.O." stehen - ein
+       * Ergebnis, das nie geprueft wurde. */
+      if (d.funktion !== undefined) card.querySelector('.c-funktion').value = d.funktion;
+      if (d.ableit_methode !== undefined) card.querySelector('.c-ableit-methode').value = d.ableit_methode;
       validateDeviceNorms(i + 1);
     });
   }
@@ -767,8 +818,9 @@ function clearGeraeteAutosave() {
 function resetGeraeteForm() {
   document.getElementById('geraeteForm').reset();
 
-  document.getElementById('datum').valueAsDate = new Date();
-  document.getElementById('unterschrift_datum').valueAsDate = new Date();
+  // Lokales Datum, siehe heuteIso() in pdf-utils.js
+  datumsfeldAufHeute('datum');
+  datumsfeldAufHeute('unterschrift_datum');
   updateNaechsterTermin();
   document.getElementById('res_bemerkungen').style.height = 'auto';
 

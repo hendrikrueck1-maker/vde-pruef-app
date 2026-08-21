@@ -82,10 +82,14 @@
         <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum" oninput="validateKalibrierung()"></div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
-      <div class="form-group"><label>Prüfgerät kalibriert bis:</label><input type="date" id="kalibriert_bis"></div>
+      <div class="form-group">
+        <label>Prüfgerät kalibriert bis:</label>
+        <input type="date" id="kalibriert_bis" oninput="validateKalibrierung()">
+        <div class="limit-hint">Liegt das Datum vor dem Prüfdatum, wird das im Protokoll vermerkt.</div>
+      </div>
     </div>
 
     <!-- 2. BEREITSTELLER / NETZBETREIBER DER EINSPEISUNG -->
@@ -156,7 +160,7 @@
       </div>
       <div class="form-group">
         <label>Durchgängigkeit PE / PA R<sub>PA</sub> (&Omega;) [&le; 1,0 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.14">
+        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.14" oninput="validatePaWiderstand()">
         <div class="limit-hint">Messung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
       <div class="form-group grid-full">
@@ -233,7 +237,17 @@
       </div>
     </div>
 
-    <div class="actions">
+    <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
+      <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
+        <label style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
+        <select id="leer_blaetter">
+          <option value="1" selected>1 Blatt</option>
+          <option value="2">2 Blätter</option>
+          <option value="3">3 Blätter</option>
+          <option value="4">4 Blätter</option>
+        </select>
+        <div class="limit-hint">Blatt 2 und folgende sind Fortsetzungsblätter: nur die Messtabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1.</div>
+      </div>
       <button type="button" class="btn btn-secondary" onclick="generatePDFAnschluss(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
       <button type="button" class="btn btn-success" onclick="generatePDFAnschluss(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
     </div>
@@ -243,8 +257,9 @@
 <script>
   let padUebergeber, padUebernehmer;
 
-  document.getElementById('datum').valueAsDate = new Date();
-  document.getElementById('unterschrift_datum').valueAsDate = new Date();
+  // Datum immer aus der LOKALEN Zeit, siehe heuteIso() in pdf-utils.js
+  datumsfeldAufHeute('datum');
+  datumsfeldAufHeute('unterschrift_datum');
 
   applyMasterDataToForm();
   initProtokollNummer('AP');
@@ -257,6 +272,9 @@
   const pads = initSignaturePadsAnschluss();
   padUebergeber = pads.uebergeber;
   padUebernehmer = pads.uebernehmer;
+
+  validatePaWiderstand();
+  validateKalibrierung();
 
   document.getElementById('anschlussForm').addEventListener('input', autosaveProtocol);
   document.getElementById('anschlussForm').addEventListener('change', autosaveProtocol);

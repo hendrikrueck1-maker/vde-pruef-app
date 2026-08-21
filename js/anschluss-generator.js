@@ -24,7 +24,7 @@ function addFeedCard(data = {}) {
     <div class="grid">
       <div class="form-group grid-full">
         <label>Bezeichnung Übergabepunkt:</label>
-        <input type="text" class="c-bez" value="${data.bez || ''}" placeholder="z. B. Bühnenversorgung Haupthaus">
+        <input type="text" class="c-bez" value="${attrEsc(data.bez)}" placeholder="z. B. Bühnenversorgung Haupthaus">
       </div>
       <div class="form-group">
         <label>Netzsystem:</label>
@@ -38,11 +38,11 @@ function addFeedCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Netzspannung (V):</label>
-        <input type="text" inputmode="decimal" class="c-spannung" value="${data.spannung || ''}" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
+        <input type="text" inputmode="decimal" class="c-spannung" value="${attrEsc(data.spannung)}" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
       </div>
       <div class="form-group">
         <label>Frequenz (Hz):</label>
-        <input type="text" inputmode="decimal" class="c-frequenz" value="${data.frequenz || ''}" placeholder="z. B. 50 Hz">
+        <input type="text" inputmode="decimal" class="c-frequenz" value="${attrEsc(data.frequenz)}" placeholder="z. B. 50 Hz">
       </div>
       <div class="form-group">
         <label>Rechtsdrehfeld (bei Drehstrom):</label>
@@ -55,7 +55,7 @@ function addFeedCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${data.rpe || ''}" placeholder="z. B. 0.15" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.15" oninput="validateFeedNorms(${cardCounter})">
         </div>
       </div>
     </div>
@@ -65,7 +65,7 @@ function addFeedCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>Absicherung (Typ / Nennstrom):</label>
-          <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${data.sich || ''}" placeholder="z. B. B 32A" oninput="validateFeedNorms(${cardCounter})" autocomplete="off">
+          <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${attrEsc(data.sich)}" placeholder="z. B. B 32A" oninput="validateFeedNorms(${cardCounter})" autocomplete="off">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 16A'); validateFeedNorms(${cardCounter})">B 16A</button>
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 32A'); validateFeedNorms(${cardCounter})">B 32A</button>
@@ -74,12 +74,14 @@ function addFeedCard(data = {}) {
           </div>
         </div>
         <div class="form-group">
-          <label>Z<sub>S</sub> (&Omega;):</label>
-          <input type="text" inputmode="decimal" class="c-zs" value="${data.zs || ''}" placeholder="z. B. 0.28">
+          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE:</label>
+          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0.28" oninput="onFeedZsInput(${cardCounter})">
+          <div class="limit-hint" id="fzs_limit_${cardCounter}"></div>
         </div>
         <div class="form-group">
           <label>I<sub>K</sub> (A) [min. siehe Platzhalter]:</label>
-          <input type="text" inputmode="decimal" class="c-ik" value="${data.ik || ''}" placeholder="z. B. 605" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-ik" value="${attrEsc(data.ik)}" placeholder="z. B. 605" oninput="onFeedIkInput(${cardCounter})">
+          <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
         </div>
       </div>
     </div>
@@ -89,7 +91,7 @@ function addFeedCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>RCD Typ:</label>
-          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${data.rcd_typ || ''}" placeholder="z. B. Typ A">
+          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A')">Typ A</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B')">Typ B</button>
@@ -99,7 +101,7 @@ function addFeedCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-          <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${data.rcd_idn || ''}" placeholder="z. B. 30 mA" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${attrEsc(data.rcd_idn)}" placeholder="z. B. 30 mA" oninput="validateFeedNorms(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '30 mA'); validateFeedNorms(${cardCounter})">30 mA</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '300 mA'); validateFeedNorms(${cardCounter})">300 mA</button>
@@ -107,7 +109,7 @@ function addFeedCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Auslösestrom I<sub>&Delta;mess</sub> (mA):</label>
-          <input type="text" inputmode="decimal" class="c-rcd-imess" value="${data.rcd_imess || ''}" placeholder="z. B. 22" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rcd-imess" value="${attrEsc(data.rcd_imess)}" placeholder="z. B. 22" oninput="validateFeedNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
@@ -120,7 +122,7 @@ function addFeedCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Auslösezeit t<sub>A</sub> (ms) <span class="limit-hint" id="fta_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rcd-ta" value="${data.rcd_ta || ''}" placeholder="z. B. 24" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rcd-ta" value="${attrEsc(data.rcd_ta)}" placeholder="z. B. 24" oninput="validateFeedNorms(${cardCounter})">
         </div>
       </div>
     </div>
@@ -145,6 +147,29 @@ function validateFeedNorms(cardId) {
   const sichElem = card.querySelector('.c-sich-typ');
   const ikElem = card.querySelector('.c-ik');
   const minIk = sichElem ? getMinIk(sichElem.value) : null;
+
+  /* Z_S GEGEN DEN ZULAESSIGEN HOECHSTWERT PRUEFEN (Zs_max = 230 V / I_a).
+   * In der Anlagenpruefung gab es das laengst, in der Anschlusspruefung war
+   * Z_S ein reines Textfeld: ein Uebergabepunkt mit Z_S = 5 Ohm an C 63 A
+   * wurde freigegeben, solange nur das I_K-Feld leer blieb. */
+  const maxZs = sichElem ? getMaxZs(sichElem.value) : null;
+  const zsElem = card.querySelector('.c-zs');
+  const zsLimitLabel = document.getElementById(`fzs_limit_${cardId}`);
+  if (zsLimitLabel) {
+    zsLimitLabel.innerHTML = maxZs !== null
+      ? `max. ${maxZs.toFixed(2).replace('.', ',')} &Omega; &middot; Praxiswert (2/3): ${(maxZs * 2 / 3).toFixed(2).replace('.', ',')} &Omega;`
+      : 'Absicherung eintragen, dann erscheint der zulässige Höchstwert.';
+  }
+  if (zsElem) {
+    const zsNum = parseFloat(zsElem.value.replace(',', '.'));
+    if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && zsNum > maxZs) zsElem.classList.add('out-of-norm');
+    else zsElem.classList.remove('out-of-norm');
+  }
+  // Widerspruch zwischen Z_S und I_K sichtbar machen (I = 230 V / Z).
+  if (zsLimitLabel && !zsIkPaarPruefen(card, '.c-zs', '.c-ik')) {
+    zsLimitLabel.innerHTML += ' &middot; <b>Z und I<sub>K</sub> passen nicht zusammen (I = 230 V / Z) &ndash; einer der Werte ist falsch.</b>';
+  }
+
   if (ikElem) {
     ikElem.placeholder = minIk !== null ? `z. B. ${Math.round(minIk * 1.2)} (min. ${minIk} A erforderlich)` : 'z. B. 605';
     if (ikElem.value.trim() !== '' && minIk !== null) {
@@ -194,8 +219,24 @@ function validateFeedNorms(cardId) {
   });
 }
 
+/* Z_S -> I_K automatisch rechnen; eine Eingabe von Hand hebt die Kopplung auf.
+ * Gleiche Logik wie in der Anlagenpruefung (koppleImpedanzMitStrom in
+ * pdf-utils.js). */
+function onFeedZsInput(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (card) koppleImpedanzMitStrom(card, '.c-zs', '.c-ik');
+  validateFeedNorms(cardId);
+}
+
+function onFeedIkInput(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const el = card && card.querySelector('.c-ik');
+  if (el) delete el.dataset.auto;
+  validateFeedNorms(cardId);
+}
+
 function feedHasOutOfNorm(card) {
-  return Array.from(card.querySelectorAll('.c-rpe, .c-ik, .c-rcd-imess, .c-rcd-ta')).some(el => el.classList.contains('out-of-norm'));
+  return Array.from(card.querySelectorAll('.c-rpe, .c-zs, .c-ik, .c-rcd-imess, .c-rcd-ta')).some(el => el.classList.contains('out-of-norm'));
 }
 
 // validateErdungAnschluss() liegt zentral in pdf-utils.js (Alias auf validateErdung).
@@ -243,6 +284,46 @@ const ANSCHLUSS_KOPF = {
 };
 const ANSCHLUSS_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
 
+/* ===========================================================================
+ *  LEERFORMULAR ZUM AUSFUELLEN VON HAND  (siehe Kommentar in pdf-generator.js)
+ *  RCD in drei schmale Spalten, groessere Zeilenhoehe, echte
+ *  Fortsetzungsblaetter statt mehrfachem Ausdruck desselben Blattes.
+ * ======================================================================== */
+const LEER_ZEILEN_BLATT1_AP = 10;
+const LEER_ZEILEN_FOLGE_AP  = 28;
+const LEER_ZEILENHOEHE_AP   = 8.0;
+
+const LEER_HEAD_AP = [[
+  'Nr.',
+  'Bezeichnung\nÜbergabepunkt',
+  'Netzsystem\nSpannung / Frequenz',
+  'Dreh-\nfeld',
+  'R_PE\n(Ohm)\n<= 0,30',
+  'Absicherung\nTyp / I_n',
+  'Z_S (Ohm) / I_K (A)\nZ_S <= 230 V / I_a',
+  'RCD\nTyp / I_dn',
+  'I_dmess\n(mA)',
+  't_A (ms)\n@ ____ x I_dn'
+]];
+
+// Summe = 190 mm
+const LEER_SPALTEN_AP = {
+  0: { cellWidth: 6 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 28 },
+  3: { cellWidth: 12 }, 4: { cellWidth: 14 }, 5: { cellWidth: 15 },
+  6: { cellWidth: 24 }, 7: { cellWidth: 20 }, 8: { cellWidth: 14 },
+  9: { cellWidth: 23 }
+};
+
+const LEER_BEISPIEL_TEXT_AP =
+  'Beispiel: Bühnenversorgung Haupt | TN-S 230 / 400 V, 50 Hz | Drehfeld i.O. | R_PE 0,12 Ohm | C 32A | ' +
+  'Z_S 0,31 Ohm / I_K 740 A | RCD Typ A 30 mA | I_dmess 21 mA | t_A 17 ms @ 5x';
+
+function leerBlattzahlAnschluss() {
+  const roh = parseInt(document.getElementById('leer_blaetter')?.value || '1', 10);
+  if (isNaN(roh)) return 1;
+  return Math.min(Math.max(roh, 1), 4);
+}
+
 function generatePDFAnschluss(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
@@ -250,10 +331,31 @@ function generatePDFAnschluss(isBlank = false) {
    * Gilt nie fuer das Leerformular. */
   const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
   const maengelZustand = getMaengelZustand(maengelVal);
+
+  /* Offene Bewertungen (leere Auswahlfelder) abfangen - siehe pdf-utils.js. */
+  if (!isBlank) {
+    const offeneAuswahl = ersteLeereAuswahl(
+      ['.sicht-item', '.c-drehfeld', '#pa_angeschlossen', '#res_maengel',
+       '#res_leistung_ausreichend', '#res_freigabe']);
+    if (offeneAuswahl) { offeneBewertungMelden(offeneAuswahl); return; }
+  }
+
   if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
     alert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
     return;
+  }
+
+  /* Ohne einen einzigen Uebergabepunkt gibt es nichts zu uebergeben. */
+  if (!isBlank && document.querySelectorAll('.feed-card').length === 0) {
+    keinePrueflingeMelden('Übergabepunkt');
+    return;
+  }
+
+  /* Mindestangaben eines ausgefuellten Protokolls. */
+  if (!isBlank) {
+    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'veranstaltung', 'uebergabe_standort']);
+    if (fehlend) { pflichtfeldMelden(fehlend); return; }
   }
 
   /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
@@ -295,7 +397,8 @@ function generatePDFAnschluss(isBlank = false) {
   const protokollNr = getVal('protokollnummer', "AP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
-  const ort = getVal('unterschrift_ort', "Konstanz");
+  // Im Leerformular bleibt der Ort offen (Gastspiel, Freilicht, Fremdhaus).
+  const ort = isBlank ? "" : getVal('unterschrift_ort', "Konstanz");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
@@ -338,7 +441,14 @@ function generatePDFAnschluss(isBlank = false) {
   drawFeldZeile(doc, "Veranstaltung/Anlass:", feldWert('veranstaltung'),   spL, z1(2), spB, isBlank);
   drawFeldZeile(doc, "Prüfer/-in:",           feldWert('pruefer'),         spL, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Prüfdatum:",            datum,                       spL, z1(4), spB, isBlank);
+  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot; der Hinweis
+  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
+  const isKalAbgelaufen = !isBlank &&
+    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
+                           document.getElementById('datum')?.value);
+  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
   drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank);
+  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
 
   drawFeldZeile(doc, "Firma/Netzbetreiber:",     feldWert('vnb'),                           spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Ansprechpartner/-in:",     feldWert('bereitsteller_ansprechpartner'),  spR, z1(1), spB, isBlank);
@@ -421,26 +531,14 @@ function generatePDFAnschluss(isBlank = false) {
   // unvollstaendig, kehren aber den Freigabetext nicht um.
   let anyDokumentationsmangel = false;
   // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
-  const BEISPIEL_ZEILE_AP = [
-    "Bsp",
-    "Bühnenversorgung Haupt",
-    "TN-S\n230 / 400 V, 50 Hz",
-    "i.O.",
-    "0,12 Ohm",
-    "C 32A",
-    "0,31 Ohm / 740 A",
-    "Typ A (30 mA)\n21 mA / 17 ms @ 5x"
-  ];
-
-  // Die Beispielzeile steht am ENDE der Tabelle, damit die Eintragezeilen
-  // direkt unter dem Tabellenkopf beginnen.
-  let beispielIndex = -1;
+  const blaetter = isBlank ? leerBlattzahlAnschluss() : 1;
 
   if (isBlank) {
-    // Zeilenzahl so gewaehlt, dass das GESAMTE Leerformular auf eine A4-Seite passt
-    for (let i = 1; i <= 10; i++) tableRows.push([i, "", "", "", "", "", "", ""]);
-    beispielIndex = tableRows.length;
-    tableRows.push(BEISPIEL_ZEILE_AP);
+    // Die Musterangabe steht jetzt als graue Zeile im Fussbereich und
+    // verbraucht keine Schreibzeile mehr.
+    for (let i = 1; i <= LEER_ZEILEN_BLATT1_AP; i++) {
+      tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+    }
   } else {
     const cards = document.querySelectorAll('.feed-card');
     cards.forEach((card, idx) => {
@@ -452,6 +550,11 @@ function generatePDFAnschluss(isBlank = false) {
       const netzSpannungFreq = [netzsystem, [volt, freq].filter(p => p).join(', ')].filter(p => p).join(' - ') || '-';
 
       const drehfeld = card.querySelector('.c-drehfeld').value;
+      /* Ein Linksdrehfeld am Uebergabepunkt ist in der Veranstaltungstechnik
+       * eine echte Beanstandung: Kettenzuege, Winden und Motoren laufen damit
+       * verkehrt herum. Der Wert wurde bisher nur gedruckt und ging in keine
+       * Bewertung ein - der Uebergabepunkt wurde trotz "n.i.O." freigegeben. */
+      const isDrehfeldOut = drehfeld === 'n.i.O.';
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
@@ -464,6 +567,13 @@ function generatePDFAnschluss(isBlank = false) {
       const minIk = getMinIk(sich);
       const ikNum = parseFloat(ik.replace(',', '.'));
       const isIkOut = minIk !== null && !isNaN(ikNum) && ikNum < minIk;
+      // Z_S wird jetzt auch hier bewertet (Zs_max = 230 V / I_a), inklusive
+      // Plausibilitaet gegen I_K - bisher war das Feld reine Dokumentation.
+      const maxZsPdf = getMaxZs(sich);
+      const zsNumPdf = parseFloat(zs.replace(',', '.'));
+      const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
+      const zsIkWiderspruch = !zIkPlausibel(zs, ik);
+      if (zsIkWiderspruch) anyDokumentationsmangel = true;
       let zsik = '-';
       if (zs || ik) zsik = `${zs || '-'} Ohm / ${ik || '-'} A`;
 
@@ -496,34 +606,36 @@ function generatePDFAnschluss(isBlank = false) {
 
       const rcdText = rcdZelle.text;
 
-      if (isRpeOut || isIkOut || isRcdBeanstandung) anyFeedMeasurementOut = true;
+      if (isRpeOut || isIkOut || isZsOut || isRcdBeanstandung || isDrehfeldOut) anyFeedMeasurementOut = true;
 
       tableRows.push([
         idx + 1,
         cleanStr(card.querySelector('.c-bez').value || '-'),
         cleanStr(netzSpannungFreq),
-        cleanStr(drehfeld),
+        makeCell(cleanStr(drehfeld), isDrehfeldOut),
         makeCell(cleanStr(rpeText), isRpeOut),
         cleanStr(sich),
-        makeCell(cleanStr(zsik), isIkOut),
+        makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch),
         makeCell(cleanStr(rcdText), isRcdOut)
       ]);
     });
   }
 
+  const HEAD_AUSGEFUELLT_AP = [[
+    'Nr.',
+    'Bezeichnung\nÜbergabepunkt',
+    'Netzsystem\nSpannung / Frequenz',
+    'Dreh-\nfeld',
+    'R_PE\n(Ohm)\nRichtw. <= 0,30',
+    'Absicherung\nTyp / I_n',
+    'Z_S (Ohm) / I_K (A)\nZ_S <= 230 V / I_a\nI_K >= 5x/10x/20x I_n',
+    'RCD: Typ (I_dn)\nI_dmess 0,5-1,0x I_dn\nt_A <= 40 ms bei 5x'
+  ]];
+
   doc.autoTable({
     startY: y + 5,
     // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert stehen untereinander
-    head: [[
-      'Nr.',
-      'Bezeichnung\nÜbergabepunkt',
-      'Netzsystem\nSpannung / Frequenz',
-      'Dreh-\nfeld',
-      'R_PE\n(Ohm)\nRichtw. <= 0,30',
-      'Absicherung\nTyp / I_n',
-      'Z_S (Ohm) / I_K (A)\nI_K >= 5x I_n (B)\n10x (C) / 20x (D)',
-      'RCD: Typ (I_dn)\nI_dmess 0,5-1,0x I_dn\nt_A <= 40 ms bei 5x'
-    ]],
+    head: isBlank ? LEER_HEAD_AP : HEAD_AUSGEFUELLT_AP,
     body: tableRows,
     theme: 'grid',
     // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
@@ -539,22 +651,15 @@ function generatePDFAnschluss(isBlank = false) {
     bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
     // Summe = 190 mm (210 - 2 x 10 mm Rand). Vorher 188 -> autoTable meldete
     // "content width could not fit page" und rechnete die Spalten selbst um.
-    columnStyles: {
+    columnStyles: isBlank ? LEER_SPALTEN_AP : {
       0: { cellWidth: 7 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 32 },
       3: { cellWidth: 12 }, 4: { cellWidth: 18 }, 5: { cellWidth: 19 },
       6: { cellWidth: 26 }, 7: { cellWidth: 42 }
     },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 6.5 : 5, overflow: 'linebreak',
-              cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.row.index === beispielIndex) {
-        data.cell.styles.fontStyle = 'italic';
-        data.cell.styles.textColor = [100, 116, 139];
-        data.cell.styles.fillColor = [248, 250, 252];
-        data.cell.styles.fontSize = 5.6;
-      }
-    }
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+              minCellHeight: isBlank ? LEER_ZEILENHOEHE_AP : 5, overflow: 'linebreak',
+              cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
   });
 
   let finalY = doc.lastAutoTable.finalY + 6;
@@ -562,6 +667,12 @@ function generatePDFAnschluss(isBlank = false) {
   /* --- SEKTION 4: ERDUNG / POTENZIALAUSGLEICH & FREIGABE ------------------
    * Neu: Messpunkt/Bezugspunkt sowie Freitextzeilen fuer eigene Messstellen. */
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
+  /* Schrift VOR dem Umbruch setzen: splitTextToSize misst mit der gerade
+   * aktiven Schrift. Nach doc.autoTable() ist das nicht die Schrift, mit der
+   * unten gedruckt wird - die Zeilen liefen dadurch ueber die Papierkante und
+   * die letzten Zeichen fehlten im PDF. */
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
@@ -587,8 +698,12 @@ function generatePDFAnschluss(isBlank = false) {
   drawCheckbox(doc, 70, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
   drawCheckbox(doc, 85, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
 
-  drawFeldZeile(doc, "Durchgängigkeit PE/PA R_PA (<= 1,0 Ohm):",
+  /* R_PA gegen den Grenzwert pruefen, der ohnehin auf dem Blatt steht. */
+  const isPaOut = !isBlank && paWiderstandUeberschritten(document.getElementById('pa_widerstand')?.value);
+  if (isPaOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
+  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_PA (<= ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ohm):`,
                 feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 107, finalY + OFF_PA, 90, isBlank);
+  if (isPaOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
@@ -610,8 +725,13 @@ function generatePDFAnschluss(isBlank = false) {
   const anySichtNiOFrueh = Array.from(s).some(el => el?.value === 'n.i.O.');
   // Beanstandungen unabhaengig von der Auswahl - nur ohne sie darf "behoben"
   // positiv ausgehen.
+  /* "Potenzialausgleich angeschlossen: Nein" wurde bisher nur gedruckt und
+   * ging in keine Bewertung ein - der Uebergabepunkt wurde trotzdem
+   * freigegeben. "n.a." bleibt bewusst ohne Wirkung (es gibt Uebergabepunkte
+   * ohne eigenen Potenzialausgleich, z. B. reine Schutztrennung). */
+  const isPaFehlt = paVal === 'Nein';
   const restBeanstandungen = !isBlank && (freigabeVal === 'Nein' || leistungVal === 'Nein' ||
-                             anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut);
+                             anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut || isPaFehlt || isPaOut);
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
@@ -665,21 +785,29 @@ function generatePDFAnschluss(isBlank = false) {
         : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.";
 
   // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
-  const complianceGesamt = complianceText + (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
+  const complianceGesamt = complianceText +
+    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '') +
+    (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : '');
 
+  /* Der Warntext bei Maengeln wird FETT gesetzt und ist damit rund 7 %
+   * breiter als in normaler Schrift. Wurde er normal gemessen und fett
+   * gedruckt, lief er ueber die rechte Papierkante hinaus und die letzten
+   * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
+  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
   // Umbruch nur, wenn Hinweistext + Unterschriftenblock wirklich nicht mehr passen
   finalY = pdfPlatzPruefen(doc, finalY, complianceLines.length * 3.2 + 6 + 16);
 
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
   doc.text(complianceLines, 10, finalY);
   doc.setTextColor(...textColor);
 
   finalY += complianceLines.length * 3.2 + 6;
 
-  const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
+  const ortDatum = isBlank
+    ? '________________, den ____________'
+    : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padUebergeber.isEmpty()) {
     doc.addImage(padUebergeber.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
@@ -698,6 +826,55 @@ function generatePDFAnschluss(isBlank = false) {
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
 
+  /* Musterangabe als graue Zeile im Fussbereich von Blatt 1. */
+  if (isBlank) {
+    doc.setPage(1);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(5.2);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text(LEER_BEISPIEL_TEXT_AP, PDF_MARGIN_LEFT, 287.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...PDF_TEXT);
+  }
+
+  /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ---------------------------- */
+  if (isBlank && blaetter > 1) {
+    let laufendeNr = LEER_ZEILEN_BLATT1_AP + 1;
+    for (let blatt = 2; blatt <= blaetter; blatt++) {
+      doc.addPage();
+      let yy = PDF_CONTENT_TOP;
+      drawKategorieTitel(doc, `FORTSETZUNG DER MESSTECHNISCHEN FESTSTELLUNGEN (BLATT ${blatt} VON ${blaetter})`, yy, 'messen');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.6);
+      doc.setTextColor(...PDF_MUTED);
+      doc.text('Gehört zum Protokoll mit der oben stehenden Protokoll-Nr. Stammdaten, Besichtigung, ' +
+               'Gesamtbewertung und Unterschriften stehen auf Blatt 1.', PDF_MARGIN_LEFT, yy + 3.4);
+      doc.setTextColor(...PDF_TEXT);
+
+      const folgeZeilen = [];
+      for (let i = 0; i < LEER_ZEILEN_FOLGE_AP; i++) {
+        folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", ""]);
+      }
+      doc.autoTable({
+        startY: yy + 5,
+        head: LEER_HEAD_AP,
+        body: folgeZeilen,
+        theme: 'grid',
+        rowPageBreak: 'avoid',
+        headStyles: {
+          fillColor: katMessen.kopf, textColor: katMessen.akzent,
+          fontSize: 5.6, fontStyle: 'bold', halign: 'center', valign: 'middle',
+          lineColor: katMessen.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+        },
+        bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
+        columnStyles: LEER_SPALTEN_AP,
+        margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+        styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: LEER_ZEILENHOEHE_AP,
+                  overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
+      });
+    }
+  }
+
   drawProtokollSeitenkoepfe(doc, {
     ...ANSCHLUSS_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: ANSCHLUSS_REVISION
   });
@@ -713,7 +890,7 @@ function generatePDFAnschluss(isBlank = false) {
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'AP');
-    protokollNummerNachPdf('AP');
+    nachPdfNeuesFormularAnbieten('AP', nummerRoh, resetAnschlussForm, clearAnschlussAutosave);
   });
 }
 
@@ -779,6 +956,9 @@ function restoreAnschlussState(state) {
     if (!el) return;
     // Ein wiederhergestelltes Formular behaelt SEINE Protokollnummer.
     if (id === 'protokollnummer' && !String(val || '').trim()) return;
+    /* Leere Datumsangaben aus einer Archiv-Vorlage duerfen die Vorbelegung
+     * (heutiges Datum) nicht ueberschreiben. */
+    if ((id === 'datum' || id === 'unterschrift_datum') && !String(val || '').trim()) return;
     el.value = val;
   });
 
@@ -797,6 +977,8 @@ function restoreAnschlussState(state) {
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
   validateErdungAnschluss();
+  validatePaWiderstand();
+  validateKalibrierung();
 
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });
@@ -807,7 +989,11 @@ function restoreAnschlussState(state) {
     state.feeds.forEach(f => addFeedCard(f));
     document.querySelectorAll('.feed-card').forEach((card, i) => {
       const f = state.feeds[i];
-      if (f.drehfeld) card.querySelector('.c-drehfeld').value = f.drehfeld;
+      /* Auch ein LEERER Wert muss gesetzt werden: eine aus dem Archiv
+       * uebernommene Vorlage liefert das Drehfeld bewusst leer. Mit der
+       * frueheren Kurzpruefung "if (f.drehfeld)" blieb stattdessen der
+       * Vorgabewert "i.O." stehen - ein Ergebnis, das nie gemessen wurde. */
+      if (f.drehfeld !== undefined) card.querySelector('.c-drehfeld').value = f.drehfeld;
     });
   }
 
@@ -832,8 +1018,9 @@ function clearAnschlussAutosave() {
 function resetAnschlussForm() {
   document.getElementById('anschlussForm').reset();
 
-  document.getElementById('datum').valueAsDate = new Date();
-  document.getElementById('unterschrift_datum').valueAsDate = new Date();
+  // Lokales Datum, siehe heuteIso() in pdf-utils.js
+  datumsfeldAufHeute('datum');
+  datumsfeldAufHeute('unterschrift_datum');
   document.getElementById('veranstaltung').style.height = 'auto';
   document.getElementById('res_bemerkungen').style.height = 'auto';
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);

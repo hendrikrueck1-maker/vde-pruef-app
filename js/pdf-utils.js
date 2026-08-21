@@ -42,6 +42,62 @@ function cleanStr(text) {
     .replace(/[\u00A0\u202F\u2009\u2007]/g, " ");
 }
 
+/* ---------------------------------------------------------------------------
+ *  WERTE SICHER IN HTML-ATTRIBUTE SCHREIBEN
+ * ---------------------------------------------------------------------------
+ *  Die Stromkreis-, Uebergabepunkt- und Geraetekarten werden ueber innerHTML
+ *  aufgebaut. Ein Anfuehrungszeichen im Wert beendet dort das Attribut - aus
+ *  'Steckdose "Regie" 3/4' wurde beim Wiederherstellen 'Steckdose ', der Rest
+ *  landete als HTML-Attribute im Dokument. Anfuehrungszeichen sind in
+ *  Buehnenbezeichnungen alltaeglich ('Traverse "Portal links"', '2" Rohr').
+ *  Ausserdem waere eine Bezeichnung mit <img onerror=...> beim Wiederherstellen
+ *  ausgefuehrt worden.
+ * ------------------------------------------------------------------------ */
+function attrEsc(wert) {
+  return String(wert === undefined || wert === null ? '' : wert)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/* Vorgabewert nur setzen, wenn im Zwischenspeicher GAR NICHTS steht.
+ * Mit "data.qs || '1.5 mm2'" bekam ein bewusst geleertes Feld beim
+ * Wiederherstellen den Vorgabewert zurueck. */
+function attrEscOderVorgabe(wert, vorgabe) {
+  return attrEsc(wert === undefined ? vorgabe : wert);
+}
+
+/* ---------------------------------------------------------------------------
+ *  DATUM IMMER AUS DER LOKALEN ZEIT
+ * ---------------------------------------------------------------------------
+ *  input.valueAsDate = new Date() und new Date().toISOString() rechnen beide
+ *  in UTC. In Mitteleuropa liegen die ersten ein bis zwei Stunden des Tages
+ *  damit noch im Vortag: eine Pruefung nach der Vorstellung um 00:30 Uhr bekam
+ *  das Datum und die Protokollnummer des Vortags. Im Theater ist das der
+ *  Normalfall, nicht der Sonderfall.
+ * ------------------------------------------------------------------------ */
+function heuteIso(datum) {
+  var d = datum || new Date();
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+
+// Monatswert (YYYY-MM) fuer ein Datum, das um n Jahre in der Zukunft liegt.
+function monatIsoInJahren(n) {
+  var d = new Date();
+  d.setFullYear(d.getFullYear() + (n || 0));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// Setzt ein <input type="date"> auf das heutige LOKALE Datum.
+function datumsfeldAufHeute(id) {
+  var el = document.getElementById(id);
+  if (el) el.value = heuteIso();
+}
+
 function drawCheckbox(doc, x, y, label, isChecked = false, isRed = false) {
   const activeRed = isRed && isChecked;
   if (activeRed) {
@@ -93,6 +149,90 @@ function getMinIk(sicherungText) {
   if (isNaN(rating)) return null;
   const multiplier = { B: 5, C: 10, D: 20 }[match[1].toUpperCase()];
   return multiplier ? multiplier * rating : null;
+}
+
+// NENNSPANNUNG AUSSENLEITER GEGEN ERDE (Grundlage aller Ik-Berechnungen)
+const U_NULL = 230;
+
+/* ZULAESSIGE SCHLEIFENIMPEDANZ AUS DER ABSICHERUNG
+ * Zs_max = U_0 / I_a  -  I_a ist der Strom der magnetischen Schnellausloesung
+ * (5x I_n bei B, 10x bei C, 20x bei D). Das ist dieselbe Grundlage wie getMinIk(),
+ * nur nach Zs statt nach Ik aufgeloest.
+ * Der 2/3-Wert ist der in der Praxis uebliche Sicherheitsabschlag fuer
+ * Messunsicherheit und Leitungserwaermung - er ist ein HINWEIS, keine Grenze. */
+function getMaxZs(sicherungText) {
+  const minIk = getMinIk(sicherungText);
+  if (minIk === null || minIk <= 0) return null;
+  return U_NULL / minIk;
+}
+
+/* KURZSCHLUSSSTROM AUS DER IMPEDANZ - identisch zur Anzeige "PFC" am Fluke 1663:
+ * das Geraet misst Z aus dem Spannungseinbruch unter Prueflast und rechnet I = U/Z. */
+function ikAusImpedanz(impedanzText, uNenn = U_NULL) {
+  if (impedanzText === undefined || impedanzText === null) return null;
+  const z = parseFloat(String(impedanzText).replace(',', '.'));
+  if (isNaN(z) || z <= 0) return null;
+  return Math.round(uNenn / z);
+}
+
+/* PLAUSIBILITAET VON Z UND I_K
+ * Beide Werte beschreiben dieselbe Messung (I = U/Z). Stehen sie im Protokoll
+ * nebeneinander und passen nicht zusammen, ist einer von beiden falsch
+ * abgetippt - das faellt sonst niemandem auf. Toleranz 25 %: das Messgeraet
+ * rechnet mit der tatsaechlich gemessenen Spannung und rundet die Anzeige.
+ * Rueckgabe: true = plausibel oder nicht pruefbar (ein Wert fehlt). */
+const Z_IK_TOLERANZ = 0.25;
+
+function zIkPlausibel(impedanzText, stromText, uNenn = U_NULL) {
+  const erwartet = ikAusImpedanz(impedanzText, uNenn);
+  if (erwartet === null) return true;
+  const ist = parseFloat(String(stromText || '').replace(',', '.'));
+  if (isNaN(ist) || ist <= 0) return true;
+  return Math.abs(ist - erwartet) / erwartet <= Z_IK_TOLERANZ;
+}
+
+/* Z -> I_K AUTOMATISCH RECHNEN (Anlagen- UND Anschlusspruefung)
+ * Der berechnete Wert wird mit data-auto markiert. Sobald die pruefende Person
+ * selbst etwas eintraegt, faellt die Markierung weg und der Wert wird nicht
+ * mehr ueberschrieben - ein am Messgeraet abgelesener Wert hat immer Vorrang
+ * vor der Rechnung. Lag frueher nur in pdf-generator.js und stand der
+ * Anschlusspruefung deshalb nicht zur Verfuegung. */
+function koppleImpedanzMitStrom(card, zSelektor, iSelektor) {
+  const zEl = card.querySelector(zSelektor);
+  const iEl = card.querySelector(iSelektor);
+  if (!zEl || !iEl) return;
+  if (iEl.value.trim() !== '' && iEl.dataset.auto !== '1') return;
+  const ik = ikAusImpedanz(zEl.value);
+  if (ik === null) {
+    if (iEl.dataset.auto === '1') { iEl.value = ''; delete iEl.dataset.auto; }
+    return;
+  }
+  iEl.value = String(ik);
+  iEl.dataset.auto = '1';
+}
+
+/* Markiert Impedanz und Strom, wenn sie rechnerisch nicht zueinander passen.
+ * Rueckgabe: false = Widerspruch. */
+function zsIkPaarPruefen(card, zSelektor, iSelektor) {
+  const zEl = card.querySelector(zSelektor);
+  const iEl = card.querySelector(iSelektor);
+  if (!zEl || !iEl) return true;
+  const ok = zIkPlausibel(zEl.value, iEl.value);
+  [zEl, iEl].forEach(el => el.classList.toggle('wert-widerspruch', !ok));
+  return ok;
+}
+
+/* GRENZWERT DER BERUEHRUNGSSPANNUNG U_L
+ * Normalbereich 50 V AC / 120 V DC, bei erhoehter Gefaehrdung 25 V AC / 60 V DC
+ * (Buehne, Open Air, feuchte oder leitfaehige Umgebung, Baustelle). */
+function getUlGrenzwert(art, gefaehrdung) {
+  const erhoeht = gefaehrdung === 'erhoeht';
+  if (art === 'DC') return erhoeht ? 60 : 120;
+  return erhoeht ? 25 : 50;
+}
+
+function getUlText(art, gefaehrdung) {
+  return `<= ${getUlGrenzwert(art, gefaehrdung)} V ${art === 'DC' ? 'DC' : 'AC'}`;
 }
 
 // ZULÄSSIGER AUSLÖSEBEREICH DES RCD: 0,5 x I_dn BIS 1,0 x I_dn (I_dn IN mA)
@@ -614,6 +754,88 @@ function withUnit(value, unit) {
   return re.test(v) ? v : `${v} ${unit}`;
 }
 
+/* ---------------------------------------------------------------------------
+ *  OFFENE BEWERTUNGEN VOR DEM PDF ABFANGEN
+ * ---------------------------------------------------------------------------
+ *  Ein aus einer Archiv-Vorlage angelegtes Formular startet mit bewusst
+ *  GELEERTEN Auswahlfeldern (Sichtpruefung, Erproben, Gesamtbewertung) - die
+ *  Bewertung der Vorpruefung darf nicht stehen bleiben. Ohne diese Pruefung
+ *  entstuende daraus ein PDF, in dem beim Pruefergebnis kein einziges
+ *  Kaestchen angekreuzt ist, darunter aber die Konformitaetsaussage steht.
+ *  Ein <select> ohne passende Option hat selectedIndex -1 und den Wert "" -
+ *  genau daran wird eine offene Bewertung erkannt.
+ * ------------------------------------------------------------------------ */
+function ersteLeereAuswahl(selektoren) {
+  for (var i = 0; i < selektoren.length; i++) {
+    var els = document.querySelectorAll(selektoren[i]);
+    for (var j = 0; j < els.length; j++) {
+      if (String(els[j].value || '').trim() === '') return els[j];
+    }
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------------------------
+ *  MINDESTANGABEN EINES AUSGEFUELLTEN PROTOKOLLS
+ * ---------------------------------------------------------------------------
+ *  Ohne Pruefdatum, ohne Namen der pruefenden Person und ohne Bezeichnung des
+ *  Pruefgegenstands ist ein Protokoll keinem Vorgang zuzuordnen. Bisher
+ *  entstand es trotzdem - mit leeren Zeilen an diesen Stellen.
+ * ------------------------------------------------------------------------ */
+function erstesLeerePflichtfeld(ids) {
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el && String(el.value || '').trim() === '') return { el: el, id: ids[i] };
+  }
+  return null;
+}
+
+const PFLICHTFELD_NAMEN = {
+  datum: 'Prüfdatum',
+  pruefer: 'Prüfer/-in',
+  anlage_bez: 'Anlage (Bezeichnung)',
+  veranstaltung: 'Veranstaltung / Anlass',
+  uebergabe_standort: 'Standort / Bezeichnung Übergabepunkt',
+  auftraggeber: 'Auftraggeber',
+  netzfrequenz: 'Frequenz (Hz)'
+};
+
+function pflichtfeldMelden(treffer) {
+  var name = PFLICHTFELD_NAMEN[treffer.id] || treffer.id;
+  alert('Pflichtangabe fehlt: ' + name + '\n\n' +
+        'Ohne diese Angabe ist das Protokoll keinem Prüfvorgang zuzuordnen.\n\n' +
+        'Das PDF wurde deshalb nicht erstellt.');
+  if (treffer.el) {
+    if (treffer.el.scrollIntoView) treffer.el.scrollIntoView({ block: 'center' });
+    if (treffer.el.focus) treffer.el.focus();
+  }
+}
+
+/* Ein Protokoll ohne einen einzigen Pruefling ist keine Pruefung: die
+ * Messtabelle bliebe leer, die Gesamtbewertung stuende trotzdem auf
+ * "keine Maengel". */
+function keinePrueflingeMelden(was) {
+  alert('Es ist kein ' + was + ' erfasst.\n\n' +
+        'Ein ausgefülltes Protokoll ohne eine einzige Messung ist keine Prüfung - die Messtabelle ' +
+        'bliebe leer, die Gesamtbewertung stünde trotzdem auf "keine Mängel".\n\n' +
+        'Für ein Formular zum Ausfüllen von Hand bitte "Leeres Protokoll drucken" verwenden.\n\n' +
+        'Das PDF wurde deshalb nicht erstellt.');
+}
+
+function offeneBewertungMelden(el) {
+  alert('Es ist noch eine Bewertung offen.\n\n' +
+        'Mindestens ein Auswahlfeld (Sichtprüfung, Erproben, Drehfeld oder Gesamtbewertung) ist ' +
+        'nicht ausgefüllt. Das passiert vor allem bei einem Formular, das aus einer Archiv-Vorlage ' +
+        'angelegt wurde: dort sind alle Bewertungen bewusst leer und müssen neu erfasst werden.\n\n' +
+        'Ein Protokoll, in dem beim Prüfergebnis kein Kästchen angekreuzt ist, darunter aber die ' +
+        'Konformitätsaussage steht, ist als Nachweis wertlos.\n\n' +
+        'Das PDF wurde deshalb nicht erstellt.');
+  if (el) {
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+    if (el.focus) el.focus();
+  }
+}
+
 // BENACHRICHTIGUNG (zuvor in der geloeschten pdf-export.js definiert)
 function showNotification(message, type = 'info') {
   const div = document.createElement('div');
@@ -661,6 +883,49 @@ function validateErdung() {
 
 // Gleiche Logik, eigener Name fuer die Anschlusspruefung (Aufrufe im HTML).
 const validateErdungAnschluss = validateErdung;
+
+/* DURCHGAENGIGKEIT SCHUTZLEITER / POTENZIALAUSGLEICH R_PA
+ * 1,0 Ohm steht als Grenzwert im Formular UND im gedruckten Protokoll - der
+ * Wert wurde bisher aber nirgends geprueft. Ein Protokoll, das seinen eigenen
+ * gedruckten Grenzwert verletzt und trotzdem freigibt, ist als Nachweis
+ * wertlos. Messung mit Pruefstrom >= 200 mA (DIN VDE 0100-600). */
+const PA_WIDERSTAND_GRENZWERT = 1.0;
+
+function paWiderstandUeberschritten(wert) {
+  var num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
+  return !isNaN(num) && num > PA_WIDERSTAND_GRENZWERT;
+}
+
+function validatePaWiderstand() {
+  var el = document.getElementById('pa_widerstand');
+  if (!el) return;
+  if (el.value.trim() === '') { el.classList.remove('out-of-norm'); return; }
+  if (paWiderstandUeberschritten(el.value)) el.classList.add('out-of-norm');
+  else el.classList.remove('out-of-norm');
+}
+
+/* KALIBRIERUNG DES PRUEFGERAETS
+ * Ein Protokoll, das mit einem nicht kalibrierten Messgeraet aufgenommen
+ * wurde, ist im Streitfall der erste Angriffspunkt. Die Angabe stand bisher
+ * nur als Text im Kopf und wurde nicht mit dem Pruefdatum verglichen. */
+function kalibrierungAbgelaufen(kalibriertBisIso, pruefdatumIso) {
+  var kal = String(kalibriertBisIso || '').trim();
+  var pruef = String(pruefdatumIso || '').trim() || heuteIso();
+  if (!kal) return false;
+  return kal < pruef;   // ISO-Datumsstrings lassen sich direkt vergleichen
+}
+
+const KALIBRIERUNG_HINWEIS_PDF =
+  ' Hinweis: Das verwendete Prüfgerät war zum Prüfzeitpunkt nicht mehr kalibriert. Die Messwerte sind ' +
+  'ohne gültigen Kalibriernachweis dokumentiert.';
+
+function validateKalibrierung() {
+  var el = document.getElementById('kalibriert_bis');
+  if (!el) return;
+  var pruef = document.getElementById('datum');
+  if (kalibrierungAbgelaufen(el.value, pruef ? pruef.value : '')) el.classList.add('out-of-norm');
+  else el.classList.remove('out-of-norm');
+}
 
 /* ============================================================================
  *  PDF-AUSGABE FUER ALLE PLATTFORMEN

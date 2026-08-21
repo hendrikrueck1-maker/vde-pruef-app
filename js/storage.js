@@ -8,6 +8,7 @@ function getMasterData() {
     auftraggeber: "Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz",
     gebaeude: "Gr. Haus",
     vnb: "Stadtwerke Konstanz",
+    hausanschluss: "",
     pruefer: "",
     messgeraet: "Fluke 1663",
     seriennummer: "SN-1663-98214",
@@ -21,6 +22,7 @@ function saveMasterData(showNotification = false) {
     auftraggeber: document.getElementById('m_auftraggeber').value,
     gebaeude: document.getElementById('m_gebaeude').value,
     vnb: document.getElementById('m_vnb').value,
+    hausanschluss: document.getElementById('m_hausanschluss')?.value || '',
     pruefer: document.getElementById('m_pruefer').value,
     messgeraet: document.getElementById('m_messgeraet').value,
     seriennummer: document.getElementById('m_seriennummer').value,
@@ -36,6 +38,7 @@ function loadMasterDataToDashboard() {
   document.getElementById('m_auftraggeber').value = data.auftraggeber || '';
   document.getElementById('m_gebaeude').value = data.gebaeude || '';
   document.getElementById('m_vnb').value = data.vnb || '';
+  if (document.getElementById('m_hausanschluss')) document.getElementById('m_hausanschluss').value = data.hausanschluss || '';
   document.getElementById('m_pruefer').value = data.pruefer || '';
   document.getElementById('m_messgeraet').value = data.messgeraet || '';
   document.getElementById('m_seriennummer').value = data.seriennummer || '';
@@ -50,6 +53,7 @@ function applyMasterDataToForm() {
   setIfPresent('auftraggeber', data.auftraggeber || '');
   if (document.getElementById('gebaeude_select')) syncGebaeudeSelect(data.gebaeude || 'Gr. Haus');
   setIfPresent('vnb', data.vnb || '');
+  setIfPresent('hausanschluss', data.hausanschluss || '');
   setIfPresent('pruefer', data.pruefer || '');
   setIfPresent('messgeraet', data.messgeraet || '');
   setIfPresent('seriennummer', data.seriennummer || '');
@@ -112,7 +116,9 @@ function protokollZaehlerKeys(praefix) {
 // Naechste freie Nummer BERECHNEN, ohne etwas zu speichern (reiner Vorschlag).
 function naechsteProtokollNummer(praefix = 'PR') {
   const k = protokollZaehlerKeys(praefix);
-  const today = new Date().toISOString().split('T')[0];
+  // Lokales Datum (heuteIso aus pdf-utils.js): toISOString() liefert UTC und
+  // haette einer Pruefung um 00:30 Uhr die Nummer des Vortags gegeben.
+  const today = (typeof heuteIso === 'function') ? heuteIso() : new Date().toISOString().split('T')[0];
   const lastDate = localStorage.getItem(k.dateKey);
   const counter = parseInt(localStorage.getItem(k.cntKey) || '0', 10);
   // Tageswechsel setzt die laufende Nummer zurueck.
@@ -204,6 +210,37 @@ function protokollNummerNachPdf(praefix = 'PR') {
   if (typeof showNotification === 'function') {
     showNotification(`Nummer vergeben. Nächstes Protokoll: ${naechste}`, 'success');
   }
+}
+
+/* ---------------------------------------------------------------------------
+ *  NACH DEM FERTIGEN PDF: NEUES FORMULAR ANBIETEN
+ * ---------------------------------------------------------------------------
+ *  Frueher wurde nur die naechste Nummer eingesetzt und "Naechstes Protokoll:
+ *  PR-...-002" gemeldet. Das liest sich wie "bereit fuer die naechste
+ *  Pruefung" - tatsaechlich standen aber saemtliche Messwerte, Sicht-
+ *  bewertungen und Bemerkungen der gerade abgeschlossenen Pruefung
+ *  unveraendert im Formular. Wer nicht ausdruecklich "+ Neues Formular"
+ *  drueckte, dokumentierte die naechste Verteilung mit den Werten der
+ *  vorherigen.
+ * ------------------------------------------------------------------------ */
+function nachPdfNeuesFormularAnbieten(praefix, nummerAlt, resetFn, clearFn) {
+  var naechste = naechsteProtokollNummer(praefix);
+  var neu = confirm(
+    'Protokoll ' + (nummerAlt || '') + ' wurde erstellt.\n\n' +
+    'Neues Formular für die nächste Anlage anlegen?\n\n' +
+    'OK: Formular zurücksetzen, alle Messwerte werden gelöscht. Die nächste Nummer ist ' +
+    naechste + '.\n' +
+    'Abbrechen: im aktuellen Formular weiterarbeiten - die Messwerte dieser Prüfung bleiben stehen.');
+  if (!neu) { protokollNummerNachPdf(praefix); return false; }
+  if (typeof clearFn === 'function') clearFn();
+  if (typeof resetFn === 'function') resetFn();
+  var el = document.getElementById('protokollnummer');
+  if (el) el.value = naechste;
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  if (typeof showNotification === 'function') {
+    showNotification('Neues Formular angelegt: ' + naechste, 'success');
+  }
+  return true;
 }
 
 /* Beim Oeffnen: nur vorschlagen. Ein vorhandener Autosave-Stand ueberschreibt
