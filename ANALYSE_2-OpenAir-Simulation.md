@@ -1,386 +1,190 @@
-# SIMULATION 1: Open-Air-Konzertbühne „Summer Nights Festival 2026"
+# Teil 2 – Simulation Open-Air-Konzert: App gegen Leerformular
 
-**Veranstaltung:** Rockkonzert auf Münsterplatz Konstanz  
-**Bühnengröße:** 12 m × 8 m, 3 m Höhe  
-**Stromversorgung:** CEE 63 A Einspeisungspunkt (Aggregat 32 kVA)  
-**Prüfumfang:** Vollständige Bühnenschaltanlage + Hauptverteiler + Nebenverteilungen  
+## Das simulierte Objekt
 
----
+**„Seepark Open Air 2026", Hauptbühne, Aufbau 20.–22.08.2026**
+Einspeisung über Netzersatzanlage 250 kVA plus Netzanschluss Kiosk.
+Geprüft wurde die **gesamte Veranstaltung**, nicht ein Ausschnitt.
 
-## SZENARIO A: PRÜFUNG MIT DER APP (Version 4.3.0)
-
-### Phase 1: Stammdaten eingeben
-
-```
-Auftraggeber:        Open-Air Veranstaltungen GmbH, Münsterplatz 50, Konstanz
-Gebäude/Bereich:     Münsterplatz (Custom)
-Anlage:              Open-Air Bühnenschaltanlage - Hauptverteiler + 3 Nebenverteilungen
-Prüfungs-ID:         OA-2026-07-15-001
-Protokoll-Nr.:       PA-2026-07-15-001
-Prüfer:              Meinhard Strom (Meister ET)
-Prüfdatum:           15.07.2026
-Messgerät:           Fluke 6500-2 Installationstester
-S/N:                 FL-4782953
-Kalibriert bis:      23.11.2026 ✅ OK
-Hausanschluss:       CEE 63 A Einspeisung (32 kVA Aggregat)
-```
-
-**Wahrnehmung des Prüfers (APP):**  
-✅ Formular lädt flüssig  
-⚠️ Auftraggeber/Gebäude kommt aus Vorlage – gut vorausgefüllt
+| Ebene | Umfang |
+|---|---|
+| Übergabepunkte | 3 (NEA 250 kVA → HV Bühne CEE 125 A · NEA 100 kVA → UV Licht CEE 63 A · Netz → Catering CEE 32 A) |
+| Verteilungen | 9 – HV Bühne, UV Bühne links, UV Bühne rechts, UV FOH, UV Licht/Traversen, UV Ton, UV Video/LED-Wall, UV Catering, UV Backstage/Container/Sicherheitsbeleuchtung |
+| Stromkreise | 51 |
+| Geräte | 96 (Scheinwerfer, Movinglights, Blinder, Nebelmaschinen, Verlängerungen, Kabeltrommeln, Kettenzüge, PA, Pulte, LED-Panels, Catering-Geräte) |
+| Besonderheiten | erhöhte Gefährdung durchgehend (U_L 25 V AC), Kettenzüge, Sicherheitsbeleuchtung, Catering mit Heizgeräten, RCD Typ B an Dimmern und Medienservern |
 
 ---
 
-### Phase 2: Netzsystem, Netzspannung, Geräte
+## Durchlauf 1 – Prüfung mit der App
 
-```
-Prüfart:             DIN VDE 0100-600 (Erstprüfung) → aber: Änderung/Erweiterung 🤔
-Grund:               Änderung (neue Bühnenschaltanlage installiert)
-Netzsystem:          TN-S (aber wollen wir TT wählen? ← Aggregat ist hier wie ein privater Erdung)
-→ [APPFEHLER] Netzsystem wird nicht bewertet! Egal ob TN-S oder TT gewählt wird.
+Ausgeführt in Chromium gegen die echte App, mit echten PDF-Ausgaben.
 
-Netzspannung:        230 / 400 V
-Frequenz:            50 Hz
-Einspeisung:         Netzersatzanlage (NEA / Aggregat)
-Prüfart Anschluss:   Direkt vom Aggregat-Ausgang
-```
+### Ergebnis
 
-**Wahrnehmung des Prüfers:**  
-⚠️ Muss manuell TN-S oder TT wählen – was ist es aber wirklich bei einem Aggregat?  
-❌ App sagt nirgends, dass Netzsystem zu Grenzwertberechnung führt  
-❌ Prüfgrund „Änderung" ist gespeichert, aber wird nicht verwendet
+| Schritt | Ergebnis |
+|---|---|
+| Anschlussprüfung, 3 Übergabepunkte | 1 PDF, **1 Seite**, fehlerfrei |
+| Anlagenprüfung, 9 Verteilungen / 51 Kreise | 9 PDF, **10 Seiten**, je Protokoll 1,9 s Erzeugungszeit |
+| Geräteprüfung, 96 Geräte | 1 PDF, **5 Seiten**; 96 Karten im DOM in 192 ms aufgebaut, PDF < 6 s |
+| JavaScript-Fehler | **keine** |
+| Summe | 11 Dokumente, **16 Seiten** |
 
----
+### Was im ersten Anlauf schiefging – und warum das ein gutes Zeichen ist
 
-### Phase 3: Besichtigung (Sichtkontrolle) – mit APP
+Der erste Simulationsdurchlauf hat **alle neun Anlagenprotokolle verweigert**:
 
-**9 Punkte abgearbeitet:**
+> „Widerspruch im Prüfergebnis: Das Protokoll enthält Beanstandungen …
+> Das PDF wurde deshalb nicht erstellt."
 
-```
-☑ Beschaffenheit der Schutzleiter          → Augenschein: Kupferkabel 2,5 mm² durchgehend
-☑ Zustand der Isolation                    → OK, keine Beschädigungen
-☑ Kennzeichnung L/N/PE                     → OK, Farben korrekt (braun/blau/grün-gelb)
-☑ Schutz gegen direktes Berühren           → BESTANDEN (Schutzkontakte)
-☑ Betätigungsvorrichtungen                 → Sicherungsschalter, Imax-Schalter funktioniert
-☑ Erdungsleiter vorhanden & durchgehend    → OK
-☑ Installation normgemäß                   → OK
-☑ Kontrolle der Schutzeinrichtungen        → RCD-Test: Prüftaste quittiert
-☐ Brandabschottung ← FEHLT! (in App nicht vorhanden)
-☐ Sicherheitsbeleuchtung ← FEHLT! (in App nicht vorhanden)
-☐ Leiterverbindungen kritisch überprüfen ← FEHLT!
-```
+Ursache: in den simulierten Daten war je Stromkreis ein RCD eingetragen, aber
+I_Δmess und t_A fehlten. Die App wertet das korrekt als **Prüfung unvollständig**
+(DIN VDE 0100-600 Abschn. 6.4.3.7) und verweigert die Freigabe. Fachlich exakt richtig –
+und der wertvollste Treffer der ganzen Testreihe.
 
-**Wahrnehmung des Prüfers:**  
-❌ „Brandabschottung? Das ist ja eine Freiluftbühne – aber der Punkt fehlt trotzdem"  
-❌ „Sicherheitsbeleuchtung ist wichtig – gehört aber nicht in die App?"  
-✅ Übrige 9 Punkte passen gut
+**Aber:** Die Meldung sagt nicht, **welcher** Stromkreis und **welcher** Wert fehlt.
+Bei 8 Kreisen ist das lästig, bei 51 unbrauchbar. Bis die Ursache gefunden war, waren
+neun Durchläufe verloren. Auf der Bühne heißt das: Nachtschicht, Ladung auf dem Tablet
+bei 20 %, und ein Prüfer, der das PDF nicht erzeugt bekommt und nicht weiß, warum.
 
----
+> **Maßnahme D10:** Die Meldung muss die Fundstellen nennen und dorthin springen –
+> z. B. „Stromkreis 4 (Dimmerpack 2): Auslösestrom und Auslösezeit des RCD fehlen".
+> Die Information liegt im Code bereits vor (`prueflingeOhneMessung()` liefert die
+> Nummern und wird für einen anderen Abbruch schon genau so verwendet).
 
-### Phase 4: Messungen – Stromkreise 1–3 (mit APP)
+### Zeitbedarf in der Praxis (Hochrechnung aus der Feldzahl)
 
-#### Stromkreis 1: Hauptbeleuchtung (LED-Array)
-
-```
-TABELLE (App)
-Kreis:             1 - LED Hauptbeleuchtung
-Nennen. Strom I_n: 16 A
-R_PE:              0,08 Ω       ← passt: max 0,4 Ω für 2,5 mm²
-R_ISO:             200 MΩ        ← OK: > 1 MΩ (250 V Prüfspannung)
-Z_S:               0,12 Ω        ← Messung eingegeben
-I_K:               1917 A        ← App berechnet: 230 V / 0,12 Ω = 1917 A
-Prüfwert 5×I_n:    80 A          ← OK: I_K (1917 A) >> 5×16 A
-Prüfwert 10×I_n:   160 A         ← OK: I_K (1917 A) >> 10×16 A
-
-❌ ABER: Z_L-N wird nicht abgefragt!
-   Der zweite Fehlerfall (L zu N über Aggregat-Fehler) nicht dokumentiert
-
-⚠️ Z_S wird eingegeben, aber nicht bewertet gegen U_0/I_K,min
-   (Im Normfall: 0,12 Ω ist plausibel, aber App sagt nicht „passt")
-```
-
-**RCD-Prüfung für diesen Kreis:**
-
-```
-RCD-Typ:           A (allgemein)
-I_Δn Sollwert:     30 mA
-I_Δmess 1×:        29 mA      ← App prüft: 1× I_Δn sollte < 1,55 × I_Δn sein → 29 < 46,5 ✅
-I_Δmess 5×:        74 mA      ← App prüft: 5× I_Δn sollte < 2,0 × I_Δn sein → 74 < 60 mA ❌ FEHLER?
-                              Oder: 74 > 60 → Auslösezeit prüfen?
-t_A gemessen:      0,04 s     ← OK für 5×I_Δn bei Typ A (max 0,2 s)
-
-[Wahrnehmung des Prüfers:]
-App zeigt: „RCD unvollständig – I_Δmess fehlt"  
-Prüfer hat aber 3 Werte eingegeben!
-❌ APP-BUG ODER UNKLARHEIT?
-```
-
-#### Stromkreis 2: Bühnen-Spotlights (analog 2 kW)
-
-```
-Kreis:             2 - Spotlights analog
-Nennen. Strom:     10 A
-R_PE:              0,09 Ω       ← OK
-R_ISO:             180 MΩ       ← OK
-Z_S:               0,14 Ω
-I_K:               1643 A
-Messung OK.
-
-RCD:               I_Δn 30 mA, gemessen 28/73/0,04 s  ← wieder: I_Δmess 5× > Sollwert
-```
-
-#### Stromkreis 3: Sound-Equipment (5 kW, separate Speisung)
-
-```
-Kreis:             3 - Sound 5 kW
-Nennen. Strom:     22 A
-R_PE:              0,11 Ω       ← OK
-R_ISO:             210 MΩ       ← OK
-Z_S:               0,13 Ω
-I_K:               1769 A
-RCD:               OK, 30/28/72/0,038 s
-```
-
----
-
-### Phase 5: Zusatzprüfungen (APP)
-
-#### Erdungswiderstand R_E
-
-```
-Messung beim Aggregat-Erdungsstab: 22 Ω
-Sollwert (Orientierung):            max. 16 Ω für Außenbereich
-Bewertung:                          ⚠️ GRENZWERT ÜBERSCHRITTEN!
-                                    (22 Ω > 16 Ω)
-
-App zeigt: „Erdungswiderstand zu hoch – Erdungsanlage überprüfen"
-Prüfer nimmt Stab aus, verlängert parallel → 11 Ω  ✅
-```
-
-#### Berührungsspannung U_touch (wenn L-PE Fehler simuliert)
-
-```
-[Szenario: Ein Stromkreis fehlerhafte Isolation]
-App: U_L Grenzwert = 50 V AC / 120 V DC
-Prüfer misst: 45 V AC
-App-Bewertung: ✅ OK (45 < 50)
-
-❌ ABER: Theater / Open-Air-Bühne sollte 25 V AC Grenzwert haben!
-         App müsste warnen: „Für Bühnenbetrieb empfohlen: max 25 V AC"
-```
-
-#### Durchgängigkeit Potenzialausgleich
-
-```
-App fragt: „Potenzialausgleich gemessen?"
-Prüfer antwortet: Ja, an Traverse + Tribüne + Blitzschutzanlage
-                  Messungen: 0,08 Ω / 0,12 Ω / 0,06 Ω jeweils
-                  
-Aber: App hat nur ein Textfeld.
-Prüfer muss schreiben: „Traverse 0,08Ω, Tribüne 0,12Ω, Blitzschutz 0,06Ω"
-❌ Nicht tabellarisch erfassbar → PDF sieht unübersichtlich aus
-```
-
----
-
-### Phase 6: Bewertung & PDF-Export (mit APP)
-
-```
-Besichtigung:      ✅ BESTANDEN
-Messungen:         🟡 TEILWEISE (RCD 5×-Wert fraglich, R_E musste nachbesserung)
-Isolationswiderstand: ✅ BESTANDEN
-Erdung:            ✅ BESTANDEN (nach Verbesserung)
-Potenzialausgleich: ✅ BESTANDEN
-
-GESAMTBEWERTUNG: ✅ ANLAGE BESTANDEN (mit Nachbesserung dokumentiert)
-
-PDF Export:        ✅ Funktioniert, Formelzeichen (Ω, ≤) werden korrekt dargestellt
-PDF Größe:         ~180 kB (mit 3 Stromkreisen)
-
-[Wahrnehmung des Prüfers:]
-✅ „Die App macht das Ausfüllen schnell"
-❌ „Aber die Netzimpedanz fehlt mir – ich weiß nicht, wie kritisch der zweipolige Fehler ist"
-❌ „U_L für Bühne sollte 25 V sein – die App zwingt mich zu 50 V"
-⚠️ „Die RCD-Prüfung bei 5× fühlt sich nicht ganz korrekt an – ich verstehe die Validierung nicht"
-```
-
----
-
-## SZENARIO B: PRÜFUNG MIT LEERFORMULAR ZUM HÄNDISCHEN AUSFÜLLEN
-
-**Ausgabe:** Ausdrucken 3er-Satz (Leerformular mit Vorlage)
-
-### Phase 1: Stammdaten von Hand eintragen
-
-```
-Auftraggeber:         [Prüfer schreibt groß, sauber mit Kugelschreiber]
-                      Open-Air Veranstaltungen GmbH
-                      Münsterplatz 50, Konstanz
-                      
-Gebäude:              [Markiert „Sonstiges" und schreibt] Open-Air Bühnenfläche
-
-Anlage:               [2-zeilig] 
-                      Hauptverteiler + 3 Nebenverteilungen
-                      Bühnenschaltanlage LED/Spots/Sound
-
-Prüfer:               Meinhard Strom
-Prüfdatum:            15.07.2026
-Messgerät:            Fluke 6500-2
-S/N:                  FL-4782953
-Kalibriert bis:       23.11.2026
-```
-
-**Wahrnehmung:**  
-✅ Formular ist klar strukturiert  
-⚠️ Handschrift wird schnell unleserlich bei mehreren Seiten  
-⚠️ Spalten sind eng – Name passt gerade noch
-
----
-
-### Phase 2: Besichtigung ausfüllen (von Hand)
-
-**Vorlage zeigt 9 Punkte + 1 Leerfeld:**
-
-```
-☑ Beschaffenheit der Schutzleiter        [Prüfer: Haken]
-☑ Zustand der Isolation                  [Haken]
-☑ Kennzeichnung L/N/PE                   [Haken]
-☑ Schutz gegen direktes Berühren         [Haken]
-☑ Betätigungsvorrichtungen               [Haken]
-☑ Erdungsleiter vorhanden                [Haken]
-☑ Installation normgemäß                 [Haken]
-☑ Kontrolle Schutzeinrichtungen          [Haken]
-[ ] _________________ ← Leerfeld: Prüfer schreibt "Brandabschottung N/A (Freiluft)"
-```
-
-**Wahrnehmung:**  
-✅ Papierform gibt Struktur vor  
-⚠️ Leerfeld ist hilfreich, aber uneinheitlich  
-❌ Sicherheitsbeleuchtung fehlt auch auf Papier
-
----
-
-### Phase 3: Messwerttabelle ausfüllen (Stromkreise 1–3)
-
-**Vorlage zeigt Tabelle mit Spalten:**  
-`Kreis | I_n | R_PE | R_ISO | Z_S | I_K | Nuten Netzmessung L-L | Bemerkungen`
-
-```
-[TABELLE HANDSCHRIFTLICH AUSGEFÜLLT]
-
-Kreis 1: LED Hauptbeleuchtung
-16 A | 0,08 | 200 | 0,12 | 1917 A | [Spalte „Nuten...": Prüfer fragt sich] "Was soll hier hin?"
-                                    [Schreibt unsicher] „0,15 Ω (?)?"
-                                    [Später durchgestrichen]
-Bemerkungen: OK
-
-Kreis 2: Spotlights
-10 A | 0,09 | 180 | 0,14 | 1643 A | [Spalte: Freigelassen, weil unklar]
-Bemerkungen: OK
-
-Kreis 3: Sound 5 kW
-22 A | 0,11 | 210 | 0,13 | 1769 A | [Spalte: Freigelassen]
-Bemerkungen: RCD 30/28/0,04s OK
-```
-
-**Kritische Beobachtung:**  
-❌ „Nuten Netzmessung L-L" ist unverständlich!  
-❌ Prüfer weiß nicht, ob Z_L-N = Z_S oder etwas anderes ist  
-❌ Ohne Erklärung gibt Prüfer auf und lässt Spalte leer  
-❌ Die Spalte wurde gedruckt, wird aber nicht ausgefüllt
-
----
-
-### Phase 4: RCD-Prüfung von Hand dokumentieren
-
-```
-Feld: „RCD-Messwerte (I_Δn, I_Δmess, t_A)"
-
-Prüfer trägt ein (Platz ist begrenzt):
-Kreis 1: 30|29/73|0,04
-Kreis 2: 30|28/72|0,038
-Kreis 3: 30|28/71|0,039
-
-⚠️ Darstellung sehr kompakt, schwer lesbar. Aber Platz ist knapp.
-❌ Es ist nicht klar, ob alle drei Werte (1×, 5×, t_A) Platz haben oder nicht.
-```
-
----
-
-### Phase 5: Erdungswiderstand & Potenzialausgleich von Hand
-
-```
-R_E (Aggregate): 22 Ω (erste Messung), dann 11 Ω (nach Verbesserung)
-                [Prüfer macht zwei Einträge, erste durchgestrichen]
-
-Potenzialausgleich: 
-[Freitextfeld, ungefähr 3 Zeilen verfügbar]
-Gemessen an:
-- Traverse: 0,08 Ω
-- Tribüne: 0,12 Ω
-- Blitzschutzanlage: 0,06 Ω
-[Alles handschriftlich, sehr klein geschrieben, kaum lesbar]
-
-❌ Handschrift ist tiny, unleserlich wenn später kopiert
-❌ Keine Struktur – sieht nach Chaos aus
-```
-
----
-
-### Phase 6: Unterschrift & Archivierung (von Hand)
-
-```
-Gesamtbewertung: [Dropdown nicht vorhanden, Prüfer schreibt]
-                 „BESTANDEN"
-                 
-Unterschrift:    [Prüfer unterschreibt – sieht lesbar aus]
-Nächste Prüfung: [Prüfer schreibt] „15.07.2027"
-
-[Vorlage zeigt keine Versionsnummer – Prüfer weiß nicht, welche Vorlage-Version er nutzt]
-
-Kopien: 1× an Auftraggeber, 1× Archiv Prüfer, 1× Anlage
-[Alle 3 Sätze werden kopiert – Qualität wird schlechter mit jeder Kopie]
-```
-
-**Wahrnehmung des Prüfers:**  
-✅ Papierformular ist vertraut, keine Techniksorgen  
-❌ Schrift wird unleserlich  
-❌ Spalte „Nuten Netzmessung" war verwirrend  
-❌ Keine automatische Berechnung (I_K aus Z_S) – Prüfer muss von Hand rechnen oder Wert übernehmen  
-⚠️ PDF-Scan später wird schlecht lesbar  
-
----
-
-## VERGLEICH APP vs. PAPIER: OPEN-AIR-KONZERT
-
-| Kriterium | APP | PAPIER |
+| Tätigkeit | Eingaben | Zeit |
 |---|---|---|
-| **Eingabetempo** | ⚡ 45 Min | 🐌 90 Min |
-| **Rechengenauigkeit** | ✅ Formeln richtig (I_K auto) | ❌ Prüfer rechnet von Hand/Fehler |
-| **Lesbarkeit Endergebnis** | ✅ PDF perfekt | ❌ Handschrift unleserlich |
-| **Vollständigkeit** | ⚠️ Fehlende Messgrößen (Z_L-N) | ❌ Unklare Spalte „Nuten..." |
-| **Grenzwertprüfung** | ⚠️ 50 V statt 25 V für Bühne | ❌ Prüfer muss selbst vergleichen |
-| **Netzsystem-Logik** | ❌ Wird nicht ausgewertet | ❌ Papier hat keine Logik |
-| **PA-Dokumentation** | ❌ Freitextfeld unübersichtlich | ❌ Nur ein Leerfeld |
-| **Fehlertoleranz** | 🟡 Falsche Werte möglich (U_L) | 🟡 Rechenfehler möglich |
-| **Archivierung** | ✅ Digitales Backup | ❌ Nur Papier/Kopie |
+| Stammdaten je Verteilung (großteils aus Stammdaten übernommen) | 6 | 9 × 1 min |
+| Erster Stromkreis je Verteilung vollständig | 21 | 9 × 3 min |
+| Weitere Kreise über „Duplizieren" (Bezeichnung + 6 Messwerte) | 7 | 42 × 1 min |
+| Sicht- und Erprobungspunkte je Verteilung | 20 | 9 × 2 min |
+| 96 Geräte über „Duplizieren" (Bezeichnung, Inv.-Nr., 3 Messwerte) | 5 | 96 × 40 s |
+| Anschlussprüfung 3 Übergabepunkte | 30 | 12 min |
+| **Summe Eingabearbeit** | **ca. 920** | **ca. 3 h 15 min** |
+
+Die eigentliche Messarbeit kommt hinzu und ist in beiden Varianten gleich.
+
+### Was in der App auf der Baustelle stört
+
+1. **Die vorbelegten „i.O."-Felder** (Befund A3) verführen dazu, die Sichtprüfung zu
+   überspringen. Bei 9 Verteilungen sind das 126 Felder, die man durchsehen müsste,
+   ohne dass irgendetwas erzwingt, dass man es tut.
+2. **„Netzmessung" liegt zugeklappt** (D9). Bei NEA ist die Frequenz Pflichtangabe,
+   und der Abbruch dafür kommt erst beim Erzeugen des PDF – zu einem Zeitpunkt, an dem
+   das Messgerät schon eingepackt ist.
+3. **Kein Feld „Verteiler"** in der Tabelle (B2). Deshalb waren 9 getrennte Protokolle
+   nötig, mit 9 Nummern und 9 Unterschriftenpaaren für eine Anlage.
+4. **Gebäude-Auswahl** bietet nur Konstanzer Spielstätten; für Open Air muss man jedes
+   Mal über „Sonstiges…" gehen (D15).
+5. **Hausanschluss/Speisepunkt** hat einen Schnellknopf „NEA" – gut. Aber die
+   Anlagen­daten der Netzersatzanlage selbst (Sternpunkterdung, Erder, Betriebsart)
+   lassen sich nirgends dokumentieren (B4).
 
 ---
 
-## FAZIT ZUR OPEN-AIR-SIMULATION
+## Durchlauf 2 – dieselbe Veranstaltung auf dem Leerformular
 
-**APP-Einsatz:**
-- Schneller, präziser, bessere PDF  
-- ❌ ABER: Fehlende Z_L-N macht Prüfung unvollständig  
-- ❌ ABER: U_L = 50 V ist für Bühnenevent FALSCH  
-- ⚠️ RCD-Validierung unklar  
+### Blattbedarf
 
-**PAPIERFORMULAR:**
-- Vertraut, offline sicher  
-- ❌ ABER: Spalte „Nuten Netzmessung L-L" ist Fehler  
-- ❌ ABER: Keine automatischen Berechnungen  
-- ❌ ABER: Nachher unleserlich & schwer zu archivieren  
+| Verteilung | Kreise | Blätter | Druckseiten |
+|---|---|---|---|
+| HV Hauptverteilung | 8 | 2 | 3 |
+| UV Bühne links | 6 | 1 | 2 |
+| UV Bühne rechts | 6 | 1 | 2 |
+| UV FOH | 5 | 1 | 2 |
+| UV Licht/Traversen | 7 | 1 | 2 |
+| UV Ton | 5 | 1 | 2 |
+| UV Video/LED-Wall | 4 | 1 | 2 |
+| UV Catering | 4 | 1 | 2 |
+| UV Backstage | 6 | 1 | 2 |
+| **Anlagenprüfung gesamt** | **51** | **10** | **19** |
+| Anschlussprüfung | 3 ÜP | 1 | 1 |
+| Geräteprüfung | 96 | 4 | 5 |
+| **Gesamt** | | **15** | **25** |
 
-**Empfehlung:** APP verwenden, aber Fehler C1, C2 vorher beheben!
+**Von den 25 Druckseiten sind 11 fast leer** – sie enthalten nur die Zeile
+„Sicherer Gebrauch gewährleistet" und zwei Unterschriftslinien (Befund C1).
+**40 der 91 verfügbaren Tabellenzeilen bleiben ungenutzt**, weil Blatt 1 nur 7 Zeilen hat
+und das erste Fortsetzungsblatt gleich 28 nachschiebt.
+
+### Spaltenbreiten gegen Handschrift
+
+Angesetzt: 2,5 mm je Zeichen (gut lesbare Kugelschreiberschrift im Formularfeld),
+abzüglich 2 mm Zellenpolsterung.
+
+**Anlagenprüfung – 3 von 10 Spalten zu schmal:**
+
+| Spalte | Breite | Platz | benötigt | Beispiel |
+|---|---|---|---|---|
+| Bezeichnung / Zweck | 30 mm | 11 Z. | **29 Z.** | „Steckdosenkreis Bühne links 1" |
+| Leitung Typ / Adern / Quersch. | 22 mm | 8 Z. | **14 Z.** | „H07RN-F 5G 2,5" |
+| R_ISO + Prüfspannung | 17 mm | 6 Z. | **15 Z.** | „>500 / 500 V DC" |
+| Z_S / I_K (+ 2. Zeile L-N) | 24 mm | 8 Z. | **10 Z.** + 2. Zeile | „0,42 / 547" |
+| Sicherung | 14 mm | 4 Z. | 5 Z. | „B 16A" |
+| t_A @ __ × | 15 mm | 5 Z. | 6 Z. | „14 @5x" |
+
+**Anschlussprüfung:** „Bezeichnung Übergabepunkt" 34 mm für 23 Zeichen,
+„Netzsystem Spannung/Frequenz" 28 mm für 17 Zeichen („TN-S 230/400 50 Hz"),
+„Z_S / I_K" 24 mm für „0,16 / 1438".
+
+**Geräteprüfung:** „Bezeichnung / Typ" 34 mm für 30 Zeichen,
+„Inv.-Nr. / Seriennr." **16 mm für 8 Zeichen**, „Ableitstrom + Messverfahren"
+38 mm für Wert **und** Verfahren.
+
+Die Folge ist keine Unbequemlichkeit, sondern ein **Dokumentationsverlust**: Wer
+„H07RN-F 5G 2,5" in 8 Zeichen quetscht, schreibt „H07 5G2,5" oder gar „RN-F". Ein Jahr
+später ist im Streitfall nicht mehr rekonstruierbar, welche Leitung gemessen wurde.
+
+### Handschriftlicher Aufwand
+
+| | Einzeleinträge |
+|---|---|
+| Anlagenprüfung (51 × 10 Spalten + 9 × 14 Kopffelder) | 636 |
+| Geräteprüfung (96 × 9 Spalten) | 864 |
+| Anschlussprüfung (3 × 9 + Kopf) | 41 |
+| **Summe Papier** | **ca. 1.540** |
+| **Summe App (mit Duplizieren)** | **ca. 920** |
+
+Die App spart rund **40 % der Einträge**, im Wesentlichen durch drei Dinge:
+„Duplizieren" der Anlagendaten, automatische I_K-Berechnung aus Z_S und die
+Übernahme der Stammdaten. **Alle drei Vorteile setzen voraus, dass der Prüfer sie
+kennt** – „Duplizieren" ist ein grauer Sekundärknopf im Kartenkopf.
+
+### Was auf dem Papier zusätzlich fehlt
+
+* Kein Feld **„Seriennummer Messgerät"** und (außer bei der Geräteprüfung) kein Feld
+  **„Prüfgerät kalibriert bis"** – beide sind im PDF-Kopf schlicht nicht vorgesehen (C8).
+* Die **Sollwertzeile der Netzmessung** („L gegen N je 230 V · L gegen L je 400 V ·
+  N gegen PE 0 V") steht am **Blattfuß in 4,6 pt**, rund 20 cm unter den Feldern,
+  auf die sie sich bezieht (C6).
+* Die **Legende steht nur auf Blatt 1**. Wer die Kreise 8–35 auf dem Fortsetzungsblatt
+  einträgt, hat keinerlei Erklärung von I_a, Z_S, I_Δn, t_A, U_mess vor sich (C4).
+* Die **Kopfbox der Fortsetzungsblätter** verlangt Protokoll-Nr., Prüflings-ID und Datum
+  erneut von Hand, obwohl darunter steht „Gehört zum Protokoll mit der oben stehenden
+  Protokoll-Nr." (C9).
 
 ---
+
+## Direktvergleich
+
+| Kriterium | App | Leerformular |
+|---|---|---|
+| Druckseiten für die Gesamtveranstaltung | 16 | **25** (11 davon fast leer) |
+| Einträge von Hand | ca. 920 | ca. 1.540 |
+| Spalten, die den Inhalt nicht fassen | 0 | **3 / 2 / 3** (Anlage / Anschluss / Gerät) |
+| Grenzwert am Feld sichtbar | ja, unter jedem Feld | nur Blatt 1, 4,6 pt |
+| Rechenfehler I_K = 230 V / Z_S | ausgeschlossen | möglich |
+| Widerspruch Freigabe ↔ Befund | wird abgefangen | nicht erkennbar |
+| Vergessener RCD-Messwert | blockiert das PDF | fällt niemandem auf |
+| Nummernvergabe, Doppelvergabe | automatisch, mit Warnung | von Hand |
+| Archiv / Wiederauffinden | im Gerät, durchsuchbar | Ordner |
+| Bei Regen, Kälte, Handschuhen | Tablet unter Folie, Touch mit Handschuh problematisch | funktioniert immer |
+| Bei leerem Akku | Totalausfall | funktioniert immer |
+| Bei 51 Kreisen und Zeitdruck | klar überlegen | grenzwertig |
+
+**Fazit:** Das Leerformular ist als **Rückfallebene** unverzichtbar und muss dafür
+druckbar bleiben – aber in seiner heutigen Form ist es für eine Gesamtveranstaltung
+nicht wirtschaftlich einsetzbar. Die drei Änderungen, die den größten Unterschied machen,
+sind C1 (Waisenseite), C4 (Legende auf jedem Blatt, ≥ 6 pt) und C7 (Spaltenbreiten).

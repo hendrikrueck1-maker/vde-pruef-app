@@ -227,11 +227,12 @@
           <label>Querschnitt:</label>
           <input type="text" inputmode="decimal" id="anschluss_qs" placeholder="z. B. 6 mm²">
           <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1.5 mm²')">1.5 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '2.5 mm²')">2.5 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '4.0 mm²')">4.0 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '6.0 mm²')">6.0 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '10.0 mm²')">10 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1,5 mm²')">1,5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '2,5 mm²')">2,5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '4 mm²')">4 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '6 mm²')">6 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '10 mm²')">10 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '16 mm²')">16 mm²</button>
           </div>
         </div>
       </div>
@@ -273,11 +274,11 @@
     <div class="grid" style="margin-bottom: 8px;">
       <div class="form-group">
         <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" oninput="validateErdung()">
+        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdung()">
       </div>
       <div class="form-group">
         <label>Widerstand Schutzleiter / PA R<sub>PA</sub> (&Omega;) [&le; 1,0 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.12" oninput="validatePaWiderstand()">
+        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,12" oninput="validatePaWiderstand()">
         <div class="limit-hint">Durchgängigkeitsmessung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
       <div class="form-group grid-full">

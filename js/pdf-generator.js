@@ -41,12 +41,12 @@ function addCircuitCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Querschnitt:</label>
-        <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1.5 mm²')}" placeholder="z. B. 1.5 mm²">
+        <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1,5 mm²')}" placeholder="z. B. 1,5 mm²">
         <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1.5 mm²')">1.5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '2.5 mm²')">2.5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '4.0 mm²')">4.0 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '6.0 mm²')">6.0 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1,5 mm²')">1,5 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '2,5 mm²')">2,5 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '4 mm²')">4 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '6 mm²')">6 mm²</button>
         </div>
       </div>
     </div>
@@ -61,7 +61,7 @@ function addCircuitCard(data = {}) {
           <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
           <div class="form-group">
             <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-            <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.11" oninput="validateCardNorms(${cardCounter})">
+            <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,11" oninput="validateCardNorms(${cardCounter})">
             <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
           </div>
         </div>
@@ -102,7 +102,7 @@ function addCircuitCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE:</label>
-          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0.38" oninput="onZsInput(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0,38" oninput="onZsInput(${cardCounter})">
           <div class="limit-hint" id="zs_limit_${cardCounter}"></div>
         </div>
         <div class="form-group">
@@ -191,7 +191,7 @@ function addCircuitCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Gemessene Berührungsspannung U<sub>mess</sub> (V):</label>
-          <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2.5 V" oninput="validateCardNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2,5 V" oninput="validateCardNorms(${cardCounter})">
         </div>
       </div>
     </div>
@@ -437,15 +437,8 @@ function updateEinspeisung() {
   }
 }
 
-/* N-PE-SPANNUNG: Sollwert 0 V. Ein nennenswerter Wert deutet auf einen
- * hochohmigen PEN, eine Fremdeinspeisung oder eine Vertauschung hin.
- * 1 V als Schwelle, damit Messrauschen nicht sofort rot wird. */
-const U_NPE_SCHWELLE = 1.0;
-
-function npeUeberschritten(wert) {
-  const num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
-  return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
-}
+/* U_NPE_SCHWELLE und npeUeberschritten() liegen seit 4.5.0 zentral in
+ * pdf-utils.js - die Anschlusspruefung braucht dieselbe Bewertung (Befund B1). */
 
 function validateNetzmessung() {
   const el = document.getElementById('u_npe');
@@ -491,14 +484,19 @@ function fillExampleData() {
   document.getElementById('anschluss_typ').value = "H07RN-F";
   document.getElementById('anschluss_leiter').value = "5G";
   document.getElementById('anschluss_qs').value = "10 mm²";
-  document.getElementById('erdung_re').value = "0.18";
-  document.getElementById('pa_widerstand').value = "0.11";
+  document.getElementById('erdung_re').value = "0,18";
+  document.getElementById('pa_widerstand').value = "0,11";
   document.getElementById('erdung_messpunkt').value = "HES (Haupterdungsschiene) Keller Gr. Haus";
   document.getElementById('hausanschluss').value = "NH 3x100 A gL (HAK Keller)";
   document.getElementById('u_l1n').value = "231";
   document.getElementById('u_l2n').value = "230";
   document.getElementById('u_l3n').value = "229";
-  document.getElementById('u_npe').value = "0.2";
+  // 4.5.0: Aussenleiterspannungen gehoeren ins Musterprotokoll. Solange sie
+  // fehlten, druckte das fertige PDF an dieser Stelle drei leere Schreiblinien.
+  document.getElementById('u_l12').value = "399";
+  document.getElementById('u_l23').value = "400";
+  document.getElementById('u_l13').value = "401";
+  document.getElementById('u_npe').value = "0,2";
   validateNetzmessung();
   updateEinspeisung();
   validateErdung();
@@ -516,9 +514,9 @@ function fillExampleData() {
   // Prüfstrom 5 x I_dn ist der Standard -> Auslösezeiten entsprechend unter 40 ms
   // Typ und I_dn muessen mitgegeben werden: die Beispieldaten sind das
   // Musterprotokoll der App und duerfen keine unvollstaendige RCD-Zelle erzeugen.
-  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1.5 mm²', rpe: '0.08', riso: '> 500', sich: 'B 10A', zs: '0.35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1.2' });
+  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1,5 mm²', rpe: '0,08', riso: '> 500', sich: 'B 10A', zs: '0,35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1,2' });
   // Buehnenstromkreis: erhoehte Gefaehrdung -> U_L 25 V AC statt 50 V AC
-  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2.5 mm²', rpe: '0.12', riso: '450', sich: 'B 16A', zs: '0.42', ik: '547', zln: '0.38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2.4' });
+  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2,5 mm²', rpe: '0,12', riso: '450', sich: 'B 16A', zs: '0,42', ik: '547', zln: '0,38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2,4' });
 }
 
 // KOPFDATEN DES PROTOKOLLS (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet)
@@ -547,7 +545,10 @@ const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017
  *     mehrere Protokolle fuer eine Anlage. Jetzt entsteht EIN PDF mit echten
  *     Fortsetzungsblaettern und fortlaufender Nummerierung.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1 = 7;    // Zeilen auf Blatt 1 (neben Kopf und Bewertung)
+const LEER_ZEILEN_BLATT1 = 6;    // 4.5.0: 7 -> 6. Gemessen: mit 7 Zeilen braucht
+                                 // Blatt 1 genau 289,4 mm - 6,4 mm zu viel. Lieber
+                                 // eine Zeile weniger als eine zweite Seite, auf der
+                                 // nichts steht als zwei Unterschriftslinien (C1)
 const LEER_ZEILEN_FOLGE  = 28;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE   = 8.0;  // mm, Handschrift (6,5 mm reichten nur zum Drucken)
 
@@ -588,11 +589,11 @@ const LEER_BEISPIEL_TEXT_VDE =
  * ersten Lehrjahr war das Blatt damit nicht ausfuellbar - nicht wegen der
  * Technik, sondern wegen der fehlenden Legende. */
 const LEER_LEGENDE_VDE =
-  'Legende: I_{a} = Strom der magnetischen Schnellauslösung (B: 5×I_{n} · C: 10×I_{n} · D: 20×I_{n}) · ' +
+  'Legende: I_{a} = Strom der magnetischen Schnellauslösung (B 5× · C 10× · D 20× I_{n}) · ' +
   'Z_{S} = Schleifenimpedanz, zulässig ≤ 230 V / I_{a} · I_{K} = Kurzschlussstrom · ' +
-  'I_{Δn} = Nennfehlerstrom des RCD · I_{Δmess} = gemessener Auslösestrom (zulässig 0,5–1,0 × I_{Δn}) · ' +
-  't_{A} = Auslösezeit: ≤ 40 ms bei 5×I_{Δn}, ≤ 150 ms bei 2×, ≤ 300 ms bei 1× (Typ S: 150 / 200 / 500 ms) · ' +
-  'U_{mess} = Berührungsspannung, zulässig ≤ 50 V AC / 120 V DC, bei erhöhter Gefährdung (Bühne, Open Air, feucht, leitfähiger Stand) ≤ 25 V AC / 60 V DC.';
+  'I_{Δn} = Nennfehlerstrom RCD · I_{Δmess} = gemessener Auslösestrom (0,5–1,0 × I_{Δn}) · ' +
+  't_{A} = Auslösezeit ≤ 40 ms bei 5× · 150 ms bei 2× · 300 ms bei 1× (Typ S 150/200/500) · ' +
+  'U_{mess} = Berührungsspannung ≤ 50 V AC / 120 V DC, bei erhöhter Gefährdung (Bühne, Open Air, feucht) ≤ 25 V AC / 60 V DC.';
 
 const LEER_SOLLWERTE_VDE =
   'Netzmessung Sollwerte: L gegen N je 230 V - L gegen L je 400 V - N gegen PE 0 V - Frequenz 50 Hz.';
@@ -743,10 +744,11 @@ function generatePDF(isBlank = false) {
    * Kompakt gehalten: 5 Zeilen je Spalte, Zeilenabstand 4,6 mm.
    * Protokoll-Nr. und Prueflings-ID stehen bereits in der Kopfbox oben rechts
    * und werden hier nicht wiederholt - das spart eine ganze Zeile. */
-  /* 40 mm -> 49 mm: die Netzmessung belegt jetzt drei Zeilen (zwei Reihen
-   * Kurzfelder + Ankreuzfeld "einphasig") statt einer Sammellinie. */
-  const SEK1_H = 49;
-  const ZA = 4.6;                        // Zeilenabstand innerhalb der Boxen
+  /* 4.5.0: 49 mm -> 44 mm. Das Ankreuzfeld "einphasig" ist entfallen, die
+   * Netzmessung belegt nur noch zwei Zeilen Kurzfelder. Die gewonnenen 5 mm
+   * werden gebraucht, damit Bewertung UND Unterschriften auf Blatt 1 passen. */
+  const SEK1_H = 42;
+  const ZA = 4.4;                        // Zeilenabstand innerhalb der Boxen (4.5.0: 4,6 -> 4,4)
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
 
   doc.setFontSize(7.2);
@@ -795,13 +797,13 @@ function generatePDF(isBlank = false) {
   /* --- NETZMESSUNG ------------------------------------------------------
    * FRUEHER war das im Leerformular EINE beschriftete Linie ueber 184 mm
    * ("Netzmessung L-N / L-L / N-PE:") fuer sieben Einzelwerte. Wer von Hand
-   * eintrug, musste sich Reihenfolge und Format selbst ausdenken, ein Feld
-   * fuer die Frequenz gab es nicht, und bei einphasiger Einspeisung stand
-   * dort eine Beschriftung fuer Werte, die es gar nicht geben kann.
+   * eintrug, musste sich Reihenfolge und Format selbst ausdenken, und ein
+   * Feld fuer die Frequenz gab es nicht.
    *
-   * JETZT: acht einzeln beschriftete Kurzfelder in zwei Zeilen plus ein
-   * Ankreuzfeld "einphasig". Der Platzbedarf ist derselbe wie vorher fuer
-   * die eine unbrauchbare Zeile plus eine weitere Zeile. */
+   * JETZT: acht einzeln beschriftete Kurzfelder in zwei Zeilen. Nicht
+   * gemessene Werte bleiben leer - das frueher hier stehende Ankreuzfeld
+   * "einphasige Einspeisung" wurde in 4.5.0 ersatzlos entfernt (zu speziell,
+   * wurde automatisch gesetzt und widersprach dreiphasigen Messwerten). */
   const isNpeOut = !isBlank && npeUeberschritten(document.getElementById('u_npe')?.value);
   const netzWert = (id) => isBlank ? '' : (document.getElementById(id)?.value || '').trim();
   const hatNetzmessung = isBlank || NETZMESS_FELDER.some(f => netzWert(f.id)) || netzWert('netzfrequenz');
@@ -817,7 +819,14 @@ function generatePDF(isBlank = false) {
     const nmZelle = (label, id, spalte, zeile, rot) => {
       const wert = netzWert(id);
       const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
-      drawFeldZeile(doc, label + ':', wert ? withUnit(wert, einheit) : '',
+      /* 4.5.0: Im AUSGEFUELLTEN Protokoll steht bei einem nicht gemessenen Wert
+       * "n. gem." statt einer leeren Schreiblinie. Eine leere Linie in einem
+       * abgeschlossenen Dokument sieht aus wie ein vergessenes Feld - genau das
+       * war der Punkt, an dem frueher zusaetzlich das Ankreuzfeld
+       * "einphasige Einspeisung" fuer Verwirrung sorgte. Im Leerformular
+       * bleibt die Schreiblinie natuerlich stehen. */
+      const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+      drawFeldZeile(doc, label + ':', text,
                     NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA, NM_FELD_B, isBlank, { rot: !!rot });
     };
     doc.setFontSize(6.6);
@@ -833,13 +842,6 @@ function generatePDF(isBlank = false) {
     // rot, damit er nicht als unauffaellige Zahl untergeht.
     nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
 
-    // Bei einphasiger Einspeisung gibt es keine Aussenleiterspannung. Ohne
-    // dieses Feld musste man drei Linien leer lassen und niemand konnte
-    // unterscheiden, ob nicht gemessen oder nicht vorhanden.
-    doc.setFontSize(6.2);
-    const einphasig = !isBlank && !NETZMESS_FELDER.slice(3, 6).some(f => netzWert(f.id))
-                      && NETZMESS_FELDER.slice(0, 3).some(f => netzWert(f.id));
-    drawCheckbox(doc, spL, z1(6) + 2 * ZA, 'einphasige Einspeisung - L-L entfällt', einphasig);
     doc.setFontSize(7.2);
   }
 
@@ -855,7 +857,7 @@ function generatePDF(isBlank = false) {
    * noetig, weil es Brandabschottungen, Gebaeudesystemtechnik oder Motoren
    * nicht an jeder Anlage gibt und ein erzwungenes i.O./n.i.O. dort falsch waere. */
   const SICHT_ZA = 4.3;
-  const SEK2_H = 51;
+  const SEK2_H = 47;   // 4.5.0: 51 -> 47 mm, Inhalt endet bei y+45,5 (siehe C1)
   drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht' });
 
   doc.setFont("helvetica", "normal");
@@ -889,8 +891,8 @@ function generatePDF(isBlank = false) {
   });
 
   // Anschlusskabel: im Leerformular als durchgehende Linie ueber die volle Breite
-  const kabelAnschluss = [feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
-    .filter(p => p).join(' ');
+  const kabelAnschluss = kommaZahl([feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
+    .filter(p => p).join(' '));
   doc.setFontSize(7);
   const yKabel = y + 9 + 4 * SICHT_ZA + 0.6;
   drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
@@ -948,13 +950,13 @@ function generatePDF(isBlank = false) {
       const kTyp = card.querySelector('.c-kabel-typ').value;
       const kLei = card.querySelector('.c-leiter').value;
       const kQs = card.querySelector('.c-querschnitt').value;
-      let kabel = [kTyp, kLei, kQs].filter(p => p && p.trim()).join(' ');
+      let kabel = kommaZahl([kTyp, kLei, kQs].filter(p => p && p.trim()).join(' '));
       if (!kabel) kabel = '-';
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${rpeVal} Ω` : '-';
+      const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoModeVal = card.querySelector('.c-riso-mode')?.value || '';
@@ -964,7 +966,7 @@ function generatePDF(isBlank = false) {
       const isRisoOut = !risoVal.trim().startsWith('>') && !isNaN(risoNum) && risoNum < risoMinPdf;
       // Die Pruefspannung gehoert nach DIN VDE 0100-600 mit ins Protokoll,
       // weil der Grenzwert von ihr abhaengt.
-      const risoText = risoVal ? `${risoVal} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
+      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
 
@@ -983,9 +985,9 @@ function generatePDF(isBlank = false) {
       const zsNumPdf = parseFloat(zs.replace(',', '.'));
       const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
       let zsik = '-';
-      if (zs || ik) zsik = `${zs || '-'} Ω / ${ik || '-'} A`;
+      if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
       // Netzimpedanz nur drucken, wenn sie tatsaechlich gemessen wurde.
-      if (zln || ik2) zsik += `\nL-N: ${zln || '-'} Ω / ${ik2 || '-'} A`;
+      if (zln || ik2) zsik += `\nL-N: ${kommaZahl(zln) || '-'} Ω / ${kommaZahl(ik2) || '-'} A`;
 
       const rcdTyp = card.querySelector('.c-rcd-typ').value;
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
@@ -1111,7 +1113,7 @@ function generatePDF(isBlank = false) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
+  const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
   const OFF_R = 10;
@@ -1122,8 +1124,13 @@ function generatePDF(isBlank = false) {
   const offBemStart   = offBemLabel + 4.2;
   const boxHeight     = offBemStart + bemZeilen * 4.2 + 2.5;
 
-  // Passt der Block nicht mehr komplett auf die Seite -> sauber umbrechen
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
+  /* 4.5.0 (C1): Kasten 4 und der Abschlussblock (Freigabe, Konformitaetstext,
+   * Unterschriften) werden GEMEINSAM auf Platz geprueft. Vorher wurden beide
+   * getrennt geprueft; dadurch passte der Kasten noch auf die Seite, der
+   * Unterschriftenblock aber nicht mehr - und ein "1 Blatt"-Leerformular
+   * ergab zwei PDF-Seiten, die zweite mit nichts als zwei Linien darauf. */
+  const ABSCHLUSS_H_SCHAETZUNG = 32;   // Freigabezeile + Hinweistext + Unterschriften
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + ABSCHLUSS_H_SCHAETZUNG);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
 
@@ -1300,23 +1307,12 @@ function generatePDF(isBlank = false) {
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
-  /* Musterangabe und Sollwerte stehen im Leerformular als zwei graue Zeilen
-   * im Fussbereich von Blatt 1. Frueher belegte die Musterangabe eine eigene
-   * Tabellenzeile - und zwar auf jedem ausgedruckten Blatt. */
+  /* Fussbereich von Blatt 1: Musterangabe, Sollwerte der Netzmessung und
+   * Legende. 4.5.0 (C4): 6 pt statt 4,6 pt, von unten nach oben gesetzt.
+   * Die Legende steht jetzt zusaetzlich auf jedem Fortsetzungsblatt. */
   if (isBlank) {
     doc.setPage(1);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(5.2);
-    doc.setTextColor(...PDF_MUTED);
-    // Die Musterangabe enthaelt Formelzeichen (R_{PE}, I_{Δmess}, ...) und wird
-    // deshalb ueber den Formelsatz ausgegeben statt ueber doc.text().
-    doc.setFontSize(4.6);
-    drawFormel(doc, LEER_BEISPIEL_TEXT_VDE, PDF_MARGIN_LEFT, 280.5);
-    doc.text(LEER_SOLLWERTE_VDE, PDF_MARGIN_LEFT, 283.0);
-    // Legende: erklaert die Formelzeichen des Tabellenkopfs (siehe oben).
-    drawFormelAbsatz(doc, LEER_LEGENDE_VDE, PDF_MARGIN_LEFT, 285.8, PDF_CONTENT_WIDTH, 2.5, { fontSize: 4.6 });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...PDF_TEXT);
+    drawLeerFuss(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]);
   }
 
   /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ----------------------------
@@ -1350,6 +1346,11 @@ function generatePDF(isBlank = false) {
         columnStyles: LEER_SPALTEN_VDE,
         ...tabellenStil
       }));
+
+      /* 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt. Es traegt denselben
+       * Tabellenkopf mit denselben Formelzeichen - ohne Erklaerung war es fuer
+       * Auszubildende im ersten Lehrjahr nicht ausfuellbar. */
+      drawLeerFuss(doc, [LEER_LEGENDE_VDE]);
     }
   }
 

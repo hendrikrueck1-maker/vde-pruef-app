@@ -70,7 +70,7 @@ function addDeviceCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2.0" oninput="heizleistungGeaendert(${cardCounter})">
+        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2,0" oninput="heizleistungGeaendert(${cardCounter})">
         <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
       </div>
     </div>
@@ -97,7 +97,7 @@ function addDeviceCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.20" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,20" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_${cardCounter}"></span>:</label>
@@ -105,7 +105,7 @@ function addDeviceCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0.3" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0,3" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Messmethode Ableitstrom:</label>
@@ -263,7 +263,7 @@ function validateDeviceNorms(cardId) {
     rpeElem.classList.remove('out-of-norm');
   } else {
     rpeElem.disabled = false;
-    rpeElem.placeholder = 'z. B. 0.20';
+    rpeElem.placeholder = 'z. B. 0,20';
     if (rpeElem.value.trim() !== '') {
       const num = parseFloat(rpeElem.value.replace(',', '.'));
       if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
@@ -318,8 +318,8 @@ function fillExampleDataGeraete() {
 
   document.getElementById('devicesContainer').innerHTML = '';
   cardCounter = 0;
-  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0.22', riso: '> 100', ableitstrom: '0.3' });
-  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2.5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0.48', riso: '> 200', ableitstrom: '0.1' });
+  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0,22', riso: '> 100', ableitstrom: '0,3' });
+  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2,5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0,48', riso: '> 200', ableitstrom: '0,1' });
 }
 
 // KOPFDATEN. Der Titel folgt jetzt dem Sprachgebrauch der geltenden Normen:
@@ -344,7 +344,8 @@ const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-
  *  Zeilenhoehe 6,5 mm -> 8,0 mm: 6,5 mm reichen zum Drucken, nicht zum
  *  Schreiben. 8,0 mm ist dieselbe Hoehe wie in den beiden anderen Protokollen.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1_GP = 16;   // Zeilen auf Blatt 1 (neben Kopf und Bewertung)
+const LEER_ZEILEN_BLATT1_GP = 14;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
+                                    // und die Legende auf Blatt 1 passen (Befund C1)
 const LEER_ZEILEN_FOLGE_GP  = 30;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE_GP   = 8.0;  // mm, Handschrift
 
@@ -641,12 +642,12 @@ function generatePDFGeraete(isBlank = false) {
       // Grenzwert mitdrucken: er haengt von der Leitungslaenge ab und war fuer
       // den Leser des PDF sonst nicht nachvollziehbar.
       const rpeText = !rpeGiltPdf ? 'n.a.'
-        : (rpeVal ? `${rpeVal} Ω\n(max. ${rpeMax.toFixed(2)})` : '-');
+        : (rpeVal ? `${kommaZahl(rpeVal)} Ω\n(max. ${kommaZahl(rpeMax.toFixed(2))})` : '-');
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
       const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseFloat(risoVal.replace(',', '.'))) && parseFloat(risoVal.replace(',', '.')) < risoMin;
-      const risoText = risoVal ? `${risoVal} MΩ\n(min. ${risoMin})` : '-';
+      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(min. ${kommaZahl(risoMin)})` : '-';
 
       const ableitVal = card.querySelector('.c-ableitstrom').value;
       const heizleistung = card.querySelector('.c-heizleistung')?.value;
@@ -656,7 +657,7 @@ function generatePDFGeraete(isBlank = false) {
       const methode = card.querySelector('.c-ableit-methode').value || '';
       const methodeKurz = methode.replace('Direktmessung Berührungsstrom', 'Direktmessung').replace('Differenzstrommessung', 'Differenzstrom');
       const ableitText = ableitVal
-        ? `${ableitVal} mA (max. ${ableitMax})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
+        ? `${kommaZahl(ableitVal)} mA (max. ${kommaZahl(ableitMax)})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
         : '-';
 
       const isFunktionOut = funktion === 'n.i.O.';
@@ -669,7 +670,7 @@ function generatePDFGeraete(isBlank = false) {
         cleanStr(invnr),
         `Kl. ${sk}`,
         // auch dieses Feld ist Freitext -> ueber cleanStr ausgeben
-        laengeVal ? cleanStr(`${laengeVal} m`) : '-',
+        laengeVal ? cleanStr(`${kommaZahl(laengeVal)} m`) : '-',
         makeCell(cleanStr(sichtText), sichtNiO),
         makeCell(cleanStr(funktion), isFunktionOut),
         makeCell(cleanStr(rpeText), isRpeOut),
@@ -723,7 +724,9 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
+  // 4.5.0 (C1): 4 -> 3 Schreiblinien. Zusammen mit einer Geraetezeile weniger
+  // passen Bewertung UND Unterschriften wieder auf Blatt 1.
+  const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
   // Die Ergebniszeile braucht seit dem dritten Ankreuzfeld ("Mängel behoben")
   // die volle Breite -> die Prüfplakette bekommt eine eigene Zeile.
@@ -733,7 +736,9 @@ function generatePDFGeraete(isBlank = false) {
   const offBemStart = offBemLabel + 4.2;
   const boxHeight   = offBemStart + bemZeilen * 4.2 + 2.5;
 
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
+  /* 4.5.0 (C1): Bewertungskasten und Abschlussblock gemeinsam pruefen, damit
+   * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen. */
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "3. GESAMTBEURTEILUNG", kat: 'ergebnis' });
 
@@ -851,14 +856,11 @@ function generatePDFGeraete(isBlank = false) {
    * Auf dem Papier gibt es keine Hinweiszeile unter jedem Feld wie in der App.
    * Ohne diese Legende ist der Tabellenkopf fuer Auszubildende im ersten
    * Lehrjahr nicht aufloesbar. Der Fussbereich reicht bis 291 mm. */
+  /* 4.5.0 (C4): 6 pt statt 4,8 pt und auf JEDEM Blatt - das Fortsetzungsblatt
+   * traegt denselben Tabellenkopf mit denselben Formelzeichen. */
   if (isBlank) {
     doc.setPage(1);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(4.8);
-    doc.setTextColor(...PDF_MUTED);
-    drawFormelAbsatz(doc, LEER_LEGENDE_GP, PDF_MARGIN_LEFT, 284.0, PDF_CONTENT_WIDTH, 2.6, { fontSize: 4.8 });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...PDF_TEXT);
+    drawLeerFuss(doc, [LEER_LEGENDE_GP]);
   }
 
   /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ----------------------------
@@ -903,6 +905,9 @@ function generatePDFGeraete(isBlank = false) {
                   minCellHeight: LEER_ZEILENHOEHE_GP, overflow: 'linebreak',
                   cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
       }));
+
+      // 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt.
+      drawLeerFuss(doc, [LEER_LEGENDE_GP]);
     }
   }
 

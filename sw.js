@@ -27,7 +27,7 @@
  *  Deshalb steht die Version hier ein zweites Mal. Sie muss identisch zu
  *  APP_VERSION in js/app-config.js sein.
  * ========================================================================== */
-const SW_VERSION = '4.4.0';
+const SW_VERSION = '4.5.0';
 
 /* Konfiguration + Dateiliste laden (relativ zum Speicherort dieser Datei).
  * Der Parameter ?v= erzwingt eine frische Kopie: importScripts wird sonst aus

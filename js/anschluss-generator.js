@@ -54,11 +54,18 @@ function addFeedCard(data = {}) {
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">1. Schutzleiterdurchgängigkeit</div>
+      <div class="sub-title">1. Schutzleiter & Spannung N–PE</div>
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.15" oninput="validateFeedNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,15" oninput="validateFeedNorms(${cardCounter})">
+        </div>
+        <div class="form-group">
+          <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] &ndash; Pflichtangabe:</label>
+          <input type="text" inputmode="decimal" class="c-unpe" value="${attrEsc(data.unpe)}" placeholder="z. B. 0,3" oninput="validateFeedNorms(${cardCounter})">
+          <div class="limit-hint">Neu in 4.5.0. Der einzige Wert, der eigenständig einen Fehler findet:
+            hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat. Hinter einem
+            fremden Übergabepunkt ist das der wichtigste Messwert &ndash; deshalb Pflichtangabe.</div>
         </div>
       </div>
     </div>
@@ -154,7 +161,7 @@ function dupliziereUebergabepunkt(cardDomId) {
     rcd_typ: w('.c-rcd-typ'),
     rcd_idn: w('.c-rcd-idn'),
     rcd_pruefstrom: w('.c-rcd-pruefstrom')
-    // drehfeld, rpe, zs, ik, rcd_imess, rcd_ta bleiben leer.
+    // drehfeld, rpe, unpe, zs, ik, rcd_imess, rcd_ta bleiben leer.
   });
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
   const neu = document.querySelector('#feedsContainer .feed-card:last-child .c-bez');
@@ -170,6 +177,16 @@ function validateFeedNorms(cardId) {
     const num = parseFloat(rpeElem.value.replace(',', '.'));
     if (!isNaN(num) && num > 0.30) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
   } else if (rpeElem) rpeElem.classList.remove('out-of-norm');
+
+  /* 4.5.0 (B1): U N-PE bewerten. Sollwert 0 V, ab 1 V Beanstandung.
+   * Fehlt der Wert ganz, wird das Feld als fehlende Pflichtangabe markiert -
+   * dieselbe Farbe wie bei einem eingetragenen, aber ungeprueften RCD. */
+  const unpeElem = card.querySelector('.c-unpe');
+  if (unpeElem) {
+    const leer = unpeElem.value.trim() === '';
+    unpeElem.classList.toggle('out-of-norm', npeUeberschritten(unpeElem.value));
+    unpeElem.classList.toggle('missing-value', leer);
+  }
 
   const sichElem = card.querySelector('.c-sich-typ');
   const ikElem = card.querySelector('.c-ik');
@@ -287,15 +304,23 @@ function fillExampleDataAnschluss() {
   toggleEinspeisungSonstiges('Baustromverteiler');
   document.getElementById('uebergabe_standort').value = 'Verteilerkasten Bühnenzugang Ost';
   document.getElementById('anschlussleistung_vertrag').value = '63';
-  document.getElementById('erdung_re').value = '3.2';
-  document.getElementById('pa_widerstand').value = '0.14';
+  document.getElementById('erdung_re').value = '3,2';
+  document.getElementById('pa_widerstand').value = '0,14';
   document.getElementById('pa_messpunkt').value = 'PA-Schiene im Übergabeverteiler Bühnenzugang Ost';
+  // Netzmessung am Uebergabepunkt (neu in 4.5.0)
+  document.getElementById('u_l1n').value = '231';
+  document.getElementById('u_l2n').value = '230';
+  document.getElementById('u_l3n').value = '229';
+  document.getElementById('u_l12').value = '399';
+  document.getElementById('u_l23').value = '400';
+  document.getElementById('u_l13').value = '401';
+  document.getElementById('netzfrequenz').value = '50';
   validateErdungAnschluss();
   document.getElementById('res_bemerkungen').value = 'Übergabepunkt in einwandfreiem Zustand. Keine Mängel festgestellt.';
 
   document.getElementById('feedsContainer').innerHTML = '';
   cardCounter = 0;
-  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', rpe: '0.12', sich: 'C 32A', zs: '0.31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
+  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', rpe: '0,12', unpe: '0,3', sich: 'C 32A', zs: '0,31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
 }
 
 // KOPFDATEN (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet).
@@ -316,7 +341,9 @@ const ANSCHLUSS_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:201
  *  RCD in drei schmale Spalten, groessere Zeilenhoehe, echte
  *  Fortsetzungsblaetter statt mehrfachem Ausdruck desselben Blattes.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1_AP = 10;
+// 4.5.0: 10 -> 9 Zeilen. Der Kopfkasten traegt jetzt zwei Zeilen Netzmessung
+// (Befund B1); die Zeile wird dort gebraucht, damit Blatt 1 ein Blatt bleibt.
+const LEER_ZEILEN_BLATT1_AP = 7;
 const LEER_ZEILEN_FOLGE_AP  = 28;
 const LEER_ZEILENHOEHE_AP   = 8.0;
 
@@ -326,6 +353,7 @@ const LEER_HEAD_AP = [[
   'Netzsystem\nSpannung / Frequenz',
   'Dreh-\nfeld',
   'R_{PE}\n(Ω)\n≤ 0,30',
+  'U_{N-PE}\n(V)\nSoll 0',
   'Absicherung\nTyp / I_{n}',
   'Z_{S} (Ω) / I_{K} (A)\nZ_{S} ≤ 230 V / I_{a}',
   'RCD\nTyp / I_{Δn}',
@@ -333,12 +361,12 @@ const LEER_HEAD_AP = [[
   't_{A} (ms)\n@ ____ x I_{Δn}'
 ]];
 
-// Summe = 190 mm
+// Summe = 190 mm (4.5.0: Spalte U_N-PE ergaenzt, Breite aus 1, 2, 7 und 10 genommen)
 const LEER_SPALTEN_AP = {
-  0: { cellWidth: 6 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 28 },
-  3: { cellWidth: 12 }, 4: { cellWidth: 14 }, 5: { cellWidth: 15 },
-  6: { cellWidth: 24 }, 7: { cellWidth: 20 }, 8: { cellWidth: 14 },
-  9: { cellWidth: 23 }
+  0: { cellWidth: 6 }, 1: { cellWidth: 30, halign: 'left' }, 2: { cellWidth: 25 },
+  3: { cellWidth: 12 }, 4: { cellWidth: 14 }, 5: { cellWidth: 13 },
+  6: { cellWidth: 15 }, 7: { cellWidth: 24 }, 8: { cellWidth: 19 },
+  9: { cellWidth: 13 }, 10: { cellWidth: 19 }
 };
 
 const LEER_LEGENDE_AP =
@@ -346,11 +374,17 @@ const LEER_LEGENDE_AP =
   'Z_{S} = Schleifenimpedanz, zulässig ≤ 230 V / I_{a} · I_{K} = Kurzschlussstrom · ' +
   'I_{Δn} = Nennfehlerstrom des RCD · I_{Δmess} = gemessener Auslösestrom (zulässig 0,5–1,0 × I_{Δn}) · ' +
   't_{A} = Auslösezeit: ≤ 40 ms bei 5×I_{Δn}, ≤ 150 ms bei 2×, ≤ 300 ms bei 1× (Typ S: 150 / 200 / 500 ms) · ' +
-  'Drehfeld: rechts drehend bei CEE 16–125 A · R_{PE} = Schutzleiterwiderstand, Messstrom ≥ 200 mA.';
+  'Drehfeld: rechts drehend bei CEE 16–125 A · R_{PE} = Schutzleiterwiderstand, Messstrom ≥ 200 mA · ' +
+  'U_{N-PE} = Spannung Neutralleiter gegen Schutzleiter, Sollwert 0 V. Ein Wert über 1 V weist auf einen ' +
+  'hochohmigen PEN, eine Fremdeinspeisung oder eine vertauschte Einspeisung am Aggregat hin.';
+
+/* Sollwerte der Netzmessung - stehen im Fussbereich jedes Leerformulars (4.5.0). */
+const LEER_SOLLWERTE_AP =
+  'Netzmessung Sollwerte: L gegen N je 230 V - L gegen L je 400 V - N gegen PE 0 V - Frequenz 50 Hz.';
 
 const LEER_BEISPIEL_TEXT_AP =
-  'Beispiel: Bühnenversorgung Haupt | TN-S 230 / 400 V, 50 Hz | Drehfeld i.O. | R_{PE} 0,12 Ω | C 32A | ' +
-  'Z_{S} 0,31 Ω / I_{K} 740 A | RCD Typ A 30 mA | I_{Δmess} 21 mA | t_{A} 17 ms @ 5x';
+  'Beispiel: Bühnenversorgung Haupt | TN-S 230 / 400 V, 50 Hz | Drehfeld i.O. | R_{PE} 0,12 Ω | ' +
+  'U_{N-PE} 0,3 V | C 32A | Z_{S} 0,31 Ω / I_{K} 740 A | RCD Typ A 30 mA | I_{Δmess} 21 mA | t_{A} 17 ms @ 5x';
 
 function leerBlattzahlAnschluss() {
   const roh = parseInt(document.getElementById('leer_blaetter')?.value || '1', 10);
@@ -390,8 +424,32 @@ function generatePDFAnschluss(isBlank = false) {
   if (!isBlank) {
     const ohneMessung = prueflingeOhneMessung(
       document.querySelectorAll('#feedsContainer .feed-card'),
-      ['.c-rpe', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta']);
+      ['.c-rpe', '.c-unpe', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta']);
     if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Übergabepunkt'); return; }
+  }
+
+  /* 4.5.0 (B1): U N-PE ist Pflichtangabe je Uebergabepunkt.
+   * Hinter einem fremden Uebergabepunkt ist die N-PE-Spannung der einzige
+   * Messwert, der eigenstaendig einen Fehler findet (hochohmiger PEN,
+   * Fremdeinspeisung, vertauschte Einspeisung am Aggregat). Ein Uebergabe-
+   * protokoll ohne diesen Wert gibt eine Anlage frei, deren gefaehrlichsten
+   * Fehler niemand gesucht hat.
+   * (Soll der Wert einmal wirklich nicht messbar sein: diesen Block
+   *  auskommentieren - die Bewertung selbst bleibt davon unberuehrt.) */
+  if (!isBlank) {
+    const feeds = Array.from(document.querySelectorAll('#feedsContainer .feed-card'));
+    const ohneNpe = feeds
+      .map((k, i) => (String(k.querySelector('.c-unpe')?.value || '').trim() === '' ? i + 1 : null))
+      .filter(n => n !== null);
+    if (ohneNpe.length) {
+      alert('Spannung U N–PE fehlt bei Übergabepunkt ' + ohneNpe.join(', ') + '.\n\n' +
+            'Sollwert 0 V. Die N–PE-Spannung ist der einzige Wert, der eigenständig einen Fehler ' +
+            'findet (hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat) - ' +
+            'genau die Fehler, die hinter einem fremden Übergabepunkt liegen.\n\n' +
+            'Das PDF wurde deshalb nicht erstellt.');
+      feeds[ohneNpe[0] - 1]?.querySelector('.c-unpe')?.focus();
+      return;
+    }
   }
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
@@ -459,7 +517,9 @@ function generatePDFAnschluss(isBlank = false) {
    * Kompakt: 6 Zeilen je Spalte, Zeilenabstand 4,6 mm. Protokoll-Nr. und
    * Prueflings-ID stehen in der Kopfbox und werden hier nicht wiederholt. */
   const ZA = 4.6;
-  const SEK1_H = 36;
+  // 4.5.0 (B1): 36 -> 45 mm. Der Kopfkasten traegt jetzt zusaetzlich die
+  // Netzmessung am Uebergabepunkt (zwei Zeilen Kurzfelder).
+  const SEK1_H = 45;
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & BEREITSTELLER DER EINSPEISUNG", kat: 'stamm' });
 
   doc.setFontSize(7.2);
@@ -504,6 +564,46 @@ function generatePDFAnschluss(isBlank = false) {
   drawFeldZeile(doc, "Art der Einspeisung:",     einspeisungText,                            spR, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Standort Übergabepunkt:",  feldWert('uebergabe_standort'),             spR, z1(4), spB, isBlank);
   drawFeldZeile(doc, "Anschlussleistung (kVA):", feldWert('anschlussleistung_vertrag'),      spR, z1(5), spB, isBlank);
+
+  /* --- NETZMESSUNG AM ÜBERGABEPUNKT (neu in 4.5.0, Befund B1) -------------
+   * Die Anschlusspruefung enthielt bisher keine einzige Spannungsmessung.
+   * Hinter einem fremden Uebergabepunkt liegen aber genau die Fehler, die man
+   * nur an der Spannung sieht: hochohmiger PEN, Fremdeinspeisung, vertauschte
+   * Einspeisung am Aggregat. Die N-PE-Spannung steht je Uebergabepunkt in der
+   * Messtabelle, die Aussenleiterspannungen des Speisepunkts hier im Kopf. */
+  const NETZMESS_FELDER_AP = ['u_l1n', 'u_l2n', 'u_l3n', 'netzfrequenz', 'u_l12', 'u_l23', 'u_l13'];
+  const netzWert = (id) => isBlank ? '' : (document.getElementById(id)?.value || '').trim();
+
+  if (isBlank || NETZMESS_FELDER_AP.some(id => netzWert(id))) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('Netzmessung:', spL, z1(6));
+    doc.setFont('helvetica', 'normal');
+
+    const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
+    const nmZelle = (label, id, spalte, zeile) => {
+      const wert = netzWert(id);
+      const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
+      // Im fertigen Protokoll steht bei einem nicht gemessenen Wert "n. gem."
+      // statt einer leeren Schreiblinie (die sonst wie ein vergessenes Feld aussieht).
+      const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+      drawFeldZeile(doc, label + ':', text,
+                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA, NM_FELD_B, isBlank);
+    };
+    doc.setFontSize(6.6);
+    nmZelle('U L1-N',  'u_l1n', 0, 0);
+    nmZelle('U L2-N',  'u_l2n', 1, 0);
+    nmZelle('U L3-N',  'u_l3n', 2, 0);
+    nmZelle('f',       'netzfrequenz', 3, 0);
+    nmZelle('U L1-L2', 'u_l12', 0, 1);
+    nmZelle('U L2-L3', 'u_l23', 1, 1);
+    nmZelle('U L1-L3', 'u_l13', 2, 1);
+    doc.setFontSize(6.2);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text('U N-PE: siehe Messtabelle', NM_X0 + 3 * NM_DX, z1(6) + ZA);
+    doc.setTextColor(...textColor);
+    doc.setFontSize(7.2);
+  }
 
   y += SEK1_H + 4;
 
@@ -581,7 +681,7 @@ function generatePDFAnschluss(isBlank = false) {
     // Die Musterangabe steht jetzt als graue Zeile im Fussbereich und
     // verbraucht keine Schreibzeile mehr.
     for (let i = 1; i <= LEER_ZEILEN_BLATT1_AP; i++) {
-      tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+      tableRows.push([i, "", "", "", "", "", "", "", "", "", ""]);
     }
   } else {
     const cards = document.querySelectorAll('.feed-card');
@@ -603,7 +703,12 @@ function generatePDFAnschluss(isBlank = false) {
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${rpeVal} Ω` : '-';
+      const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
+
+      /* 4.5.0 (B1): Spannung N-PE je Uebergabepunkt. Sollwert 0 V. */
+      const unpeVal = card.querySelector('.c-unpe')?.value || '';
+      const isUnpeOut = npeUeberschritten(unpeVal);
+      const unpeText = unpeVal ? withUnit(unpeVal, 'V') : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
       const zs = card.querySelector('.c-zs').value;
@@ -619,7 +724,7 @@ function generatePDFAnschluss(isBlank = false) {
       const zsIkWiderspruch = !zIkPlausibel(zs, ik);
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       let zsik = '-';
-      if (zs || ik) zsik = `${zs || '-'} Ω / ${ik || '-'} A`;
+      if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
 
       // Die frueheren "|| '-'"-Vorgaben erzeugten Zellen wie "- (-)". Die
       // Rohwerte gehen jetzt unveraendert in die gemeinsame Auswertung.
@@ -650,14 +755,15 @@ function generatePDFAnschluss(isBlank = false) {
 
       const rcdText = rcdZelle.text;
 
-      if (isRpeOut || isIkOut || isZsOut || isRcdBeanstandung || isDrehfeldOut) anyFeedMeasurementOut = true;
+      if (isRpeOut || isIkOut || isZsOut || isRcdBeanstandung || isDrehfeldOut || isUnpeOut) anyFeedMeasurementOut = true;
 
       tableRows.push([
         idx + 1,
         cleanStr(card.querySelector('.c-bez').value || '-'),
-        cleanStr(netzSpannungFreq),
+        cleanStr(kommaZahl(netzSpannungFreq)),
         makeCell(cleanStr(drehfeld), isDrehfeldOut),
         makeCell(cleanStr(rpeText), isRpeOut),
+        makeCell(cleanStr(unpeText), isUnpeOut),
         cleanStr(sich),
         makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch),
         makeCell(cleanStr(rcdText), isRcdOut)
@@ -671,6 +777,7 @@ function generatePDFAnschluss(isBlank = false) {
     'Netzsystem\nSpannung / Frequenz',
     'Dreh-\nfeld',
     'R_{PE}\n(Ω)\nRichtw. ≤ 0,30',
+    'U_{N-PE}\n(V)\nSollwert 0',
     'Absicherung\nTyp / I_{n}',
     'Z_{S} (Ω) / I_{K} (A)\nZ_{S} ≤ 230 V / I_{a}\nI_{K} ≥ 5x/10x/20x I_{n}',
     'RCD: Typ (I_{Δn})\nI_{Δmess} 0,5-1,0x I_{Δn}\nt_{A} ≤ 40 ms bei 5x'
@@ -695,10 +802,11 @@ function generatePDFAnschluss(isBlank = false) {
     bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
     // Summe = 190 mm (210 - 2 x 10 mm Rand). Vorher 188 -> autoTable meldete
     // "content width could not fit page" und rechnete die Spalten selbst um.
+    // 4.5.0: Spalte U_N-PE ergaenzt, Summe bleibt 190 mm.
     columnStyles: isBlank ? LEER_SPALTEN_AP : {
-      0: { cellWidth: 7 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 32 },
-      3: { cellWidth: 12 }, 4: { cellWidth: 18 }, 5: { cellWidth: 19 },
-      6: { cellWidth: 26 }, 7: { cellWidth: 42 }
+      0: { cellWidth: 7 }, 1: { cellWidth: 31, halign: 'left' }, 2: { cellWidth: 28 },
+      3: { cellWidth: 12 }, 4: { cellWidth: 17 }, 5: { cellWidth: 15 },
+      6: { cellWidth: 18 }, 7: { cellWidth: 24 }, 8: { cellWidth: 38 }
     },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
     styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
@@ -729,7 +837,10 @@ function generatePDFAnschluss(isBlank = false) {
   const offBemStart   = offBemLabel + 4.2;
   const boxHeight     = offBemStart + bemZeilen * 4.2 + 2.5;
 
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
+  /* 4.5.0 (C1): Kasten 4 und der Abschlussblock werden GEMEINSAM auf Platz
+   * geprueft - sonst passt der Kasten noch, der Unterschriftenblock aber nicht
+   * mehr, und es entsteht eine zweite Seite mit nichts als zwei Linien darauf. */
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
 
@@ -870,18 +981,12 @@ function generatePDFAnschluss(isBlank = false) {
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
 
-  /* Musterangabe als graue Zeile im Fussbereich von Blatt 1. */
+  /* Fussbereich von Blatt 1: Musterangabe und Legende.
+   * 4.5.0 (C4): 6 pt statt 4,6 pt, von unten nach oben gesetzt, mit Abstand
+   * zur Unterschriftenzeile. Die Legende steht jetzt auf jedem Blatt. */
   if (isBlank) {
     doc.setPage(1);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(5.2);
-    doc.setTextColor(...PDF_MUTED);
-    // Musterangabe mit Formelzeichen -> Formelsatz statt doc.text()
-    doc.setFontSize(4.6);
-    drawFormel(doc, LEER_BEISPIEL_TEXT_AP, PDF_MARGIN_LEFT, 282.5);
-    drawFormelAbsatz(doc, LEER_LEGENDE_AP, PDF_MARGIN_LEFT, 285.3, PDF_CONTENT_WIDTH, 2.5, { fontSize: 4.6 });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...PDF_TEXT);
+    drawLeerFuss(doc, [LEER_BEISPIEL_TEXT_AP, LEER_SOLLWERTE_AP, LEER_LEGENDE_AP]);
   }
 
   /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ---------------------------- */
@@ -900,7 +1005,7 @@ function generatePDFAnschluss(isBlank = false) {
 
       const folgeZeilen = [];
       for (let i = 0; i < LEER_ZEILEN_FOLGE_AP; i++) {
-        folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", ""]);
+        folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", "", ""]);
       }
       doc.autoTable(mitFormelHooks(doc, {
         startY: yy + 5,
@@ -919,6 +1024,9 @@ function generatePDFAnschluss(isBlank = false) {
         styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: LEER_ZEILENHOEHE_AP,
                   overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
       }));
+
+      // 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt.
+      drawLeerFuss(doc, [LEER_LEGENDE_AP]);
     }
   }
 
@@ -951,6 +1059,8 @@ const ANSCHLUSS_FIELD_IDS = [
   'kalibriert_bis',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon', 'einspeisung_art', 'einspeisung_sonstiges',
   'uebergabe_standort', 'anschlussleistung_vertrag', 'vnb',
+  // Netzmessung am Uebergabepunkt (neu in 4.5.0, Befund B1)
+  'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'netzfrequenz',
   'pa_angeschlossen', 'erdung_re', 'pa_widerstand', 'pa_messpunkt',
   'res_maengel', 'res_leistung_ausreichend',
   'res_freigabe', 'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum',
@@ -982,6 +1092,7 @@ function collectAnschlussState() {
     frequenz: card.querySelector('.c-frequenz').value,
     drehfeld: card.querySelector('.c-drehfeld').value,
     rpe: card.querySelector('.c-rpe').value,
+    unpe: card.querySelector('.c-unpe')?.value || '',
     sich: card.querySelector('.c-sich-typ').value,
     zs: card.querySelector('.c-zs').value,
     ik: card.querySelector('.c-ik').value,

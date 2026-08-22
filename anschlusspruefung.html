@@ -122,6 +122,27 @@
       <div class="form-group"><label>Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
     </div>
 
+    <!-- NETZMESSUNG AM ÜBERGABEPUNKT (neu in 4.5.0, Befund B1) -->
+    <div class="sub-section kat-block kat-messen" style="margin-top:10px;">
+      <div class="sub-title">Netzmessung am Übergabepunkt &ndash; Spannungen &amp; Frequenz</div>
+      <p class="limit-hint" style="margin:0 0 8px;">
+        Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V · Frequenz 50 Hz.
+        Nicht gemessene Werte bleiben leer. Die N&ndash;PE-Spannung wird je Übergabepunkt
+        erfasst (Tabelle unten): sie ist der einzige Wert, der eigenständig einen Fehler
+        findet &ndash; hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.
+        Genau diese Fehler liegen hinter einem fremden Übergabepunkt.
+      </p>
+      <div class="grid">
+        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230"></div>
+        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230"></div>
+        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230"></div>
+        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400"></div>
+        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400"></div>
+        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400"></div>
+        <div class="form-group"><label>Frequenz f (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="50"></div>
+      </div>
+    </div>
+
     <!-- 3. BESICHTIGEN -->
     <h2 class="kat-sicht">3. Besichtigen (Sichtprüfung Übergabepunkt)</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
@@ -163,11 +184,11 @@
       </div>
       <div class="form-group">
         <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
-        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0.25" oninput="validateErdungAnschluss()">
+        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdungAnschluss()">
       </div>
       <div class="form-group">
         <label>Durchgängigkeit PE / PA R<sub>PA</sub> (&Omega;) [&le; 1,0 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0.14" oninput="validatePaWiderstand()">
+        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,14" oninput="validatePaWiderstand()">
         <div class="limit-hint">Messung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
       <div class="form-group grid-full">

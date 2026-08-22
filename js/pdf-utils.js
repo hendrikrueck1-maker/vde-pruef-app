@@ -462,6 +462,21 @@ function autosaveAnhaengen(formId, speichern) {
   var e = entprellt(speichern, 400);
   form.addEventListener('input', e);
   form.addEventListener('change', e);
+
+  /* 4.5.0 (D1): Dezimalkomma auch auf dem Bildschirm.
+   * Wer "0.11" tippt, sieht nach dem Verlassen des Feldes "0,11" - genau das,
+   * was spaeter im PDF steht. Umgestellt wird nur ein Punkt ZWISCHEN Ziffern
+   * und nur in Zahlenfeldern (inputmode="decimal"); Freitextfelder,
+   * Typbezeichnungen und Datumsangaben bleiben unangetastet. Alle
+   * Auswertungsfunktionen rechnen ohnehin bereits mit Komma. */
+  form.addEventListener('focusout', function (ev) {
+    var el = ev.target;
+    if (!el || el.tagName !== 'INPUT') return;
+    if (el.getAttribute('inputmode') !== 'decimal') return;
+    var neu = kommaZahl(el.value);
+    if (neu !== el.value) { el.value = neu; e(); }
+  });
+
   window.addEventListener('pagehide', function () { e.sofort(); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') e.sofort();
@@ -731,9 +746,10 @@ function istRcdSelektiv(typ) {
 // Liefert Text und Bewertungsflags fuer die RCD-Spalte.
 function buildRcdZelle(roh) {
   const typ = String(roh.typ || '').trim();
-  const idn = String(roh.idn || '').trim();
-  const imess = String(roh.imess || '').trim();
-  const ta = String(roh.ta || '').trim();
+  // 4.5.0 (D1): Zahlenwerte der RCD-Zelle mit Dezimalkomma.
+  const idn = kommaZahl(String(roh.idn || '').trim());
+  const imess = kommaZahl(String(roh.imess || '').trim());
+  const ta = kommaZahl(String(roh.ta || '').trim());
   const pruefstrom = String(roh.pruefstrom || '').trim();
 
   const ohneRcd = /ohne\s*rcd/i.test(typ);
@@ -992,6 +1008,97 @@ const PDF_CONTENT_TOP = 25;        // erste Zeile unter der Kopf-Trennlinie
 const PDF_CONTENT_BOTTOM = 283;    // letzte nutzbare Zeile ueber der Fusszeile
 const PDF_FOOTER_Y = 291;
 
+/* ---------------------------------------------------------------------------
+ *  FUSSBEREICH DES LEERFORMULARS - LEGENDE AUF JEDEM BLATT  (4.5.0, Befund C4)
+ * ---------------------------------------------------------------------------
+ *  VORHER: Legende, Musterzeile und Sollwerte standen in 4,6 pt (rund 1,6 mm
+ *  Schrifthoehe) und AUSSCHLIESSLICH auf Blatt 1. Die Fortsetzungsblaetter
+ *  trugen denselben Tabellenkopf mit denselben Formelzeichen (I_a, Z_S, I_Δn,
+ *  t_A, U_mess) und keinerlei Erklaerung - fuer Auszubildende im ersten
+ *  Lehrjahr endete das Ausfuellen genau dort.
+ *
+ *  JETZT: 6 pt (absolute Untergrenze fuer Fussnoten) und auf JEDEM Blatt.
+ *  Der Block waechst von unten nach oben, damit er nie in die Fusszeile
+ *  laeuft, egal wie viele Zeilen er braucht.
+ * ------------------------------------------------------------------------ */
+const LEER_FUSS_PT      = 6;      // Schriftgroesse der Fussnoten
+const LEER_FUSS_ZEILE   = 2.9;    // mm Zeilenabstand
+const LEER_FUSS_UNTEN   = 287;    // Grundlinie der letzten Fussnotenzeile (Fusszeile 291)
+
+/* Zeilenumbruch eines Formeltextes, ohne zu zeichnen. Gleiche Logik wie
+ * drawFormelAbsatz - nur so stimmt die vorab berechnete Zeilenzahl mit dem
+ * spaeteren Satz ueberein. */
+function formelZeilenUmbrechen(doc, text, maxBreite, basis) {
+  const woerter = String(text === undefined || text === null ? '' : text).split(/\s+/).filter(Boolean);
+  const zeilen = [];
+  let zeile = '';
+  woerter.forEach(function (wort) {
+    const test = zeile ? zeile + ' ' + wort : wort;
+    if (zeile && formelBreite(doc, test, basis) > maxBreite) {
+      zeilen.push(zeile);
+      zeile = wort;
+    } else {
+      zeile = test;
+    }
+  });
+  if (zeile) zeilen.push(zeile);
+  return zeilen;
+}
+
+/* Setzt die uebergebenen Textbloecke als Fussnoten der AKTUELLEN Seite.
+ * Rueckgabe: y der obersten Grundlinie - damit die Aufrufstelle pruefen kann,
+ * ob der darueberliegende Inhalt noch Platz hat. */
+function drawLeerFuss(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  if (!texte.length) return LEER_FUSS_UNTEN;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(LEER_FUSS_PT);
+  doc.setTextColor.apply(doc, PDF_MUTED);
+
+  const zeilen = [];
+  texte.forEach(function (t) {
+    formelZeilenUmbrechen(doc, t, PDF_CONTENT_WIDTH, LEER_FUSS_PT)
+      .forEach(function (z) { zeilen.push(z); });
+  });
+
+  const yOben = LEER_FUSS_UNTEN - (zeilen.length - 1) * LEER_FUSS_ZEILE;
+  zeilen.forEach(function (z, i) {
+    drawFormel(doc, z, PDF_MARGIN_LEFT, yOben + i * LEER_FUSS_ZEILE, { fontSize: LEER_FUSS_PT });
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor.apply(doc, PDF_TEXT);
+  return yOben;
+}
+
+/* N-PE-SPANNUNG: SOLLWERT 0 V   (4.5.0 aus pdf-generator.js hierher verschoben)
+ * Ein nennenswerter Wert deutet auf einen hochohmigen PEN, eine Fremdeinspeisung
+ * oder eine Vertauschung hin. 1 V als Schwelle, damit Messrauschen nicht sofort
+ * rot wird. Liegt jetzt zentral, weil die Anschlusspruefung dieselbe Bewertung
+ * braucht (Befund B1) - am fremden Uebergabepunkt ist das der wichtigste
+ * Messwert ueberhaupt. */
+const U_NPE_SCHWELLE = 1.0;
+
+function npeUeberschritten(wert) {
+  const num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
+  return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
+}
+
+/* KOMMA STATT PUNKT IN MESSWERTEN  (4.5.0, Befund D1)
+ * Im deutschen Pruefprotokoll ist das Komma das Dezimaltrennzeichen. Vorher
+ * standen im PDF Werte wie "0.08 Ω" direkt neben dem gedruckten Grenzwert
+ * "≤ 0,30 Ω" - uneinheitlich und bei Zahlen ueber 1000 sogar mehrdeutig.
+ *
+ * Ersetzt wird NUR ein Punkt zwischen zwei Ziffern. Bewusst nicht global auf
+ * jeden Zellentext angewandt: ein Datum ("22.08.2026") oder eine Aufzaehlung
+ * im Bemerkungsfeld darf davon nicht getroffen werden. Deshalb wird diese
+ * Funktion ausschliesslich auf Messwerte angewendet. */
+function kommaZahl(wert) {
+  return String(wert === undefined || wert === null ? '' : wert).replace(/(\d)\.(?=\d)/g, '$1,');
+}
+
 // Legt bei Bedarf eine neue Seite an und liefert die y-Position zurueck, an der
 // weitergezeichnet werden darf. IMMER statt "if (y > x) { addPage(); y = 15; }"
 // verwenden - so ist der obere Seitenrand auf allen Folgeseiten identisch.
@@ -1208,7 +1315,8 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
 // Einheit nur anhaengen, wenn sie nicht bereits eingetippt wurde.
 // (Verhinderte Ausgaben wie "1.2 V V".)
 function withUnit(value, unit) {
-  const v = String(value ?? '').trim();
+  // 4.5.0 (D1): Messwerte werden mit Dezimalkomma gesetzt.
+  const v = kommaZahl(String(value ?? '').trim());
   if (!v) return '';
   /* "Ohm" und "Ω" sind dieselbe Einheit. Wer im Formular noch "0,3 Ohm"
    * eintippt, soll im PDF nicht "0,3 Ohm Ω" lesen. */

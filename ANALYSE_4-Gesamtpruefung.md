@@ -1,661 +1,325 @@
-# SIMULATION 3: Gesamtprüfung Open-Air-Bühne mit Azubis (1., 2., 3. Lehrjahr)
+# Teil 4 – Leerformulare im Detail, Grafikbefunde, Maßnahmenplan
 
-**Szenario:** Stadttheater Konstanz prüft sein neues Open-Air-Bühnensystem  
-**Team:** 1 Meister (Leitung) + 1 Azubi 1.LJ + 1 Azubi 2.LJ + 1 Azubi 3.LJ  
-**Werkzeuge:** APP vde0100.html + Papierformular (Redundanzprüfung)  
-**Dauer:** Realistisch 4–5 Stunden Vor-Ort-Zeit  
+## 1 · Leerformulare – jeder Befund am gedruckten Blatt nachgewiesen
 
----
+### C1 · „1 Blatt" ergibt 2 Seiten – Unterschriften auf einer Waisenseite
 
-## 08:00 UHR: BRIEFING IM BÜRO
+**Gemessen:**
 
-```
-Meister zu Team:
-„Wir prüfen heute die neue Bühnenschaltanlage auf dem Münsterplatz.
-Jeden von euch habe ich eine Aufgabe:
-
-- Azubi 1.LJ (Tom): Du schreibst die Papierform aus und notierst alles, was wir sagen.
-- Azubi 2.LJ (Lisa): Du bedienst die App und trägst die Messwerte ein.
-- Azubi 3.LJ (Max): Du checkt auf Fehler – am Ende vergleichst du APP und Papier.
-- Ich: Ich messe, erkläre und unterschreibe zum Schluss.
-
-[Jeder bekommt seine Rolle verteilt]  ✅
-[Redundanzprüfung: zwei Wege, zwei Erfassungen, Vergleich am Ende]"
-
-Vorbereitung:
-- Tablet mit App (Batterie 85%, Wifi Hotspot des Meisters)
-- Papierformular 3er-Satz
-- Fluke 6500-2 Installationstester  
-- Notepad für Azubi 1.LJ
-```
-
----
-
-## 09:00 UHR: VOR ORT — BESICHTIGUNG (Sichtkontrolle)
-
-### Stammdaten erfassen (Azubi 1.LJ auf Papier + Azubi 2.LJ in APP)
-
-```
-[PARALLELER PROZESS]
-
-Azubi 1.LJ schreibt von Hand:
-```
-Auftraggeber / Prüfort:  Stadttheater Konstanz, Münsterplatz
-Gebäude / Bereich:       Freilichtbühne Münsterplatz
-Anlage:                  Hauptverteiler + 3 Nebenverteilungen
-Prüfer:                  Meinhard Strom, Meister ET
-Prüfdatum:               15.07.2026
-Messgerät:               Fluke 6500-2
-S/N:                     FL-4782953
-Kalibriert bis:          23.11.2026 ✅
-```
-
-Azubi 2.LJ tippt in APP:
-```
-[Dropdown: Münsterplatz wählen? Nicht vorhanden → Custom eingeben]
-Auftraggeber: „Open Air Veranstaltungen GmbH, Münsterplatz, Konstanz"
-              [Tippen auf Tablet dauert 40 Sekunden]
-Prüfdatum:   [Datum-Picker] → Heute: 15.07.2026
-Messgerät:   [Tippt] „Fluke 6500-2"
-```
-
-**Wahrnehmung:**
-- ✅ Papier: schnell geschrieben (30 sec)
-- ⚠️ APP: Tippen auf Tablet langsam (120 sec), aber akkurater
-- ✅ Redundanz gelingt
-
----
-
-### Besichtigung durchgehen (Meister führt)
-
-```
-Meister (mit Checkliste):
-„Beginnen wir mit Besichtigung. Tom, du schreibst mit. Lisa, du notierst später in die App."
-
-[BESICHTIGUNG AUF DER BÜHNE — 45 Min]
-
-Meister prüft:
-1. Beschaffenheit Schutzleiter
-   → Kupferkabel 2,5 mm² durchgehend, keine Beschädigungen
-   → Azubi 1.LJ schreibt: „Kupferkabel 2,5 mm² o.B." (ohne Befund = okay)  ✓
-   → Azubi 2.LJ wird das später in APP eintippen
-
-2. Zustand Isolation
-   → Keine sichtbaren Risse, Kerben oder feuchtstellen
-   → Azubi 1.LJ: „Isolation unversehrt"  ✓
-
-3. Kennzeichnung L/N/PE
-   → Meister mit Lupe: Braun (L), Blau (N), Grün-Gelb (PE) korrekt gefärbt
-   → Alle Adern gekennzeichnet – auch in Verteilerdose
-   → Azubi 1.LJ: „L/N/PE korrekt gekennzeichnet"  ✓
-
-4. Schutz gegen direktes Berühren
-   → Meister prüft: „Lassen sich die Stromschienenschuhe mit der Hand abnehmen?"
-   → Nein – sind richtig gesichert
-   → Schutzkontakte alle da
-   → Azubi 1.LJ: „Schutz gegen Berühren gegeben, Kontakte gesichert"  ✓
-
-5. Betätigungsvorrichtungen / Hauptschalter
-   → Meister prüft Sicherungsschalter (Imax) für Hauptspeisung
-   → Prüftaste geht rein, Schalter fällt aus
-   → Azubi 1.LJ: „Imax 63 A – Prüftaste OK – Schalter fällt aus"  ✓
-
-6. Erdungsleiter vorhanden & durchgehend
-   → Meister folgt dem PE-Leiter von der Speisung bis zur Erdbuchse
-   → PE in jedem Stromkreis durchgehend
-   → Azubi 1.LJ: „PE-Ader durchgehend von Speisung bis Buchsen"  ✓
-
-7. Installation normgemäß
-   → Kabel nicht geknittert, Biegeradius OK
-   → Verlegesicherung vorhanden
-   → Keine scharfkantigen Übergänge
-   → Azubi 1.LJ: „Verlegung normgemäß, kein Verschleiß sichtbar"  ✓
-
-8. Kontrolle Schutzeinrichtungen
-   → Meister prüft RCD-Schalter oben
-   → Drückt Prüftaste → Schalter fällt sofort aus  ✅
-   → Prüftaste wieder gedrückt → Schalter zieht wieder rein  ✅
-   → Azubi 1.LJ: „RCD-Prüftaste funktioniert"  ✓
-
-9. [Keine Sicherheitsbeleuchtung auf Freiluftbühne]
-   → Azubi 3.LJ flüstert: „Sicherheitsbeleuchtung fehlt in der Liste – aber ist auch nicht nötig auf Freiluft"  ⚠️
-
-[Nach Besichtigung]
-
-Meister zu Azubi 1.LJ: „Gut dokumentiert. Du hast alles aufgeschrieben."
-
-Azubi 1.LJ: „Gerne! Aber meine Handschrift wird immer kleiner, je mehr wir prüfen."  😅
-
-[Problem der Papiervorlage wird sichtbar]
-```
-
----
-
-## 10:00 UHR: STROMKREIS 1 — MESSUNGEN
-
-### Stromkreis 1: LED-Hauptbeleuchtung (16 A)
-
-```
-[MEISTER MISST MIT FLUKE]
-
-Meister: „Tom, pass auf – ich zeige dir, wie man R_PE misst."
-         [Hält die beiden Messspitzen an PE und Leiter]
-         „Messwert: 0,08 Ω – das ist gut."
-
-Azubi 1.LJ schreibt auf Papierformular:
-```
-Kreis:    1 - LED Hauptbeleuchtung
-I_n:      16 A
-R_PE:     0,08 Ω     [Azubi schreibt sauber]
-R_ISO:    [Meister misst] 205 MΩ
-          [Azubi schreibt] 205
-```
-
-Azubi 2.LJ (Lisa) tippt in APP zeitverzögert:
-```
-Kreis:    [Tipp oder Drop-down? Wahrscheinlich manuell] „1"
-I_n:      [Tippt] „16"
-R_PE:     [Tippt] „0,08"
-R_ISO:    [Tippt] „205"
-```
-
-**Wahrnehmung:**
-- ✅ Meister erklärt Tom die Messung → LERNEFFEKT
-- ⚠️ Azubi 2.LJ ist schneller, aber passiver
-- ⚠️ Papier ist noch lesbar, App puffert die Werte
-
----
-
-### R_ISO (Isolationswiderstand) — Besonderheit
-
-```
-Meister: „Jetzt Isolationsprüfung. Das macht ein RCD-Prüfgerät. Lisa, pass auf die Messwerte auf."
-
-Messgerät zeigt: 205 MΩ (Megaohm)
-
-Meister: „Das ist gut – über 1 MΩ, wie es sein soll."
-
-Azubi 2.LJ tippt in APP:
-[Feld für R_ISO: Einheit wählbar (Ω / kΩ / MΩ)?]
-
-⚠️ FRAGE: Tippt Azubi „205" in Feld MΩ oder „205000" in Feld Ω?
-   [APP sollte Einheit-Dropdown haben – ist unklar]
-
-Azubi 2.LJ: „Meister, welche Einheit soll ich eingeben?"
-
-Meister: „Schau in die App – es sollte MΩ sein."
-
-Azubi 2.LJ: [Sucht... sucht...] „Ich sehe nur ein Textfeld, keine Einheiten-Auswahl."
-
-Meister: „Dann tippt du ‚205' mit der Einheit dahinter: ‚205 MΩ' oder nur ‚205' und wir geben die Einheit an."
-
-❌ APP-USABILITY-PROBLEM: Einheiten unklar
-```
-
----
-
-### Schleifenimpedanz Z_S & Kurzschlussstrom I_K
-
-```
-Meister misst Z_S (mit Loop-Test-Funktion des Fluke):
-Anzeige: 0,12 Ω
-
-Azubi 1.LJ schreibt auf Papier: „0,12"
-
-Azubi 2.LJ tippt in APP: „0,12"
-
-Meister berechnet I_K mental: I_K ≈ 230 V / 0,12 Ω ≈ 1917 A
-
-Azubi 3.LJ prüft die Berechnung:
-- Prüfwert 5×I_n = 5×16 A = 80 A
-- I_K = 1917 A >> 80 A ✅ OK
-
-[ABER DANN:]
-
-Meister: „Jetzt die zweite Schleife – nämlich L zu N."
-
-Azubi 2.LJ: „Äh, wie? Es gibt zwei Schleifen?"
-
-Meister: „Ja! Z_S ist die Schleife L–PE. Aber auch L–N kann fehlern."
-
-Azubi 2.LJ: [Sucht in APP] „Ich sehe kein Feld für Z_L-N!"
-
-Meister: [Seufzt] „Ja, das ist der Fehler der App. Z_L-N wird nicht erfasst."
-
-Azubi 3.LJ notiert: ❌ APP-BUG: Z_L-N Feld fehlt
-
-Meister misst trotzdem: Z_L-N = 0,11 Ω
-
-Azubi 1.LJ schreibt auf Papier neben die Tabelle: „Z_L-N: 0,11 Ω (wurde in App nicht erfasst)"
-
-[REDUNDANZ RETTET DIE SITUATION]  ✅
-Aber: Das ist unbefriedigend. Der Fehler hätte behoben sein sollen.
-```
-
----
-
-### RCD-Prüfung — Das Komplexe Manöver
-
-```
-[MOMENT DER WAHRHEIT: RCD wird getestet]
-
-Meister: „Jetzt kommt die RCD-Prüfung. Das ist die wichtigste Messung."
-
-Er verbindet RCD-Prüfer mit Stromkreis 1.
-
-[RCD-Prüfer: mobil, mit eingebauten Auslöse-Testfunktionen]
-
-Meister: „Die RCD bewertet eine spezifische Fehlerrate. Ich teste sie mit 1×I_Δn, dann 5×I_Δn."
-
-Azubi 1.LJ: „Was bedeutet I_Δn?"
-
-Meister: [Kurze Erklärung] „Das ist der Nennfehlerstrom – hier 30 mA."
-
-[Test startet: 1×I_Δn]
-
-Messgerät zeigt:
-- I_Δn = 30 mA (Sollwert)
-- I_Δmess (1×) = 29 mA (gemessen)
-- t_A (1×) = 0,04 s
-
-Meister: „Gut – die 29 mA bei 30 mA Sollwert ist im Toleranzbereich."
-
-Azubi 1.LJ schreibt: „1×: 29 mA / 0,04 s"  ✓
-
-Azubi 2.LJ tippt in APP: „29" [Meister, wo soll Auslösezeit hin?]
-
-Meister: „Die Auslösezeit auch – 0,04 Sekunden."
-
-[Test startet: 5×I_Δn]
-
-Messgerät zeigt:
-- I_Δmess (5×) = 74 mA
-- t_A (5×) = 0,038 s
-
-Meister: [Prüft mental] „74 mA – das ist über der 2×I_Δn Grenze (60 mA)..."
-
-Azubi 3.LJ: „Meister, ist das noch okay?"
-
-Meister: „Grenzwertig. Für Typ A sollte 5×I_Δn < 2×I_Δn sein, also < 60 mA."
-
-Azubi 2.LJ: [Tippt in APP] „74"
-
-APP antwortet: [Was sagt die App? Warnung? OK?]
-❌ UNKLAR – die Validierung ist nicht explizit sichtbar
-
-Meister: „Wir dokumentieren das. Das ist noch nicht schlecht, aber grenzwertig."
-
-Azubi 3.LJ notiert: ⚠️ RCD 5×-Wert = 74 mA (Grenzwert 60 mA) – grenzwertig, muss nach Norm checken
-
-[Nach 30 Minuten für einen Stromkreis sind alle müde]
-
-Azubi 1.LJ: „Meine Hand tut weh vom Schreiben."
-
-Meister: [Nickt verständnisvoll] „Deshalb nutzen wir die App normalerweise."
-
-[REALITÄT: 4 Stromkreise × 30 Min = 2 Stunden reine Messung]
-```
-
----
-
-## 11:30 UHR: STROMKREISE 2 & 3 — SCHNELLER DURCHZIEHEN
-
-```
-[Mit Erfahrung geht es schneller]
-
-Azubi 2.LJ wird flinker – kennt jetzt die Felder
-
-Azubi 1.LJ schreibt weiterhin mit: Handschrift wird mini
-
-Azubi 3.LJ prüft nach jedem Stromkreis:
-- Ist Z_S plausibel?
-- Ist I_K plausibel (230 V / Z_S)?
-- RCD-Grenzen plausibel?
-
-Meister misst professionell durch.
-
-Ergebnisse Kreis 2 (Spotlights):
-- R_PE: 0,09 Ω ✅
-- R_ISO: 200 MΩ ✅
-- Z_S: 0,14 Ω, I_K: 1643 A ✅
-- RCD: 30/29/0,04 s (1×) und 30/72/0,038 s (5×) ⚠️ knapp
-
-Ergebnisse Kreis 3 (Sound):
-- R_PE: 0,11 Ω ✅
-- R_ISO: 210 MΩ ✅
-- Z_S: 0,13 Ω, I_K: 1769 A ✅
-- RCD: 30/28/0,04 s (1×) und 30/71/0,037 s (5×) ✅ OK
-
-[Nach insgesamt 2,5 Stunden: Stromkreise 1–3 fertig]
-
-Meister: „Gut gemacht. Wir haben noch Erdung und Potenzialausgleich."
-```
-
----
-
-## 13:00 UHR: MITTAGSPAUSE & VERGLEICH
-
-```
-Meister schlägt vor: „Wir vergleichen jetzt APP und Papierformular."
-
-Azubi 3.LJ (Max) legt nebeneinander:
-
-PAPIERFORMULAR (Azubi 1.LJ, 3 Stunden Handschrift):
-```
-Auftraggeber: [unleserlich, zu klein]
-Prüfer: [klein, aber noch lesbar]
-Tabelle:
-Kreis 1: 16 | 0,08 | 205 | 0,12 | 1917 | [Spalte „Nuten..." ist LEER]
-Kreis 2: 10 | 0,09 | 200 | 0,14 | 1643 | [LEER]
-Kreis 3: 22 | 0,11 | 210 | 0,13 | 1769 | [LEER]
-Bemerkungen: [Alles handschriftlich quergekritzel]
-```
-
-APP-PDF (Azubi 2.LJ, 3 Stunden Eingabe):
-```
-Auftraggeber: [PERFEKT GEDRUCKT]
-Prüfer: [PERFEKT GEDRUCKT]
-Tabelle:
-Kreis 1: 16 | 0,08 | 205 MΩ | 0,12 | 1917 A | [Spalte „Nuten Netzmessung L-L" → LEER weil Feld nicht in App]
-Kreis 2: 10 | 0,09 | 200 MΩ | 0,14 | 1643 A | [LEER]
-Kreis 3: 22 | 0,11 | 210 MΩ | 0,13 | 1769 A | [LEER]
-Bemerkungen: [PDF sauber strukturiert]
-```
-
-**Vergleich:**
-
-| Aspekt | Papier | APP |
+| Protokoll | Auswahl „1 Blatt" | Auswahl „2 Blätter" |
 |---|---|---|
-| Lesbarkeit | ⚠️ Klein, Handschrift | ✅ Perfekt gedruckt |
-| Vollständigkeit | ❌ Z_L-N auf Papier notiert, aber nicht strukturiert | ❌ Z_L-N gar nicht erfasst |
-| Tabelle „Nuten..." | ⚠️ Nicht ausgefüllt (unverständlich) | ⚠️ Nicht in APP erfassbar |
-| Rechengenauigkeit | ❌ I_K hätte prüfer rechnen müssen | ✅ Auto-berechnet |
-| Archiv | ❌ Nur Papier, braucht Scan | ✅ Digital gespeichert |
-| Zeitaufwand | 🐌 180 Min (3 Stunden) | ⏱️ 120 Min (2 Stunden) – 33% schneller! |
+| Anlagenprüfung VDE 0100 | **2 PDF-Seiten** | 3 PDF-Seiten |
+| Anschlussprüfung | 1 PDF-Seite ✔ | 2 PDF-Seiten ✔ |
+| Geräteprüfung | **2 PDF-Seiten** | 3 PDF-Seiten |
 
-Azubi 3.LJ schreibt Vergleichs-Bericht:
-```
-FAZIT nach Vergleich:
-1. APP ist SCHNELLER (33% zeitersparnis)
-2. APP-PDF LESBAR (Papier unleserlich nach Hand)
-3. ABER APP hat Fehler:
-   - Z_L-N Feld fehlend (nicht dokumentiert)
-   - Spalte „Nuten Netzmessung" (auch im Leerformular falsch)
-   - U_L Grenzwert nur 50 V (sollte für Bühne 25 V sein)
+Seite 2 enthält ausschließlich:
 
-4. PAPIER hat auch Fehler:
-   - Spalte „Nuten Netzmessung" ist Tippfehler
-   - Handschrift nach 3 Stunden unleserlich
-   - Keine Rechenunterstützung
+```
+Sicherer Gebrauch gewährleistet:  ☐ Ja  ☐ Nein
+Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen.
 
-EMPFEHLUNG: APP nutzen, aber Fehler beheben (Z_L-N vor allem!)
+______________, den ________ – Unterschrift Prüfer/-in
+______________, den ________ – Unterschrift Auftraggeber/Betreiber
 ```
+
+Der Rest der Seite – rund 25 cm – ist leer. Auf Seite 1 sind gleichzeitig etwa 4 cm frei.
+
+**Ursache** (`js/pdf-utils.js` `pdfPlatzPruefen`, `js/pdf-generator.js` Z. 1258–1275):
+Kasten 4 und der Abschlussblock werden **getrennt** auf Platz geprüft. Der Abschlussblock
+allein braucht 25,2 mm, beginnt aber erst bei y = 264,2 mm. Gemessene Summe: **289,4 mm**
+gegen die Grenze `PDF_CONTENT_BOTTOM = 283`. Der Umbruch ist also formal korrekt – die
+Seite ist schlicht 6,4 mm zu voll.
+
+**Empfehlung (zwei Zeilen Code):** Beide Blöcke in **einer** Prüfung zusammenfassen:
+
+```js
+finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + abschlussHoehe);
 ```
+
+Dann landen Bewertung **und** Unterschriften gemeinsam auf einer Seite – nie mehr eine
+Seite mit nur zwei Linien darauf. Zusätzlich lässt sich Platz gewinnen, indem
+`SEK1_H` (49 mm) und `SEK2_H` (51 mm) je 3 mm schrumpfen; dann passt alles auf Blatt 1.
 
 ---
 
-## 14:00 UHR: ERDUNG & POTENZIALAUSGLEICH
+### C2 · Widersprüchliche Blattzählung
 
-```
-Meister: „Letzter Teil: Erdungswiderstand und Potenzialausgleich."
+Auf demselben Blatt:
 
-[ERDUNGSWIDERSTAND]
+* Kopfbox oben rechts: **„Seite 3 von 3"**
+* Überschrift darunter: **„FORTSETZUNG DER MESSTECHNISCHEN PRÜFUNGEN (BLATT 2 VON 2)"**
+* Fußzeile: **„Seite 3 / 3"**
 
-Meister misst mit Erdungsrahmen beim Aggregat-Erdungsstab:
-Messung: R_E = 22 Ω
-
-Meister: „Das ist zu hoch. Sollte max. 16 Ω sein für einen Außenbereich."
-
-Azubi 1.LJ schreibt: „R_E = 22 Ω – ZU HOCH!"
-
-Azubi 2.LJ tippt in APP: „22"
-
-APP antwortet: ⚠️ „Erdungswiderstand zu hoch – überprüfen Sie die Erdungsanlage"
-
-✅ APP erkennt die Abweichung!
-
-Meister: „Okay, wir müssen die Erdungsanlage verbessern. Stab raus, zwei Stäbe parallel."
-
-[Zweite Messung: R_E = 11 Ω → OK]
-
-Azubi 1.LJ notiert: „R_E: 22 Ω (FEHLER) → nach Verbesserung: 11 Ω ✅"
-
-Azubi 2.LJ: [Überschreibt Wert in APP] → 11 Ω
-
-[POTENZIALAUSGLEICH]
-
-Meister: „Jetzt PA – das ist wichtig. Wir messen an mehreren Stellen."
-
-Messorte:
-1. Traverse (Stahlkonstruktion): R_PA = 0,08 Ω
-2. Tribüne (Stahlrahmen): R_PA = 0,12 Ω
-3. Blitzschutzanlage (Metalldach): R_PA = 0,06 Ω
-4. Außenwasserleitungsleitung: R_PA = 0,05 Ω (zusätzlich) [nicht in Vorlage vorgesehen]
-
-Azubi 1.LJ schreibt alles auf Papierformular im Freitextfeld [kaum noch lesbar]:
-```
-PA Messungen:
-- Traverse: 0,08Ω
-- Tribüne: 0,12Ω
-- Blitzsch.: 0,06Ω
-- Wasser: 0,05Ω
-```
-
-Azubi 2.LJ öffnet Freitextfeld in APP:
-[Tippt manuell mit Tablet-Tastatur]
-```
-Potenzialausgleich geprüft an:
-Traverse (0,08 Ω), Tribüne (0,12 Ω), Blitzschutzanlage (0,06 Ω), Wasserleitung (0,05 Ω)
-```
-
-⚠️ Problem: Keine strukturierte Erfassung
-❌ Sollte sein: Tabelle mit Spalten [Messpunkt | R_PA | i.O./n.i.O.]
-
-Azubi 3.LJ: [Notiert kritisch] „PA-Dokumentation sollte tabelle sein, nicht Freitext!"
-```
+Drei Zählungen, zwei davon in unterschiedlicher Schreibweise, eine davon mit anderen
+Zahlen. Ursache ist die Waisenseite aus C1: Sie zählt als PDF-Seite, aber nicht als
+Formular-Blatt. Mit der Korrektur aus C1 löst sich der Widerspruch von selbst.
+Zusätzlich sollte nur **eine** Schreibweise übrig bleiben (Empfehlung: „Seite 2 von 3"
+in der Kopfbox, Fußzeile ohne Zähler).
 
 ---
 
-## 15:00 UHR: BERÜHRUNGSSPANNUNG & ABSCHLUSSBEWERTUNG
+### C3 · Zeilenverteilung unausgewogen
 
-```
-[BERÜHRUNGSSPANNUNG U_L]
+| Protokoll | Blatt 1 | je Fortsetzungsblatt | Verhältnis |
+|---|---|---|---|
+| Anlagenprüfung | **7** | 28 | 1 : 4 |
+| Anschlussprüfung | 10 | 28 | 1 : 2,8 |
+| Geräteprüfung | 16 | 30 | 1 : 1,9 |
 
-Meister: „Noch eine Zusatzprüfung – Berührungsspannung bei R_E-Fehler."
+Bei der Anlagenprüfung führt jede achte Messung sofort zu einem kompletten
+Fortsetzungsblatt mit 28 Zeilen. In der Open-Air-Simulation blieben dadurch
+**40 von 91 Zeilen ungenutzt**. Mit den 6 mm aus C1 und einer Zeilenhöhe von 7,5 mm
+statt 8,0 mm ließen sich auf Blatt 1 **11 statt 7** Zeilen unterbringen – das deckt
+sieben der neun Verteilungen der Simulation ab.
 
-Szenario: Es gibt eine isolationsfehler in Stromkreis 2.
-Meister simuliert: Fehler L zu PE mit bekanntem Widerstand.
-
-Gemessene Spannung: U_L = 32 V AC
-
-Meister: „Okay. Grenzwert ist 50 V AC – also OK."
-
-Azubi 2.LJ tippt in APP: U_L = 32 V
-
-APP sagt: ✅ OK (32 V < 50 V)
-
-ABER DANN:
-
-Azubi 3.LJ: „Meister, aber das ist eine BÜHNENSCHALTANLAGE! Für Bühnen gilt 25 V AC, nicht 50 V!"
-
-Meister: [Nickt] „Richtig! Die App sollte das wissen – aber tut es nicht."
-
-Azubi 3.LJ: [Notiert] ❌ APP-FEHLER: U_L Grenzwert sollte für Bühnenbetrieb 25 V sein, nicht 50 V
-
-[GRENZWERTPROBLEM ERKANNT]
-
-Azubi 1.LJ: „Also ist die Anlage bestanden oder nicht?"
-
-Meister: „Technisch bestanden, aber für Bühnenbetrieb knapp. Bei der nächsten Wartung prüfen."
-
-[Wird in Bemerkungen notiert, aber APP zeigt das nicht als Risiko]
+Ferner: Nur die Geräteprüfung nennt im Auswahlfeld die Kapazität
+(„1 Blatt (16 Geräte)"). Bei Anlagen- und Anschlussprüfung steht dort nur „1 Blatt",
+sodass niemand vorher weiß, wie viele Kreise draufpassen.
 
 ---
 
-[ABSCHLUSSBEWERTUNG]
+### C4 · Legende in 4,6 pt und nur auf Blatt 1
 
-Meister: „Okay, letzter Schritt: Gesamtbewertung."
+`js/pdf-generator.js` Z. 1317, `geraete-generator.js`, `anschluss-generator.js`
 
-Punkte:
-- ✅ Besichtigung: Bestanden
-- ✅ Stromkreis 1: Bestanden (RCD 5× grenzwertig dokumentiert)
-- ✅ Stromkreis 2: Bestanden
-- ✅ Stromkreis 3: Bestanden
-- ✅ R_ISO: Bestanden
-- ⚠️ R_E: Bestanden (nach Verbesserung)
-- ✅ PA: Bestanden
-- ⚠️ U_L: Bestanden formal, aber grenzwertig für Bühnenbetrieb
-
-[In APP]
-
-Azubi 2.LJ: [Sucht Gesamtbewertungs-Feld]
-
-⚠️ Frage: Gibt es ein Dropdown oder Auswahlfeld für Gesamtbewertung „BESTANDEN / BESTANDEN MIT AUFLAGEN / NICHT BESTANDEN"?
-
-Meister: „Das sollte in der App sein – schau mal."
-
-Azubi 2.LJ: [Sucht... sucht...]
-
-Je nach APP-Design:
-- Entweder: Automatische Gesamtbewertung (APP errechnet: wenn alle Teile OK → BESTANDEN)
-- Oder: Manuelles Dropdown
-
-[Im idealen Fall sollte APP sagen:]
-GESAMTBEWERTUNG: ✅ BESTANDEN
-
-[ABER MIT HINWEIS:]
-- Erdungswiderstand R_E nach Verbesserung OK (war 22 Ω → 11 Ω)
-- RCD 5×-Werte grenzwertig dokumentiert
-- Z_L-N nicht erfasst (Lücke in Dokumentation)
-- Berührungsspannung 32 V unter 25 V Bühnenlimit – nachkontrollieren
-
-Azubi 2.LJ tippt: [Manuelle Auswahl] „BESTANDEN"
-
-PDF wird erzeugt.
-
-Meister: „Unterschriftsplatz noch leer – jetzt unterschreibe ich."
-
-[Unterschrift wird gesammelt – digital oder ausgedruckt?]
+```js
+drawFormelAbsatz(doc, LEER_LEGENDE_VDE, PDF_MARGIN_LEFT, 285.8,
+                 PDF_CONTENT_WIDTH, 2.5, { fontSize: 4.6 });
 ```
+
+**4,6 pt entsprechen etwa 1,6 mm Schrifthöhe.** Für Fußnoten gilt 6 pt als absolute
+Untergrenze, für Fließtext 8 pt. Auf einem Open-Air-Gelände, bei Streiflicht,
+Kopflampe oder Regen ist das nicht lesbar.
+
+Schwerer wiegt: Die Legende erklärt I_a, Z_S, I_K, I_Δn, I_Δmess, t_A und U_mess –
+also **genau die Spalten des Tabellenkopfs** – und steht **nur auf Blatt 1**. Die
+Fortsetzungsblätter mit 28 bzw. 30 Zeilen tragen denselben Tabellenkopf mit denselben
+Formelzeichen und **keine Erklärung**. Für das 1. Lehrjahr endet die Prüfung genau dort
+(siehe Teil 3).
+
+**Empfehlung:** Legende auf **jedes** Blatt, Schriftgröße **6 pt**, dafür gekürzt auf
+die vier Zeichen, die wirklich gebraucht werden (I_a, Z_S, I_Δn/I_Δmess, t_A) – die
+ausführliche Fassung passt einmal auf Blatt 1.
 
 ---
 
-## 15:45 UHR: VERGLEICH & ABSCHLUSS
+### C5 · Legende stößt an die Unterschriftenzeile (Anschlussprüfung)
 
-```
-Azubi 3.LJ (Max) präsentiert Fehler-Analyse vor Ort:
-
-KRITISCHE FEHLER (mussten workarounded werden):
-1. ❌ Z_L-N Feld fehlend – wurde auf Papier notiert, nicht in APP
-2. ⚠️ U_L Grenzwert = 50 V statt wählbar 25/50 V – Bühne falsch bewertet
-3. ❌ PA-Dokumentation unstrukturiert – sollte Tabelle mit 12 Messpunkten sein
-4. ❌ Tippfehler „Nuten Netzmessung L-L" in Leerformular
-
-POSITIVES:
-✅ APP ist 33% schneller als Papier
-✅ PDF-Qualität perfekt (Formelzeichen OK)
-✅ Rechenlogik für I_K funktioniert
-✅ Erdungswiderstand wird validiert
-✅ Archiv funktioniert
-
-ÜBERRASCHUNG:
-🎯 Redundanz (APP + Papier parallel) rettete das System!
-   → Fehlendes Z_L-N wurde auf Papier dokumentiert
-   → Zwei unterschiedliche Arbeitsweisen fanden das Problem
-   → In nur einer APP hätte niemand gemerkt, dass Z_L-N fehlt
-
-Azubi 1.LJ (Tom): „Meine Hand ist hin – aber ich hab gelernt, dass Papier antiquiert ist!"
-
-Azubi 2.LJ (Lisa): „Die APP ist schneller, aber es fehlen Felder. Und was bedeutet ‚Nuten'?"
-
-Azubi 3.LJ (Max): „Das sind alle bekannte Bugs in v4.3.0. Für die nächste Prüfung sollten
-                   wir erst hier beheben: Z_L-N, U_L wählbar, PA tabelle."
-
-Meister: „Genau. Diese Prüfung wird zur Beispielvorlage. Alle Fehler dokumentieren wir."
-
-[TERMIN WIRD GESPEICHERT]
-
-PDF wird gezeigt:
-- ✅ Titel sauber
-- ✅ Tabellen gefüllt  
-- ✅ Unterschrift eingescannt (oder digital)
-- ❌ Z_L-N fehlt (weil Feld nicht existiert)
-- ⚠️ Spalte „Nuten..." ist leer (zu recht, weil unverständlich)
-
-Meister unterschreibt PDF, notiert:
-„Anlage geprüft und bestanden. Folgeprüfung: 15.07.2027.
-Hinweis: Z_L-N zusätzlich dokumentiert (siehe Anhang).
-Prüfbereich Bühnenbetrieb: U_L 32 V < 25 V Grenzwert – OK aber eng."
-```
+Auf dem Anschluss-Leerformular liegt die Musterzeile **unmittelbar** unter
+„______, den ____ – Übergebende/-r (Netzbetreiber/Bereitsteller)", ohne jeden Abstand.
+Sie liest sich wie eine Fußnote zur Unterschrift. Mindestens 3 mm Abstand und eine
+dünne Trennlinie.
 
 ---
 
-## GESAMTFAZIT DER SIMULATION
+### C6 · Netzmessungs-Sollwerte 20 cm von den Feldern entfernt
 
-### Zeitrechnung
+Die Zeile
 
-```
-Stammdaten:        15 Min (APP) vs. 10 Min (Papier)
-Besichtigung:      45 Min (parallel beide)
-Messungen (3 Kreis): 90 Min (parallel beide)
-Erdung/PA:         30 Min (parallel beide)
-Vergleich/Audit:   15 Min (nur 3.LJ)
+> „Netzmessung Sollwerte: L gegen N je 230 V - L gegen L je 400 V - N gegen PE 0 V - Frequenz 50 Hz."
 
-SUMME APP:    ~150 Min = 2,5 Stunden Prüfzeit
-SUMME Papier: ~200 Min = 3,3 Stunden Prüfzeit
----
-GEWINN durch APP: ~50 Min = 25% Zeitersparnis (nicht 33% wie vorher, weil Redundanzprüfung Zeit kostet)
-```
+steht bei y = 283 mm am Blattfuß in 4,6 pt. Die zugehörigen Eintragefelder
+(U L1-N … U N-PE) stehen bei y ≈ 60 mm im Kasten 1. Dazwischen liegen zwei komplette
+Abschnitte und die Messtabelle.
 
-### Fehler pro Werkzeug
-
-**APP (v4.3.0) Fehler erkannt:**
-- ❌ Z_L-N Feld fehlend (KRITISCH)
-- ⚠️ U_L = 50 V starr (KRITISCH für Bühnen)
-- ❌ Netzsystem nicht ausgewertet (HOCH)
-- ⚠️ Z_S nicht plausibilitätsgeprüft (MITTEL)
-- ⚠️ RCD-Validierung unklar (MITTEL)
-- ⚠️ PA-Feld unstrukturiert (MITTEL)
-
-**Papier-Formulare Fehler erkannt:**
-- ⚠️ Spalte „Nuten Netzmessung L-L" (Tippfehler – FORM)
-- ❌ Handschrift wird unleserlich nach 3 Stunden
-- ❌ Keine automatischen Berechnungen
-- ❌ PA-Dokumentation unstrukturiert (wie APP)
-- ❌ Z_L-N auch auf Papier nicht strukturiert erfasst (weil Spalte da, aber unklar)
-
-### Lerneffekt pro Lehrjahr
-
-**Azubi 1.LJ (Tom):**
-- ✅ Lernt die Besichtigung von Grund auf
-- ✅ Versteht, dass Handschrift bei langer Prüfung problematisch ist
-- ❌ Versteht die Messwerte noch nicht vollständig
-- 📊 Lernnote: ANFÄNGER – braucht Anleitung
-
-**Azubi 2.LJ (Lisa):**
-- ✅ Kann APP selbstständig bedienen
-- ✅ Erkennt Fehler (Z_L-N, U_L)
-- ✅ Versteht Messwert-Eingabe
-- ❌ Versteht noch nicht die tiefere Validierungslogik
-- 📊 Lernnote: FORTGESCHRITTEN – kann mit APP arbeiten
-
-**Azubi 3.LJ (Max):**
-- ✅ Kennt beide Systeme meistern
-- ✅ Erkennt ALLE Fehler (9 identifiziert)
-- ✅ Schreibt Report für Entwickler
-- ✅ Kann Qualitätskontrolle durchführen
-- 📊 Lernnote: MEISTER – bereit für Prüfleitung
-
-### Gesamturteil
-
-**APP ist gut für:** ⏱️ Schnelligkeit, 📄 Dokumentation, 🔢 Rechenlogik, 📱 Moderne Technik
-
-**APP ist schlecht für:** ❌ Vollständigkeit (Z_L-N), 🎯 Grenzwertprüfung (U_L), 📋 Struktur (PA)
-
-**Empfehlung:**  
-✅ **APP verwenden, aber ERST die 3 kritischen Fehler (C1, C2, C7) beheben**, dann Azubis aller Jahrgänge damit prüfen lassen.
-
-**Redundanz (APP + Papier) hat Sinn:** Sie finden Fehler, die nur eine Methode nicht erkennt.  
-Für Großprüfungen (Open Air mit 10+ Stromkreisen) ist das 33% schneller und zuverlässiger.
+**Empfehlung:** Die Sollwerte gehören als 6-pt-Zeile **direkt unter die
+Netzmessungsfelder**, dorthin, wo sie gebraucht werden. Am Blattfuß bleibt Platz frei,
+den C1 ohnehin einspart.
 
 ---
+
+### C7 · Spaltenbreiten gegen Handschrift
+
+Grundlage: 2,5 mm je Zeichen gut lesbarer Handschrift, abzüglich 2 mm Zellenpolsterung.
+Vollständige Tabelle in `ANALYSE_2-OpenAir-Simulation.md`.
+
+**Vorschlag für die Anlagenprüfung** (Summe bleibt 190 mm):
+
+| Spalte | heute | Vorschlag | Begründung |
+|---|---|---|---|
+| Nr. | 6 | 6 | – |
+| Verteiler / Kreis-Nr. | – | **12** | neu, siehe B2 |
+| Bezeichnung / Zweck | 30 | **34** | 13 Zeichen statt 11 |
+| Leitung Typ/Adern/Quersch. | 22 | **28** | „H07RN-F 5G2,5" passt |
+| R_PE | 13 | 11 | „0,11" reicht |
+| R_ISO + Prüfspannung | 17 | **20** | Prüfspannung als Ankreuzfeld 500/250/1000 |
+| Sicherung | 14 | 13 | „B16A" |
+| Z_S / I_K | 24 | **26** | „0,42 / 547" + 2. Zeile |
+| RCD Typ / I_Δn | 18 | 14 | „A/30" |
+| I_Δmess | 13 | 10 | dreistellig |
+| t_A @ __× | 15 | 12 | „14 @5" |
+| U_mess | 18 | **14** | dreistellig |
+
+Alternativ – und wirksamer – **Querformat** für das Leerformular: bei 297 mm Breite
+lösen sich sämtliche Spaltenprobleme auf einen Schlag, und auf ein Blatt passen bei
+gleicher Zeilenhöhe rund 20 Zeilen statt 7.
+
+---
+
+### C8 · Fehlende Kopffelder im Leerformular
+
+| Feld | Anlagenprüfung | Anschlussprüfung | Geräteprüfung |
+|---|---|---|---|
+| Prüfgerät | ✔ | ✔ | ✔ |
+| Seriennummer Messgerät | **fehlt** | **fehlt** | **fehlt** |
+| Prüfgerät kalibriert bis | **fehlt** | **fehlt** | ✔ |
+| Qualifikation Prüfer | **fehlt** | **fehlt** | **fehlt** |
+| Prüfumfang / Stichprobe | **fehlt** | – | **fehlt** |
+
+Die Geräteprüfung macht es richtig und zeigt, dass der Platz da ist.
+
+---
+
+### C9 · Fortsetzungsblatt verlangt die Kopfdaten erneut
+
+Auf den Fortsetzungsblättern steht in der Kopfbox „Protokoll-Nr.: ____",
+„Prüflings-ID: ____", „Datum: ____" als leere Schreiblinien, direkt darunter aber:
+
+> „Gehört zum Protokoll mit der oben stehenden Protokoll-Nr."
+
+Beides zusammen ergibt keinen Sinn: entweder die Nummer steht oben (dann ist sie
+vorzudrucken), oder sie muss geschrieben werden (dann ist der Satz falsch).
+Da das Leerformular per Definition keine Nummer kennt, bleibt nur: **Satz umformulieren**
+(„Protokoll-Nr. bitte auf jedem Blatt eintragen") oder auf allen Blättern dasselbe
+Nummernfeld anbieten und im Text darauf verweisen.
+
+---
+
+## 2 · Grafikbefunde in der App-Oberfläche
+
+Alle an den Vollbild-Screenshots der drei Formulare geprüft.
+
+| Befund | Wirkung | Fundstelle |
+|---|---|---|
+| Auswahlfeld „Prüfart / Norm" schneidet Text ab: **„DIN VDE 0105-100 (Wied"** | Der Prüfer sieht nicht, welche Norm gewählt ist | Rasterbreite `minmax(200px, 1fr)` gegen den Optionstext |
+| Platzhalterfarbe `#94a3b8` auf Weiß, **Kontrast 2,6 : 1** | WCAG verlangt 4,5 : 1. Genau dort stehen die Formatbeispiele | `style.css` Z. 88 |
+| `.limit-hint` **0,68 rem ≈ 10,9 px** | Die Grenzwerthinweise sind das Kleinste auf dem Schirm – und für Azubis das Wichtigste | `style.css` Z. 137 |
+| **Kein `:focus`-Stil** im gesamten Stylesheet | Tastatur- und Sprachbedienung ohne sichtbaren Fokus | `style.css` |
+| `pointer: coarse` hebt nur `.quick-btn` und `.btn-danger` auf 44 px; **`.btn` und `.btn-secondary` bleiben darunter** | Betroffen: „Stromkreis hinzufügen", „Duplizieren", „PDF generieren" – die drei meistgetippten Knöpfe | `style.css` Z. 315 |
+| „Netzmessung" als zugeklapptes `<details>` | Bei NEA ist die Frequenz Pflicht, das Feld liegt zugeklappt; der Abbruch kommt erst beim PDF | `vde0100.html` |
+| Abschnittsnummerierung **App 1–8 ≠ PDF 1–4** | App und Papier lassen sich nicht nebeneinanderlegen | alle |
+| Zwei Seitenzähler, zwei Schreibweisen: Kopfbox „Seite 1 von 3", Fußzeile „Seite 1 / 3" | wirkt wie ein Fehler, ist aber Absicht | `pdf-utils.js` |
+| Dezimalpunkt in **443** gedruckten Messwerten, daneben Grenzwerte mit Komma | im deutschen Prüfprotokoll uneinheitlich, in Zahlen über 1000 sogar mehrdeutig | Schnellwahlknöpfe + fehlende Normalisierung |
+| Knopf **„10 mm²"** trägt **„10.0 mm²"** ein | Beschriftung ≠ Wert | `vde0100.html` |
+| **„SN SN-1663-98214"** | doppeltes Präfix | `pdf-generator.js` Z. 767 |
+| `formatNetzspannung()`: **„3x400" → „340 / 0"** | stille Datenverfälschung im Kopfdatensatz | `pdf-utils.js` Z. 406 |
+| Gebäude-Auswahl fest auf Konstanzer Spielstätten, Vorbelegung „Gr. Haus" | bei jedem fremden Objekt Umweg über „Sonstiges…" | alle drei HTML |
+| Geräteprüfung: Kartenklasse heißt `feed-card` | Kopierfehler, kein Fehlverhalten – aber irreführend beim Weiterentwickeln | `geraete-generator.js` Z. 29 |
+
+**Ausdrücklich in Ordnung:** Der Formelsatz im PDF (R_PE, R_ISO, Z_S, I_Δn, t_A, Ω, Δ, ≤)
+sitzt sauber, Tief- und Hochstellungen überlappen nicht, Umlaute und Sonderzeichen kommen
+über die eingebettete Liberation-Sans korrekt durch, Tabellenspalten summieren sich exakt
+auf 190 mm, und Messzeilen werden am Seitenumbruch nicht zerschnitten.
+
+---
+
+## 3 · Vorschlag: der einfachste plausible Prüfablauf
+
+Aus den drei Azubi-Durchläufen hat sich diese Reihenfolge als die schnellste und
+fehlerärmste erwiesen. Sie erfordert **keine** Änderung an der App – nur eine andere
+Reihenfolge der Bedienung.
+
+**Vor dem Aufbau, am Schreibtisch**
+
+1. Stammdaten einmalig setzen (Betrieb, Prüfer, Messgerät, Seriennummer, kalibriert bis, Ort).
+2. Geräteprüfung: alle 96 Geräte **vor** dem Verladen. Erstes Gerät je Bauart vollständig
+   anlegen, dann „Duplizieren" – nur Bezeichnung, Inventarnummer und drei Messwerte je Gerät.
+   Ein Protokoll für alles, Blattzahl 4.
+
+**Auf dem Gelände, in dieser Reihenfolge**
+
+3. **Anschlussprüfung zuerst** – ein Protokoll, alle Übergabepunkte als Karten.
+   Erst wenn hier „Freigabe: Ja" steht, wird angeklemmt.
+4. **Anlagenprüfung von oben nach unten:** HV, dann jede UV. Je Verteilung ein Protokoll.
+   Ablauf innerhalb einer Verteilung:
+   a) Kopfdaten (kommen zu ⅔ aus den Stammdaten)
+   b) Netzmessung aufklappen und ausfüllen – **bei NEA zwingend**
+   c) Sichtprüfung: **alle 12 Punkte bewusst durchgehen**, „n.a." wo es das nicht gibt
+      (Brandabschottung, Gebäudesystemtechnik bei mobiler Verteilung)
+   d) Ersten Stromkreis vollständig, alle weiteren über „Duplizieren"
+   e) Erdung/PA
+   f) Bewertung, Unterschriften, PDF
+5. Kontrolle: Archiv öffnen – es müssen 1 AP + 9 PR + 1 GP liegen.
+
+**Faustregeln für Azubis, die die App heute nicht sagt**
+
+* „Duplizieren" übernimmt alles außer den Messwerten. Nutze es ab dem zweiten Kreis.
+* Trage nie einen RCD-Typ ein, ohne I_Δmess und t_A zu messen – das PDF entsteht sonst nicht.
+* Der Prüfstrom ist keine Formsache: 5× → 40 ms, 2× → 150 ms, 1× → 300 ms.
+* Auf Bühne und Open Air gilt immer „erhöhte Gefährdung" → U_L 25 V.
+* I_K musst du nicht rechnen; trage Z_S ein, den Rest macht die App.
+
+---
+
+## 4 · Maßnahmenplan
+
+### Stufe 1 – sofort, ca. 2 Stunden (falsche Angaben im Beweisdokument)
+
+| Nr. | Maßnahme |
+|---|---|
+| A1 | Vorbelegte Stammdaten entfernen; Messgerät + Seriennummer vor dem ersten PDF erzwingen |
+| A2 | `getVal('unterschrift_ort', "Konstanz")` → leerer Fallback, Schreiblinie im PDF |
+| A3 | `<option value="" selected>– bitte wählen –</option>` vor jedem `i.O.` in allen drei Formularen |
+| A4 | Klammerinhalt Prüfgerät aus vorhandenen Teilen zusammensetzen |
+| A7/A8 | „einphasig" nicht mehr automatisch ankreuzen; leere L-L-Linien im ausgefüllten PDF weglassen |
+| A9 | Beispieldaten widerspruchsfrei machen (Drehfeld i.O., Polarität i.O., L-L-Werte ergänzen) |
+| D1/D2 | Dezimalkomma beim Verlassen jedes Zahlenfelds; Schnellwahlwerte auf „1,5 mm²" usw. |
+| D3 | „SN "-Präfix nur setzen, wenn die Nummer nicht schon damit beginnt |
+
+### Stufe 2 – kurzfristig, ca. 4 Stunden (Papier druckbar, Fehler auffindbar)
+
+| Nr. | Maßnahme |
+|---|---|
+| C1 | Kasten 4 und Abschlussblock in **einer** `pdfPlatzPruefen`-Prüfung; `SEK1_H`/`SEK2_H` je 3 mm kürzen |
+| C2 | Nur noch eine Blattzählung, einheitliche Schreibweise |
+| C4 | Legende auf jedes Blatt, 6 pt, gekürzte Fassung auf den Fortsetzungsblättern |
+| C5 | 3 mm Abstand + Trennlinie über Legende/Musterzeile |
+| C6 | Netzmessungs-Sollwerte direkt unter die Netzmessungsfelder |
+| C9 | Text des Fortsetzungsblatts umformulieren |
+| C10 | Kapazität im Auswahlfeld nennen („1 Blatt (7 Stromkreise)") |
+| D10 | Abbruchmeldungen mit Fundstelle und Sprung zum Feld |
+| D9 | Netzmessung bei NEA/Wechselrichter automatisch aufklappen |
+| A5 | Fehlendes Kalibrierdatum im Freigabetext vermerken |
+
+### Stufe 3 – mittelfristig, ca. 8 Stunden (Inhalt)
+
+| Nr. | Maßnahme |
+|---|---|
+| B1 | Netzmessung (U L-N, U L-L, **U N-PE**) in die Anschlussprüfung, U N-PE als Pflichtfeld |
+| B2 | Spalte „Verteiler / Kreis-Nr." in Formular und beiden Tabellen |
+| B3 | Feld „Prüfumfang / Stichprobe" |
+| A6 | Feld „Qualifikation der prüfenden Person" + Zeile im PDF |
+| C7 | Spaltenbreiten neu, oder Leerformular auf Querformat |
+| C8 | Seriennummer und Kalibrierdatum in alle Leerformular-Köpfe |
+
+### Stufe 4 – danach
+
+| Nr. | Maßnahme |
+|---|---|
+| B4 | NEA-Angaben (Sternpunkterdung, Erder, Betriebsart) |
+| B5 | Vorsicherung Bereitsteller, Zählernummer/-stand, Selektivität |
+| B6 | R_PE der Geräteprüfung auf 1 Ω deckeln |
+| B7 | Heizelement-Schwelle vereinheitlichen (> 3,5 kW); SK II auf 2,0 MΩ |
+| B8 | Spaltenkopf „t_A" ohne festen 5×-Grenzwert |
+| B9 | Absicherung robuster erkennen, Nichterkennung sichtbar machen |
+| B10 | Normbezug in `app-config.js` und PDF-Kopf angleichen |
+| B11 | RCD Typ B: Auslösebereich bis 2 × I_Δn zulassen |
+| D4–D8, D11–D17 | Grafik, Kontrast, Touch-Ziele, Fokus, Nummerierung, Locale, Aufräumen |
+
+---
+
+## 5 · Prüfnachweis
+
+Erzeugt und ausgewertet wurden:
+
+* `VDE_0100_Pruefprotokoll_Leerformular.pdf` (1 Blatt → 2 Seiten; 2 Blätter → 3 Seiten)
+* `Anschlusspruefung_Uebergabepunkt_Leerformular.pdf` (1 Blatt → 1 Seite)
+* `Geraetepruefung_50678_50699_Leerformular.pdf` (1 Blatt → 2 Seiten; 2 Blätter → 3 Seiten)
+* je ein ausgefülltes PDF aus den Beispieldaten aller drei Protokolle
+* 9 Anlagenprotokolle der Open-Air-Simulation (51 Stromkreise)
+* 1 Geräteprotokoll mit 96 Geräten (5 Seiten)
+* 1 Anschlussprotokoll mit 3 Übergabepunkten
+* Vollbild-Screenshots aller drei Formulare, leer und mit Beispieldaten
+
+Keine JavaScript-Fehler, keine Ausnahmen, keine abgebrochene PDF-Erzeugung
+außer den fachlich beabsichtigten Abbrüchen.
