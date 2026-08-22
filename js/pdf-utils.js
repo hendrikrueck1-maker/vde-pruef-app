@@ -3,43 +3,317 @@
 /* ---------------------------------------------------------------------------
  *  ZEICHEN AUF DEN SICHER DARSTELLBAREN VORRAT ABBILDEN
  * ---------------------------------------------------------------------------
- *  Die Standardschrift des PDF (Helvetica) wird nicht eingebettet. Zeichen
- *  ausserhalb des Basisvorrats gehen je nach Anzeigeprogramm still verloren -
- *  aus "1,5 mm²" wird dann "1,5 mm". Ein Querschnitt ohne Einheit ist im
- *  Protokoll mehrdeutig, deshalb wird konsequent auf ASCII abgebildet.
+ *  FRUEHER: Das PDF benutzte die nicht eingebettete Standardschrift. Die kennt
+ *  nur den WinAnsi-Vorrat, deshalb wurde hier alles auf ASCII abgebildet -
+ *  aus "≤ 0,30 Ω" wurde "<= 0,30 Ohm" und aus "1,5 mm²" wurde "1,5 mm2".
  *
- *  Betroffen sind nicht nur Tabellenzellen: Bemerkungen und Anlagen-
- *  bezeichnungen werden oft aus Word oder Mail kopiert und bringen typografische
- *  Anfuehrungszeichen, Halbgeviertstriche und geschuetzte Leerzeichen mit.
- *  Im FORMULAR bleibt alles unveraendert - nur die PDF-Ausgabe wird umgesetzt.
+ *  JETZT: js/vendor/liberation-sans-font.js bettet eine Unicode-Schrift ein.
+ *  Ω, Δ, ≤, ≥, ², °, µ und die deutsche Typografie werden gedruckt wie sie
+ *  dastehen. Diese Funktion macht nur noch zwei Dinge:
+ *
+ *   1. VEREINHEITLICHEN: verschiedene Codepunkte fuer dasselbe Zeichen auf
+ *      eine Schreibweise bringen (Ohm-Zeichen U+2126 -> Omega U+03A9,
+ *      geschuetzte Leerzeichen -> normales Leerzeichen, Minuszeichen U+2212
+ *      -> Bindestrich). Sonst haengt das Druckbild davon ab, aus welchem
+ *      Programm ein Text kopiert wurde.
+ *   2. ABSICHERN: Zeichen ausserhalb des eingebetteten Vorrats (Emoji,
+ *      kyrillisch, CJK) durch ein sichtbares "?" ersetzen. Sie wuerden sonst
+ *      als leere Kaesten oder gar nicht erscheinen - und ein still
+ *      verschwundenes Zeichen ist in einem Pruefprotokoll das schlechtere
+ *      von beiden Uebeln.
+ *
+ *  Das Formel-Markup (_{...} / ^{...}) besteht aus ASCII und bleibt
+ *  unangetastet. Im FORMULAR wird weiterhin nichts veraendert - nur die
+ *  PDF-Ausgabe laeuft hier durch.
  * ------------------------------------------------------------------------ */
+
+// Eingebetteter Zeichenvorrat (Subset von Liberation Sans, siehe
+// js/vendor/liberation-sans-font.js). Muss mit dem dortigen Subset zusammenpassen.
+const PDF_ZEICHENVORRAT_RE =
+  /[\u0020-\u007E\u00A0-\u00FF\u0391-\u03A9\u03B1-\u03C9\u0192\u2013\u2014\u2018\u2019\u201A\u201C\u201D\u201E\u2020\u2021\u2022\u2026\u2030\u2039\u203A\u2044\u20AC\u2122\u2126\u2202\u2206\u220F\u2211\u2212\u2215\u2219\u221A\u221E\u222B\u2248\u2260\u2261\u2264\u2265\u2190-\u2193\u25A0\u25AA\u2500\u2502\n\r\t]/;
+
 function cleanStr(text) {
   if (!text) return "";
   return String(text)
-    .replace(/≤/g, "<=")
-    .replace(/≥/g, ">=")
-    .replace(/Ω/g, "Ohm")
-    .replace(/Δ/g, "d")
-    .replace(/µ/g, "u")
-    .replace(/°/g, " deg")
-    // Hochgestellte Ziffern: Querschnitt "mm²" -> "mm2" (so steht es auch in
-    // der Musterzeile des Leerformulars)
-    .replace(/²/g, "2")
-    .replace(/³/g, "3")
-    // Halbgeviert-/Geviertstrich und typografische Anfuehrungszeichen aus
-    // kopierten Freitexten
-    .replace(/[–—]/g, "-")
-    .replace(/[„“”«»]/g, '"')
-    .replace(/[‚‘’]/g, "'")
-    .replace(/…/g, "...")
-    // Rechenzeichen, die in Bemerkungen und Messnotizen vorkommen
-    .replace(/≈/g, "~")
-    .replace(/±/g, "+/-")
-    .replace(/×/g, "x")
-    // Mittelpunkt wird als Trennzeichen verwendet (z. B. "Prüfung · Nachmessung")
-    .replace(/·/g, "-")
-    // Geschuetzte und schmale Leerzeichen wie normale Leerzeichen behandeln
-    .replace(/[\u00A0\u202F\u2009\u2007]/g, " ");
+    // --- Vereinheitlichen -------------------------------------------------
+    .replace(/\u2126/g, "\u03A9")          // OHM SIGN -> GREEK CAPITAL OMEGA
+    .replace(/\u2206/g, "\u0394")          // INCREMENT -> GREEK CAPITAL DELTA
+    .replace(/\u00B5/g, "\u03BC")          // MICRO SIGN -> GREEK SMALL MU
+    .replace(/\u2212/g, "-")               // MINUS SIGN -> Bindestrich
+    .replace(/[\u2010\u2011]/g, "-")       // Trenn-/geschuetzter Bindestrich
+    .replace(/[\u00A0\u202F\u2009\u2007\u2008]/g, " ")   // schmale/geschuetzte Leerzeichen
+    // --- Absichern --------------------------------------------------------
+    .replace(/[^]/gu, function (z) { return PDF_ZEICHENVORRAT_RE.test(z) ? z : "?"; });
+}
+
+/* ===========================================================================
+ *  FORMELSATZ IM PDF  -  "R_{PE}" WIRD ZU R MIT TIEFGESTELLTEM PE
+ * ---------------------------------------------------------------------------
+ *  WARUM:
+ *  In der App-Oberflaeche stehen die Groessen als echte Formeln (HTML <sub>):
+ *  R(PE), R(ISO), Z(S), I(Δn), t(A). Im PDF war davon nur eine Behelfs-
+ *  schreibweise uebrig - "R_PE", "Z_S", "I_dmess", "<= 0,30 Ohm". Fuer ein
+ *  Pruefprotokoll ist das mehr als ein Schoenheitsfehler: die Formelzeichen
+ *  sind in DIN VDE 0100-600 / 0105-100 / 0701-0702 genormt, und ein Protokoll
+ *  soll die genormte Schreibweise zeigen.
+ *
+ *  MARKUP:
+ *    _{...}   tiefgestellt   ->  'R_{PE}'   ergibt  R mit tiefgestelltem PE
+ *    ^{...}   hochgestellt   ->  'mm^{2}'   ergibt  mm mit hochgestellter 2
+ *
+ *  Die geschweiften Klammern sind ABSICHT: nur Text, der dieses Markup
+ *  enthaelt, wird als Formel gesetzt. Freitext aus den Eingabefeldern
+ *  (Bezeichnungen, Bemerkungen) bleibt dadurch garantiert unangetastet -
+ *  eine Anlagenbezeichnung wie "Verteiler_2" wird NICHT zur Formel.
+ *
+ *  Voraussetzung ist die eingebettete Unicode-Schrift (js/vendor/
+ *  liberation-sans-font.js). Ohne sie fehlten Ω, Δ, ≤ und ≥ im Ausdruck.
+ * ======================================================================== */
+
+// Groesse und Grundlinienversatz der Indizes, jeweils bezogen auf die Basisschrift.
+const FORMEL_INDEX_SKALA = 0.72;   // Indexschrift = 72 % der Basisgroesse
+const FORMEL_TIEF_ANTEIL = 0.24;   // Tiefstellung: 24 % der Schrifthoehe nach unten
+const FORMEL_HOCH_ANTEIL = 0.34;   // Hochstellung: 34 % der Schrifthoehe nach oben
+
+const FORMEL_MARKUP_RE = /([_^])\{([^}]*)\}/g;
+
+// Enthaelt der Text ueberhaupt Formel-Markup? (Schnelltest vor jedem Aufwand)
+function hatFormel(text) {
+  return /[_^]\{/.test(text === undefined || text === null ? '' : String(text));
+}
+
+/* Markup in Textabschnitte zerlegen.
+ * Rueckgabe: [{ t: 'R', lage: 0 }, { t: 'PE', lage: -1 }]
+ *   lage  0 = normal, -1 = tiefgestellt, +1 = hochgestellt */
+function formelTeile(text) {
+  const roh = text === undefined || text === null ? '' : String(text);
+  const teile = [];
+  let pos = 0;
+  FORMEL_MARKUP_RE.lastIndex = 0;
+  let m;
+  while ((m = FORMEL_MARKUP_RE.exec(roh)) !== null) {
+    if (m.index > pos) teile.push({ t: roh.slice(pos, m.index), lage: 0 });
+    if (m[2] !== '') teile.push({ t: m[2], lage: m[1] === '_' ? -1 : 1 });
+    pos = m.index + m[0].length;
+  }
+  if (pos < roh.length) teile.push({ t: roh.slice(pos), lage: 0 });
+  return teile.length ? teile : [{ t: '', lage: 0 }];
+}
+
+/* Markup entfernen, ohne zu setzen. Wird gebraucht, wo eine Zeichenkette
+ * NICHT gezeichnet, sondern nur gemessen oder weitergereicht wird
+ * (Dateinamen, Archiveintraege, Umbruchberechnung von autoTable). */
+function formelKlartext(text) {
+  return String(text === undefined || text === null ? '' : text).replace(FORMEL_MARKUP_RE, '$2');
+}
+
+// Breite eines Formeltextes in Dokumenteinheiten (mm) bei der aktuellen Schrift.
+function formelBreite(doc, text, basisPt) {
+  const basis = basisPt || doc.getFontSize();
+  const k = doc.internal.scaleFactor;
+  let breite = 0;
+  formelTeile(text).forEach(function (teil) {
+    const groesse = teil.lage ? basis * FORMEL_INDEX_SKALA : basis;
+    breite += doc.getStringUnitWidth(teil.t) * groesse / k;
+  });
+  return breite;
+}
+
+/* Formeltext EINZEILIG setzen.
+ * opts: { align: 'left'|'center'|'right', fontSize: pt }
+ * Rueckgabe: gesetzte Breite in mm. */
+function drawFormel(doc, text, x, y, opts) {
+  const o = opts || {};
+  const basis = o.fontSize || doc.getFontSize();
+  const k = doc.internal.scaleFactor;
+  const hoehe = basis / k;                     // Schrifthoehe in mm
+  const breite = formelBreite(doc, text, basis);
+
+  let cx = x;
+  if (o.align === 'center') cx = x - breite / 2;
+  else if (o.align === 'right') cx = x - breite;
+
+  formelTeile(text).forEach(function (teil) {
+    if (teil.t === '') return;
+    const groesse = teil.lage ? basis * FORMEL_INDEX_SKALA : basis;
+    const dy = teil.lage === -1 ? hoehe * FORMEL_TIEF_ANTEIL
+             : teil.lage === 1 ? -hoehe * FORMEL_HOCH_ANTEIL : 0;
+    doc.setFontSize(groesse);
+    doc.text(teil.t, cx, y + dy);
+    cx += doc.getStringUnitWidth(teil.t) * groesse / k;
+  });
+
+  doc.setFontSize(basis);
+  return breite;
+}
+
+/* Formeltext ODER gewoehnlicher Text - je nachdem, ob Markup enthalten ist.
+ * Damit koennen Aufrufstellen bedenkenlos umgestellt werden, auch wenn dort
+ * mal Freitext und mal eine Formel ankommt. */
+function drawTextF(doc, text, x, y, opts) {
+  if (hatFormel(text)) return drawFormel(doc, text, x, y, opts);
+  const o = opts || {};
+  doc.text(String(text === undefined || text === null ? '' : text), x, y, o.align ? { align: o.align } : undefined);
+  return doc.getStringUnitWidth(String(text || '')) * (o.fontSize || doc.getFontSize()) / doc.internal.scaleFactor;
+}
+
+/* Formeltext mit automatischem Zeilenumbruch (fuer Beispiel- und Hinweiszeilen).
+ * Umgebrochen wird an Leerzeichen, gemessen wird formelgerecht - sonst waere
+ * die Zeile in der Rechnung breiter als im Druck und braeche zu frueh um.
+ * Rueckgabe: Anzahl gesetzter Zeilen. */
+function drawFormelAbsatz(doc, text, x, y, maxBreite, zeilenAbstand, opts) {
+  const o = opts || {};
+  const basis = o.fontSize || doc.getFontSize();
+  const abstand = zeilenAbstand || basis / doc.internal.scaleFactor * 1.15;
+  const woerter = String(text === undefined || text === null ? '' : text).split(/\s+/).filter(Boolean);
+  let zeile = '';
+  let zeilen = 0;
+  let cy = y;
+
+  const setze = function (z) {
+    drawFormel(doc, z, x, cy, { fontSize: basis, align: o.align });
+    cy += abstand;
+    zeilen++;
+  };
+
+  woerter.forEach(function (wort) {
+    const test = zeile ? zeile + ' ' + wort : wort;
+    if (zeile && formelBreite(doc, test, basis) > maxBreite) {
+      setze(zeile);
+      zeile = wort;
+    } else {
+      zeile = test;
+    }
+  });
+  if (zeile) setze(zeile);
+  return zeilen;
+}
+
+/* ---------------------------------------------------------------------------
+ *  FORMELSATZ IN autoTable-ZELLEN
+ * ---------------------------------------------------------------------------
+ *  autoTable zeichnet Zellentexte selbst und kennt kein Markup. Deshalb wird
+ *  der Text der betroffenen Zellen kurz vor dem Zeichnen stillgelegt und
+ *  danach von Hand gesetzt - mit exakt derselben Grundlinien- und
+ *  Ausrichtungslogik, die autoTable intern verwendet. Der Umbruch stammt
+ *  weiterhin von autoTable; gemessen wird dort das Markup, das minimal
+ *  breiter rechnet als der spaetere Druck - Zellen werden dadurch nie zu
+ *  schmal, hoechstens einen Hauch grosszuegig.
+ *
+ *  Benutzung an der Aufrufstelle:
+ *      doc.autoTable(mitFormelHooks(doc, { head: ..., body: ..., ... }));
+ *  Vorhandene eigene Hooks bleiben erhalten und werden zuerst ausgefuehrt.
+ * ------------------------------------------------------------------------ */
+
+// Textposition einer Zelle - autoTable ab 3.5 liefert sie selbst.
+function formelZellenTextPos(zelle) {
+  if (typeof zelle.getTextPos === 'function') return zelle.getTextPos();
+  // Rueckfallebene, falls die autoTable-Version die Methode nicht kennt.
+  const p = zelle.padding ? zelle.padding.bind(zelle) : function () { return 0; };
+  const st = zelle.styles || {};
+  let y;
+  if (st.valign === 'top') y = zelle.y + p('top');
+  else if (st.valign === 'bottom') y = zelle.y + zelle.height - p('bottom');
+  else y = zelle.y + (zelle.height - p('vertical')) / 2 + p('top');
+  let x;
+  if (st.halign === 'right') x = zelle.x + zelle.width - p('right');
+  else if (st.halign === 'center') x = zelle.x + zelle.width / 2;
+  else x = zelle.x + p('left');
+  return { x: x, y: y };
+}
+
+function zeichneFormelZelle(doc, zelle) {
+  const zeilen = zelle.__formelZeilen;
+  if (!zeilen) return;
+  delete zelle.__formelZeilen;
+
+  const st = zelle.styles || {};
+  const groesse = st.fontSize || doc.getFontSize();
+  doc.setFont(st.font || 'helvetica', st.fontStyle || 'normal');
+  doc.setFontSize(groesse);
+  const farbe = st.textColor;
+  if (Array.isArray(farbe)) doc.setTextColor(farbe[0], farbe[1], farbe[2]);
+  else if (farbe !== undefined && farbe !== null) doc.setTextColor(farbe);
+
+  const k = doc.internal.scaleFactor;
+  const zh = groesse / k;                    // autoTable setzt Zeilen im Abstand der Schriftgroesse
+  const pos = formelZellenTextPos(zelle);
+  const anzahl = zeilen.length || 1;
+
+  // Grundlinie exakt wie in autoTableText(): y + fontSize * (2 - 1.15)
+  let y = pos.y + zh * 0.85;
+  if (st.valign === 'middle') y -= (anzahl / 2) * zh;
+  else if (st.valign === 'bottom') y -= anzahl * zh;
+
+  zeilen.forEach(function (z) {
+    drawFormel(doc, z, pos.x, y, { fontSize: groesse, align: st.halign });
+    y += zh;
+  });
+}
+
+function mitFormelHooks(doc, optionen) {
+  const opt = Object.assign({}, optionen || {});
+  const eigenesParse = opt.didParseCell;
+  const eigenesWill = opt.willDrawCell;
+  const eigenesDid = opt.didDrawCell;
+
+  /* SCHRITT 1 (didParseCell, vor der Breitenberechnung):
+   * Das Markup wird aus dem Zellentext herausgenommen und in einer kleinen
+   * Karte "Klartext -> Markup" gemerkt. autoTable rechnet und bricht dadurch
+   * mit dem KLARTEXT um ("RPE" statt "R_{PE}"). Das ist entscheidend: die
+   * geschweiften Klammern haetten die Spaltenkoepfe kuenstlich verbreitert
+   * und zusaetzliche Umbrueche erzwungen. Der Klartext ist minimal breiter
+   * als der spaetere Formelsatz (der Index ist kleiner) - Zellen werden also
+   * nie zu schmal. */
+  opt.didParseCell = function (data) {
+    if (eigenesParse) eigenesParse(data);
+    const zelle = data.cell;
+    if (!zelle || !Array.isArray(zelle.text) || !zelle.text.some(hatFormel)) return;
+    const karte = {};
+    zelle.text = zelle.text.map(function (zeile) {
+      return zeile.split(/(\s+)/).map(function (wort) {
+        if (!hatFormel(wort)) return wort;
+        const klar = formelKlartext(wort);
+        if (karte[klar] === undefined) karte[klar] = wort;
+        return klar;
+      }).join('');
+    });
+    zelle.__formelKarte = karte;
+  };
+
+  /* SCHRITT 2 (willDrawCell, nach dem Umbruch):
+   * Die umbrochenen Klartextzeilen bekommen ihr Markup zurueck, und die
+   * Standardausgabe wird stillgelegt. */
+  opt.willDrawCell = function (data) {
+    let r;
+    if (eigenesWill) r = eigenesWill(data);
+    if (r === false) return false;
+    const zelle = data.cell;
+    if (zelle && zelle.__formelKarte && Array.isArray(zelle.text)) {
+      const karte = zelle.__formelKarte;
+      /* Die umbrochenen Klartextzeilen einmal sichern. Ein Tabellenkopf wird
+       * auf JEDER Folgeseite erneut gezeichnet - ohne diese Sicherung waere er
+       * ab Seite 2 leer, weil zelle.text unten stillgelegt wird. */
+      if (zelle.__formelKlarZeilen === undefined) zelle.__formelKlarZeilen = zelle.text.slice();
+      zelle.__formelZeilen = zelle.__formelKlarZeilen.map(function (zeile) {
+        return zeile.split(/(\s+)/).map(function (wort) {
+          return karte[wort] !== undefined ? karte[wort] : wort;
+        }).join('');
+      });
+      // Leerzeile statt [] - autoTable zeichnet dann nichts, stolpert aber
+      // auch nicht ueber einen leeren Array.
+      zelle.text = [''];
+    }
+    return r;
+  };
+
+  // SCHRITT 3 (didDrawCell): Formelsatz von Hand, in Rahmen und Fuellung hinein.
+  opt.didDrawCell = function (data) {
+    if (data.cell && data.cell.__formelZeilen) zeichneFormelZelle(doc, data.cell);
+    if (eigenesDid) return eigenesDid(data);
+  };
+
+  return opt;
 }
 
 /* ---------------------------------------------------------------------------
@@ -92,6 +366,16 @@ function monatIsoInJahren(n) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+/* "JJJJ-MM" (Wert eines <input type="month">) -> "MM / JJJJ".
+ * Ein leerer oder unerwarteter Wert bleibt unveraendert. */
+function formatMonat(isoMonat) {
+  var m = String(isoMonat === undefined || isoMonat === null ? '' : isoMonat).trim();
+  if (!m) return '';
+  var teile = m.split('-');
+  if (teile.length !== 2) return m;
+  return teile[1] + ' / ' + teile[0];
+}
+
 // Setzt ein <input type="date"> auf das heutige LOKALE Datum.
 function datumsfeldAufHeute(id) {
   var el = document.getElementById(id);
@@ -114,7 +398,7 @@ function drawCheckbox(doc, x, y, label, isChecked = false, isRed = false) {
   if (label) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(7);
     doc.setTextColor(activeRed ? 185 : 15, activeRed ? 28 : 23, activeRed ? 28 : 42);
-    doc.text(label, x + 4, y);
+    drawTextF(doc, label, x + 4, y);
   }
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "normal"); doc.setDrawColor(203, 213, 225); doc.setFillColor(255, 255, 255);
 }
@@ -139,8 +423,65 @@ function setValue(fieldId, val) {
 
 function removeCard(id) { const el = document.getElementById(id); if (el) el.remove(); }
 
+/* ---------------------------------------------------------------------------
+ *  AUTOSAVE ENTPRELLEN
+ * ---------------------------------------------------------------------------
+ *  Die Formulare haengen autosaveProtocol an das 'input'-Ereignis. Bisher las
+ *  damit JEDER EINZELNE TASTENDRUCK das komplette Formular aus, baute ein JSON
+ *  und schrieb es synchron in den localStorage. Bei zwei Stromkreiskarten
+ *  faellt das nicht auf. Bei 40 Karten sind das rund 500 Felder pro Anschlag -
+ *  auf einem Baustellen-Tablet wird die Eingabe spuerbar zaeh, auf aelteren
+ *  Geraeten unbenutzbar. Genau die grossen Anlagen, fuer die sich die App
+ *  lohnt, waren am langsamsten.
+ *
+ *  400 ms Verzoegerung: fuer den Datenverlust-Schutz voellig ausreichend
+ *  (gespeichert wird, sobald die Person kurz innehaelt), fuer die Tippgefuehl
+ *  ist der Unterschied vollstaendig. Vor dem Erzeugen eines PDF und beim
+ *  Verlassen der Seite wird zusaetzlich sofort geschrieben.
+ * ------------------------------------------------------------------------ */
+function entprellt(fn, ms) {
+  var timer = null;
+  var wrapped = function () {
+    var args = arguments, self = this;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () { timer = null; fn.apply(self, args); }, ms || 400);
+  };
+  // Sofort schreiben, ohne auf die Verzoegerung zu warten.
+  wrapped.sofort = function () {
+    if (timer) { clearTimeout(timer); timer = null; }
+    fn();
+  };
+  return wrapped;
+}
+
+/* Haengt Autosave entprellt an ein Formular und sorgt dafuer, dass beim
+ * Verlassen der Seite nichts verlorengeht. */
+function autosaveAnhaengen(formId, speichern) {
+  var form = document.getElementById(formId);
+  if (!form) return speichern;
+  var e = entprellt(speichern, 400);
+  form.addEventListener('input', e);
+  form.addEventListener('change', e);
+  window.addEventListener('pagehide', function () { e.sofort(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') e.sofort();
+  });
+  return e;
+}
+
 // MINDEST-KURZSCHLUSSSTROM FÜR SICHERES AUSLÖSEN DER ÜBERSTROMSCHUTZEINRICHTUNG
 // (oberer Auslösebereich der Charakteristik: B=5x, C=10x, D=20x In, nach DIN VDE 0100-410)
+/* SCHMELZSICHERUNGEN (gG/gL, NH, Diazed/Neozed) HABEN KEINE FESTE KENNLINIE
+ * IM SINNE VON 5x/10x/20x I_n. Ihr Ausloesestrom fuer 0,4 s ergibt sich aus der
+ * Herstellerkennlinie und liegt je nach Nennstrom etwa beim 4- bis 10-fachen.
+ * Frueher lieferte getMinIk() hier stillschweigend null: es fand KEINE
+ * Bewertung von I_K und Z_S statt, und das Protokoll sagte nicht, dass keine
+ * stattfand - die Zelle blieb unauffaellig schwarz. Auf einer Open-Air-
+ * Einspeisung mit NH-Vorsicherung war das der Regelfall. */
+function istSchmelzsicherung(sicherungText) {
+  return /\b(gG|gL|gl|NH|Diazed|Neozed|D0|DII|DIII|Schmelz)\b/i.test(String(sicherungText || ''));
+}
+
 function getMinIk(sicherungText) {
   if (!sicherungText) return null;
   const match = sicherungText.trim().match(/^([BCD])\s*([\d.,]+)/i);
@@ -164,6 +505,43 @@ function getMaxZs(sicherungText) {
   const minIk = getMinIk(sicherungText);
   if (minIk === null || minIk <= 0) return null;
   return U_NULL / minIk;
+}
+
+/* Der 2/3-Wert war bisher nur ein Kommentar. Jetzt gibt es ihn wirklich:
+ * liegt Z_S zwischen 2/3 x Z_S,max und Z_S,max, ist der Wert zwar zulaessig,
+ * aber ohne Reserve fuer Messunsicherheit und Leitungserwaermung im
+ * Betriebszustand. Das ist ein HINWEIS (gelb), keine Beanstandung (rot). */
+function getZsHinweisgrenze(sicherungText) {
+  const maxZs = getMaxZs(sicherungText);
+  return maxZs === null ? null : maxZs * (2 / 3);
+}
+
+function zsOhneReserve(zsText, sicherungText) {
+  const grenze = getZsHinweisgrenze(sicherungText);
+  const maxZs = getMaxZs(sicherungText);
+  if (grenze === null || maxZs === null) return false;
+  const z = parseFloat(String(zsText || '').replace(',', '.'));
+  return !isNaN(z) && z > grenze && z <= maxZs;
+}
+
+/* RUECKWAERTSPLAUSIBILITAET DER AUSLOESEZEIT
+ * Eine Ausloesezeit von 210 ms bei angegebenem Pruefstrom 5x I_dn ist zwar
+ * unzulaessig, aber vor allem ist sie unwahrscheinlich: 210 ms ist ein
+ * typischer Wert fuer eine Messung mit 1x I_dn. Der haeufigste Fehler ist
+ * nicht der defekte RCD, sondern der falsch angegebene Pruefstrom. Statt nur
+ * "zu hoch" zu melden, wird darauf hingewiesen.
+ * Rueckgabe: der Pruefstrom, zu dem der Wert besser passt - oder null. */
+function passenderPruefstromFuerTa(taText, pruefstrom, istSelektiv) {
+  const ta = parseFloat(String(taText || '').replace(',', '.'));
+  if (isNaN(ta) || ta <= 0) return null;
+  const gemeldet = String(pruefstrom || '').replace(/[^\d]/g, '');
+  if (!gemeldet) return null;
+  const grenzen = istSelektiv ? { '5': 150, '2': 200, '1': 500 } : { '5': 40, '2': 150, '1': 300 };
+  // Der Wert ueberschreitet die Grenze des gemeldeten Pruefstroms nicht -> alles gut.
+  if (ta <= grenzen[gemeldet]) return null;
+  // Kleinster Pruefstrom, dessen Grenzwert der Messwert einhalten wuerde.
+  const passend = ['5', '2', '1'].filter(f => ta <= grenzen[f]);
+  return passend.length ? passend[passend.length - 1] : null;
 }
 
 /* KURZSCHLUSSSTROM AUS DER IMPEDANZ - identisch zur Anzeige "PFC" am Fluke 1663:
@@ -232,7 +610,7 @@ function getUlGrenzwert(art, gefaehrdung) {
 }
 
 function getUlText(art, gefaehrdung) {
-  return `<= ${getUlGrenzwert(art, gefaehrdung)} V ${art === 'DC' ? 'DC' : 'AC'}`;
+  return `≤ ${getUlGrenzwert(art, gefaehrdung)} V ${art === 'DC' ? 'DC' : 'AC'}`;
 }
 
 // ZULÄSSIGER AUSLÖSEBEREICH DES RCD: 0,5 x I_dn BIS 1,0 x I_dn (I_dn IN mA)
@@ -422,7 +800,7 @@ function buildRcdZelle(roh) {
   // beiden Groessen, ist die Schutzmassnahme nur halb nachgewiesen.
   let pruefungUnvollstaendig = false;
   if (!hatImess || !hatTa) {
-    zeilen.push(`Messung unvollständig (${!hatImess ? 'I_dmess' : 't_A'} fehlt)`);
+    zeilen.push(`Messung unvollständig (${!hatImess ? 'I_{Δmess}' : 't_{A}'} fehlt)`);
     pruefungUnvollstaendig = true;
   }
 
@@ -487,6 +865,70 @@ function maengelBehobenBemerkungFehlt(zustand, bemerkungWert) {
  * ------------------------------------------------------------------------ */
 function freigabeWidersprichtBefund(isBlank, hasIssues, freigabeWert) {
   return !isBlank && hasIssues && String(freigabeWert || '') === 'Ja';
+}
+
+/* ---------------------------------------------------------------------------
+ *  VIERTER WIDERSPRUCHSPFAD: PRUEFLING OHNE JEDE MESSUNG
+ * ---------------------------------------------------------------------------
+ *  Die App fing bisher ab, dass ein Protokoll GAR KEINEN Pruefling enthaelt
+ *  ("Ein Protokoll ohne einen einzigen Stromkreis ist keine Pruefung"). Ein
+ *  Stromkreis ohne einen einzigen Messwert ist es aber genauso wenig - und
+ *  beide Formulare legen beim Start automatisch leere Karten an.
+ *
+ *  Wer nur die Stammdaten ausfuellt und auf "PDF erzeugen" tippt, bekam
+ *  deshalb ein vollstaendiges Protokoll: "Keine Mängel festgestellt",
+ *  "Prüfplakette erteilt: Ja", "Sicherer Gebrauch gewährleistet" - ueber eine
+ *  Anlage, an der nachweislich nichts gemessen wurde. Das ist genau der Fall,
+ *  vor dem alle anderen Widerspruchspruefungen schuetzen sollen.
+ *
+ *  Dieselbe Regel wie beim RCD (siehe buildRcdZelle, Regel 3): eine Messung,
+ *  die nicht stattgefunden hat, darf nicht als bestanden erscheinen.
+ * ------------------------------------------------------------------------ */
+function istLeerWert(v) {
+  const t = String(v === undefined || v === null ? '' : v).trim();
+  return t === '' || t === '-';
+}
+
+/* Liefert die 1-basierten Nummern aller Karten, in denen KEIN einziges der
+ * angegebenen Messfelder gefuellt ist. */
+function prueflingeOhneMessung(karten, messSelektoren) {
+  const leer = [];
+  Array.from(karten).forEach((card, i) => {
+    const hatEinen = messSelektoren.some(sel => !istLeerWert(card.querySelector(sel)?.value));
+    if (!hatEinen) leer.push(i + 1);
+  });
+  return leer;
+}
+
+function ohneMessungMelden(nummern, bezeichnung) {
+  alert('Ohne Messwerte ist das kein Prüfprotokoll:\n\n' +
+    (nummern.length === 1 ? `${bezeichnung} ${nummern[0]} enthält` : `${bezeichnung} ${nummern.join(', ')} enthalten`) +
+    ' keinen einzigen Messwert.\n\n' +
+    'Ein Protokoll, das "keine Mängel" und eine Prüfplakette bescheinigt, obwohl an dieser Stelle nichts ' +
+    'gemessen wurde, ist als Nachweis wertlos und im Streitfall angreifbar.\n\n' +
+    'Bitte die Messwerte eintragen – oder die leere Karte entfernen, wenn es diesen Prüfling nicht gibt.\n\n' +
+    'Das PDF wurde deshalb nicht erstellt.');
+}
+
+/* DRITTER WIDERSPRUCHSPFAD: PLAKETTE TROTZ BEANSTANDUNG
+ * Die Pruefplakette bescheinigt nach aussen die bestandene Pruefung - sie ist
+ * das Einzige, was am Geraet oder an der Verteilung sichtbar bleibt, wenn das
+ * Protokoll im Ordner liegt. Ein Protokoll, das Maengel feststellt und
+ * gleichzeitig "Plakette erteilt: Ja" ankreuzt, stellt eine Plakette aus, die
+ * an der Anlage das Gegenteil dessen behauptet, was im Dokument steht.
+ * Beim Feld "Sicherer Gebrauch" wurde dieser Widerspruch bereits abgefangen,
+ * bei der Plakette nicht. */
+function plaketteWidersprichtBefund(isBlank, hasIssues, plaketteWert) {
+  return !isBlank && hasIssues && String(plaketteWert || '') === 'Ja';
+}
+
+function plaketteWiderspruchHinweis() {
+  return 'Widerspruch im Prüfergebnis:\n\n' +
+    'Das Protokoll enthält Beanstandungen (Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis), ' +
+    'gleichzeitig steht "Prüfplakette erteilt" auf "Ja".\n\n' +
+    'Die Plakette bescheinigt an der Anlage die bestandene Prüfung. Sie darf erst erteilt werden, ' +
+    'wenn die Beanstandungen ausgeräumt und nachgemessen sind.\n\n' +
+    'Das PDF wurde deshalb nicht erstellt.';
 }
 
 function freigabeWiderspruchHinweis(feldName) {
@@ -594,7 +1036,7 @@ function drawKategorieBox(doc, { y, h, titel, kat, x = PDF_MARGIN_LEFT, w = PDF_
     doc.setTextColor(...c.akzent);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(titel, x + 3, y + 5);
+    drawTextF(doc, titel, x + 3, y + 5);
   }
 
   doc.setTextColor(...PDF_TEXT);
@@ -610,7 +1052,7 @@ function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
   doc.setTextColor(...c.akzent);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(titel, x, y);
+  drawTextF(doc, titel, x, y);
   doc.setTextColor(...PDF_TEXT);
   doc.setFont('helvetica', 'normal');
   return c;
@@ -624,11 +1066,22 @@ function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
  *  eine echte Linie bis zum Spaltenende gezeichnet - dadurch ist ueberall die
  *  volle Breite zum handschriftlichen Ausfuellen nutzbar.
  * ------------------------------------------------------------------------ */
-function drawFeldZeile(doc, label, wert, x, y, breite, isBlank) {
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...PDF_TEXT);
-  doc.text(label, x, y);
-  const labelBreite = doc.getStringUnitWidth(label) * doc.getFontSize() / doc.internal.scaleFactor;
+/* opts.rot = true  ->  Beschriftung UND Wert werden rot und fett gesetzt.
+ *
+ * FRUEHER: Die Funktion begann mit setFont('normal') + setTextColor(PDF_TEXT).
+ * Aufrufer, die vorher auf Rot/Fett geschaltet hatten (abgelaufene
+ * Kalibrierung, U_N-PE ueber Schwelle, R_E und R_PA ueber Grenzwert), bekamen
+ * ihre Markierung genau hier zurueckgesetzt. Die Gesamtbewertung kippte
+ * korrekt, aber der Wert, der sie gekippt hatte, stand schwarz im Dokument -
+ * wer das Protokoll las, sah die Warnung und fand die Ursache nicht.
+ * Deshalb wird die Hervorhebung jetzt ueber diesen Parameter gesteuert und
+ * innerhalb der Funktion angewendet, statt sie ausserhalb zu setzen. */
+function drawFeldZeile(doc, label, wert, x, y, breite, isBlank, opts) {
+  const o = opts || {};
+  const rot = o.rot === true;
+  doc.setFont('helvetica', rot ? 'bold' : 'normal');
+  doc.setTextColor(...(rot ? PDF_RED_TEXT : PDF_TEXT));
+  const labelBreite = drawTextF(doc, label, x, y);
   const startX = x + labelBreite + 1.5;
   const wertText = wert === undefined || wert === null ? '' : String(wert).trim();
 
@@ -642,6 +1095,9 @@ function drawFeldZeile(doc, label, wert, x, y, breite, isBlank) {
     drawFittedText(doc, wertText, startX, y, Math.max(breite - (startX - x), 10), alteGroesse, 5.5);
     doc.setFontSize(alteGroesse);
   }
+  // Zustand hinterlassen wie vorgefunden, damit die naechste Zeile nicht
+  // versehentlich rot weiterschreibt.
+  if (rot) { doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_TEXT); }
 }
 
 // Mehrere leere Schreiblinien untereinander (z. B. fuer Bemerkungen im Leerformular)
@@ -656,14 +1112,18 @@ function drawSchreibLinien(doc, x, y, breite, anzahl, abstand = 5) {
 // Setzt Text und verkleinert die Schrift so weit, dass maxWidth eingehalten wird.
 // Gibt die tatsaechlich verwendete Schriftgroesse zurueck.
 function drawFittedText(doc, text, x, y, maxWidth, startSize, minSize = 6) {
+  const istFormel = hatFormel(text);
   let size = startSize;
   while (size > minSize) {
     doc.setFontSize(size);
-    if (doc.getStringUnitWidth(text) * size / doc.internal.scaleFactor <= maxWidth) break;
+    const breite = istFormel
+      ? formelBreite(doc, text, size)
+      : doc.getStringUnitWidth(text) * size / doc.internal.scaleFactor;
+    if (breite <= maxWidth) break;
     size -= 0.25;
   }
   doc.setFontSize(size);
-  doc.text(text, x, y);
+  drawTextF(doc, text, x, y, { fontSize: size });
   return size;
 }
 
@@ -750,8 +1210,13 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
 function withUnit(value, unit) {
   const v = String(value ?? '').trim();
   if (!v) return '';
-  const re = new RegExp(unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'i');
-  return re.test(v) ? v : `${v} ${unit}`;
+  /* "Ohm" und "Ω" sind dieselbe Einheit. Wer im Formular noch "0,3 Ohm"
+   * eintippt, soll im PDF nicht "0,3 Ohm Ω" lesen. */
+  const alternativen = unit === 'Ω' ? ['Ω', 'Ohm'] : [unit];
+  const passt = alternativen.some(function (u) {
+    return new RegExp(u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'i').test(v);
+  });
+  return passt ? v : `${v} ${unit}`;
 }
 
 /* ---------------------------------------------------------------------------

@@ -18,7 +18,10 @@ function addFeedCard(data = {}) {
   card.innerHTML = `
     <div class="feed-header">
       <span>Übergabepunkt #${cardCounter}</span>
-      <button type="button" class="btn-danger" onclick="removeCard('feed_${cardCounter}')">Entfernen</button>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereUebergabepunkt('feed_${cardCounter}')" title="Neue Karte mit denselben Netz- und Schutzdaten. Messwerte bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('feed_${cardCounter}')">Entfernen</button>
+      </span>
     </div>
 
     <div class="grid">
@@ -132,6 +135,30 @@ function addFeedCard(data = {}) {
   card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || '';
   container.appendChild(card);
   validateFeedNorms(cardCounter);
+}
+
+/* Karte duplizieren - ohne Messwerte. Begruendung siehe pdf-generator.js:
+ * uebernommen wird, was den Uebergabepunkt beschreibt, nicht was gemessen
+ * wurde. Ein kopierter Messwert waere eine erfundene Messung. */
+function dupliziereUebergabepunkt(cardDomId) {
+  const card = document.getElementById(cardDomId);
+  if (!card) return;
+  const w = (sel) => card.querySelector(sel)?.value || '';
+  const bezAlt = w('.c-bez').trim();
+  addFeedCard({
+    bez: bezAlt ? bezAlt + ' (Kopie)' : '',
+    netzsystem: w('.c-netzsystem'),
+    spannung: w('.c-spannung'),
+    frequenz: w('.c-frequenz'),
+    sich: w('.c-sich-typ'),
+    rcd_typ: w('.c-rcd-typ'),
+    rcd_idn: w('.c-rcd-idn'),
+    rcd_pruefstrom: w('.c-rcd-pruefstrom')
+    // drehfeld, rpe, zs, ik, rcd_imess, rcd_ta bleiben leer.
+  });
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  const neu = document.querySelector('#feedsContainer .feed-card:last-child .c-bez');
+  if (neu) { neu.focus(); neu.select(); }
 }
 
 function validateFeedNorms(cardId) {
@@ -298,12 +325,12 @@ const LEER_HEAD_AP = [[
   'Bezeichnung\nÜbergabepunkt',
   'Netzsystem\nSpannung / Frequenz',
   'Dreh-\nfeld',
-  'R_PE\n(Ohm)\n<= 0,30',
-  'Absicherung\nTyp / I_n',
-  'Z_S (Ohm) / I_K (A)\nZ_S <= 230 V / I_a',
-  'RCD\nTyp / I_dn',
-  'I_dmess\n(mA)',
-  't_A (ms)\n@ ____ x I_dn'
+  'R_{PE}\n(Ω)\n≤ 0,30',
+  'Absicherung\nTyp / I_{n}',
+  'Z_{S} (Ω) / I_{K} (A)\nZ_{S} ≤ 230 V / I_{a}',
+  'RCD\nTyp / I_{Δn}',
+  'I_{Δmess}\n(mA)',
+  't_{A} (ms)\n@ ____ x I_{Δn}'
 ]];
 
 // Summe = 190 mm
@@ -314,9 +341,16 @@ const LEER_SPALTEN_AP = {
   9: { cellWidth: 23 }
 };
 
+const LEER_LEGENDE_AP =
+  'Legende: I_{a} = Strom der magnetischen Schnellauslösung (B: 5×I_{n} · C: 10×I_{n} · D: 20×I_{n}) · ' +
+  'Z_{S} = Schleifenimpedanz, zulässig ≤ 230 V / I_{a} · I_{K} = Kurzschlussstrom · ' +
+  'I_{Δn} = Nennfehlerstrom des RCD · I_{Δmess} = gemessener Auslösestrom (zulässig 0,5–1,0 × I_{Δn}) · ' +
+  't_{A} = Auslösezeit: ≤ 40 ms bei 5×I_{Δn}, ≤ 150 ms bei 2×, ≤ 300 ms bei 1× (Typ S: 150 / 200 / 500 ms) · ' +
+  'Drehfeld: rechts drehend bei CEE 16–125 A · R_{PE} = Schutzleiterwiderstand, Messstrom ≥ 200 mA.';
+
 const LEER_BEISPIEL_TEXT_AP =
-  'Beispiel: Bühnenversorgung Haupt | TN-S 230 / 400 V, 50 Hz | Drehfeld i.O. | R_PE 0,12 Ohm | C 32A | ' +
-  'Z_S 0,31 Ohm / I_K 740 A | RCD Typ A 30 mA | I_dmess 21 mA | t_A 17 ms @ 5x';
+  'Beispiel: Bühnenversorgung Haupt | TN-S 230 / 400 V, 50 Hz | Drehfeld i.O. | R_{PE} 0,12 Ω | C 32A | ' +
+  'Z_{S} 0,31 Ω / I_{K} 740 A | RCD Typ A 30 mA | I_{Δmess} 21 mA | t_{A} 17 ms @ 5x';
 
 function leerBlattzahlAnschluss() {
   const roh = parseInt(document.getElementById('leer_blaetter')?.value || '1', 10);
@@ -350,6 +384,14 @@ function generatePDFAnschluss(isBlank = false) {
   if (!isBlank && document.querySelectorAll('.feed-card').length === 0) {
     keinePrueflingeMelden('Übergabepunkt');
     return;
+  }
+
+  // Ein Uebergabepunkt ohne Messwert ist keine Pruefung - siehe pdf-utils.js.
+  if (!isBlank) {
+    const ohneMessung = prueflingeOhneMessung(
+      document.querySelectorAll('#feedsContainer .feed-card'),
+      ['.c-rpe', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta']);
+    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Übergabepunkt'); return; }
   }
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
@@ -446,9 +488,8 @@ function generatePDFAnschluss(isBlank = false) {
   const isKalAbgelaufen = !isBlank &&
     kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
                            document.getElementById('datum')?.value);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
+  // Rot/Fett laeuft ueber den opts-Parameter von drawFeldZeile (siehe pdf-utils.js).
+  drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank, { rot: isKalAbgelaufen });
 
   drawFeldZeile(doc, "Firma/Netzbetreiber:",     feldWert('vnb'),                           spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Ansprechpartner/-in:",     feldWert('bereitsteller_ansprechpartner'),  spR, z1(1), spB, isBlank);
@@ -501,11 +542,14 @@ function generatePDFAnschluss(isBlank = false) {
     doc.setFontSize(7);
     drawCheckbox(doc, SICHT_CB_X[spalte], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
     drawCheckbox(doc, SICHT_CB_X[spalte] + 11, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
-    // Dritte Checkbox: Punkt 7 (Witterungsschutz) kann "n.a." sein, wenn der
-    // Uebergabepunkt im Innenbereich liegt. Ohne diese Box blieben bei "n.a."
-    // beide Felder leer und das Protokoll sah aus wie "nicht geprueft".
-    const hatNa = isBlank ? (i === 6) : Array.from(s[i]?.options || []).some(o => o.value === 'n.a.');
-    if (hatNa) drawCheckbox(doc, SICHT_CB_X[spalte] + 24, yy, "n.a.", !isBlank && s[i]?.value === "n.a.");
+    /* Dritte Checkbox "n.a." fuer JEDEN Punkt.
+     * FRUEHER hatte nur Punkt 7 (Witterungsschutz) diesen Zustand. Ein
+     * Uebergabepunkt am Notstromaggregat hat aber keinen Zaehlerschrank
+     * (Punkt 1) und oft keine Pruefplakette eines Verteilers (Punkt 9) - der
+     * Pruefer musste trotzdem i.O. oder n.i.O. ankreuzen und bestaetigte oder
+     * beanstandete damit etwas, das gar nicht existiert. Im Anlagenprotokoll
+     * war dieser Zustand von Anfang an vorgesehen. */
+    drawCheckbox(doc, SICHT_CB_X[spalte] + 24, yy, "n.a.", !isBlank && s[i]?.value === "n.a.");
   });
 
   y += SEK2_H + 6;
@@ -559,7 +603,7 @@ function generatePDFAnschluss(isBlank = false) {
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${rpeVal} Ohm` : '-';
+      const rpeText = rpeVal ? `${rpeVal} Ω` : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
       const zs = card.querySelector('.c-zs').value;
@@ -575,7 +619,7 @@ function generatePDFAnschluss(isBlank = false) {
       const zsIkWiderspruch = !zIkPlausibel(zs, ik);
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       let zsik = '-';
-      if (zs || ik) zsik = `${zs || '-'} Ohm / ${ik || '-'} A`;
+      if (zs || ik) zsik = `${zs || '-'} Ω / ${ik || '-'} A`;
 
       // Die frueheren "|| '-'"-Vorgaben erzeugten Zellen wie "- (-)". Die
       // Rohwerte gehen jetzt unveraendert in die gemeinsame Auswertung.
@@ -626,13 +670,13 @@ function generatePDFAnschluss(isBlank = false) {
     'Bezeichnung\nÜbergabepunkt',
     'Netzsystem\nSpannung / Frequenz',
     'Dreh-\nfeld',
-    'R_PE\n(Ohm)\nRichtw. <= 0,30',
-    'Absicherung\nTyp / I_n',
-    'Z_S (Ohm) / I_K (A)\nZ_S <= 230 V / I_a\nI_K >= 5x/10x/20x I_n',
-    'RCD: Typ (I_dn)\nI_dmess 0,5-1,0x I_dn\nt_A <= 40 ms bei 5x'
+    'R_{PE}\n(Ω)\nRichtw. ≤ 0,30',
+    'Absicherung\nTyp / I_{n}',
+    'Z_{S} (Ω) / I_{K} (A)\nZ_{S} ≤ 230 V / I_{a}\nI_{K} ≥ 5x/10x/20x I_{n}',
+    'RCD: Typ (I_{Δn})\nI_{Δmess} 0,5-1,0x I_{Δn}\nt_{A} ≤ 40 ms bei 5x'
   ]];
 
-  doc.autoTable({
+  doc.autoTable(mitFormelHooks(doc, {
     startY: y + 5,
     // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert stehen untereinander
     head: isBlank ? LEER_HEAD_AP : HEAD_AUSGEFUELLT_AP,
@@ -660,7 +704,7 @@ function generatePDFAnschluss(isBlank = false) {
     styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
               minCellHeight: isBlank ? LEER_ZEILENHOEHE_AP : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
-  });
+  }));
 
   let finalY = doc.lastAutoTable.finalY + 6;
 
@@ -700,17 +744,17 @@ function generatePDFAnschluss(isBlank = false) {
 
   /* R_PA gegen den Grenzwert pruefen, der ohnehin auf dem Blatt steht. */
   const isPaOut = !isBlank && paWiderstandUeberschritten(document.getElementById('pa_widerstand')?.value);
-  if (isPaOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_PA (<= ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ohm):`,
-                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ohm') : '', 107, finalY + OFF_PA, 90, isBlank);
-  if (isPaOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
+  // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
+  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_{PA} (≤ ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ω):`,
+                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ω') : '', 107, finalY + OFF_PA, 90, isBlank, { rot: isPaOut });
+
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
-  if (isErdungOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, `Erdungswiderstand R_E (<= ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ohm):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ohm') : '', 13, finalY + OFF_MESS, 90, isBlank);
-  if (isErdungOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
+
+  drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_MESS, 90, isBlank, { rot: isErdungOut });
+
 
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, Erdspieß, Fundamenterder):",
                 feldWert('pa_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
@@ -832,7 +876,10 @@ function generatePDFAnschluss(isBlank = false) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(5.2);
     doc.setTextColor(...PDF_MUTED);
-    doc.text(LEER_BEISPIEL_TEXT_AP, PDF_MARGIN_LEFT, 287.5);
+    // Musterangabe mit Formelzeichen -> Formelsatz statt doc.text()
+    doc.setFontSize(4.6);
+    drawFormel(doc, LEER_BEISPIEL_TEXT_AP, PDF_MARGIN_LEFT, 282.5);
+    drawFormelAbsatz(doc, LEER_LEGENDE_AP, PDF_MARGIN_LEFT, 285.3, PDF_CONTENT_WIDTH, 2.5, { fontSize: 4.6 });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...PDF_TEXT);
   }
@@ -855,7 +902,7 @@ function generatePDFAnschluss(isBlank = false) {
       for (let i = 0; i < LEER_ZEILEN_FOLGE_AP; i++) {
         folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", ""]);
       }
-      doc.autoTable({
+      doc.autoTable(mitFormelHooks(doc, {
         startY: yy + 5,
         head: LEER_HEAD_AP,
         body: folgeZeilen,
@@ -871,7 +918,7 @@ function generatePDFAnschluss(isBlank = false) {
         margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
         styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: LEER_ZEILENHOEHE_AP,
                   overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
-      });
+      }));
     }
   }
 

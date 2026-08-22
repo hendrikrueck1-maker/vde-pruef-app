@@ -32,7 +32,10 @@ function addDeviceCard(data = {}) {
   card.innerHTML = `
     <div class="feed-header">
       <span>Gerät #${cardCounter}</span>
-      <button type="button" class="btn-danger" onclick="removeCard('device_${cardCounter}')">Entfernen</button>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereGeraet('device_${cardCounter}')" title="Neue Karte mit derselben Schutzklasse, Leitungslänge und Messmethode. Messwerte und Inventarnummer bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('device_${cardCounter}')">Entfernen</button>
+      </span>
     </div>
 
     <div class="grid">
@@ -75,10 +78,10 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       </div>
     </div>
 
@@ -106,17 +109,79 @@ function addDeviceCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Messmethode Ableitstrom:</label>
-          <select class="c-ableit-methode">
+          <select class="c-ableit-methode" onchange="ableitMethodeGeaendert(${cardCounter})">
             <option>Ersatzableitstrom</option>
             <option>Differenzstrommessung</option>
             <option>Direktmessung Berührungsstrom</option>
           </select>
+          <div class="limit-hint" id="ableit_methode_hint_${cardCounter}"></div>
         </div>
       </div>
     </div>
   `;
+  if (data.ableit_methode) {
+    const m = card.querySelector('.c-ableit-methode');
+    if (m) m.value = data.ableit_methode;
+  }
   container.appendChild(card);
   validateDeviceNorms(cardCounter);
+  ableitMethodeGeaendert(cardCounter);
+}
+
+/* Karte duplizieren - ohne Messwerte und ohne Inventarnummer.
+ * Auf einer Buehne stehen 24 baugleiche Scheinwerfer: gleiche Schutzklasse,
+ * gleiche Leitungslaenge, gleiches Messverfahren, verschiedene Inventarnummern
+ * und verschiedene Messwerte. Die Inventarnummer wird bewusst NICHT kopiert -
+ * sie identifiziert den Prueflinge eindeutig (DIN EN 50699) und darf nie
+ * doppelt vergeben werden. */
+function dupliziereGeraet(cardDomId) {
+  const card = document.getElementById(cardDomId);
+  if (!card) return;
+  const w = (sel) => card.querySelector(sel)?.value || '';
+  const bezAlt = w('.c-bez').trim();
+  addDeviceCard({
+    bez: bezAlt ? bezAlt + ' (Kopie)' : '',
+    typ: w('.c-typ'),
+    schutzklasse: w('.c-schutzklasse'),
+    laenge: w('.c-laenge'),
+    heizelement: card.querySelector('.c-heizelement')?.checked || false,
+    heizleistung: w('.c-heizleistung'),
+    ableit_methode: w('.c-ableit-methode')
+    // invnr, rpe, riso, ableitstrom bleiben leer.
+  });
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  const neu = document.querySelector('#devicesContainer .feed-card:last-child .c-invnr');
+  if (neu) neu.focus();
+}
+
+/* MESSVERFAHREN DES ABLEITSTROMS
+ * Die Ersatzableitstrommessung speist eine Pruefspannung ein, bei der
+ * netzspannungsabhaengige Schaltelemente NICHT arbeiten. Bei Geraeten mit
+ * Elektronik - LED-Scheinwerfer, Movinglights, elektronische Vorschaltgeraete,
+ * Schaltnetzteile, Dimmer, Endstufen - misst sie deshalb systematisch zu
+ * niedrig. Auf einer Konzertbuehne ist das heute der Regelfall, nicht die
+ * Ausnahme: das Verfahren liefert dort einen unauffaelligen Wert, der nichts
+ * beweist. DIN EN 50699 verlangt in diesem Fall die Differenzstrom- oder die
+ * direkte Messung des Beruehrungsstroms.
+ * Der Hinweis blockiert nichts - es gibt Geraete ohne Elektronik, bei denen
+ * das Ersatzverfahren richtig ist. Er sagt nur, worauf zu achten ist. */
+function ableitMethodeGeaendert(cardId) {
+  const card = document.getElementById(`device_${cardId}`);
+  if (!card) return;
+  const hint = document.getElementById(`ableit_methode_hint_${cardId}`);
+  const methode = card.querySelector('.c-ableit-methode')?.value || '';
+  if (hint) {
+    /* Bewusst nur ein Hinweis, keine Beanstandung: bei einem Verlaengerungs-
+     * kabel oder einem Geraet ohne Elektronik ist das Ersatzverfahren richtig.
+     * Ob Elektronik verbaut ist, kann nur die pruefende Person wissen - eine
+     * Annahme waere hier so falsch wie beim RCD-Pruefstrom. Deshalb erinnert
+     * die Zeile, statt zu markieren. */
+    hint.textContent = /ersatzableitstrom/i.test(methode)
+      ? 'Hinweis: bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer, Endstufe) nicht aussagekräftig – dort Differenzstrom- oder Direktmessung. Bei Kabeln und Geräten ohne Elektronik ist das Verfahren richtig.'
+      : '';
+    hint.classList.remove('out-of-norm');
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
 }
 
 /* Haekchen umgeschaltet: ohne Heizelement ist eine Heizleistung gegenstandslos
@@ -190,7 +255,7 @@ function validateDeviceNorms(cardId) {
   const rpeGilt = schutzklasse === 'I';
   const rpeMax = getRpeMaxDevice(laenge);
   const rpeLimitLabel = document.getElementById(`rpe_limit_${cardId}`);
-  if (rpeLimitLabel) rpeLimitLabel.textContent = rpeGilt ? `[max. ${rpeMax.toFixed(2)} Ohm]` : '[n.a. – kein Schutzleiter]';
+  if (rpeLimitLabel) rpeLimitLabel.textContent = rpeGilt ? `[max. ${rpeMax.toFixed(2)} \u03A9]` : '[n.a. – kein Schutzleiter]';
   if (!rpeGilt) {
     rpeElem.value = '';
     rpeElem.disabled = true;
@@ -210,7 +275,7 @@ function validateDeviceNorms(cardId) {
   // Ableitstrom-Grenzwert voneinander ab.
   const risoMin = getIsoMin(schutzklasse, hatHeizelementJetzt);
   const risoLimitLabel = document.getElementById(`riso_limit_${cardId}`);
-  if (risoLimitLabel) risoLimitLabel.textContent = risoMin !== null ? `[min. ${risoMin} MOhm]` : '';
+  if (risoLimitLabel) risoLimitLabel.textContent = risoMin !== null ? `[min. ${risoMin} M\u03A9]` : '';
   if (risoElem.value.trim() !== '') {
     const txt = risoElem.value.trim();
     if (txt.startsWith('>')) risoElem.classList.remove('out-of-norm');
@@ -266,6 +331,59 @@ const GERAETE_KOPF = {
 };
 const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
 
+/* ===========================================================================
+ *  LEERFORMULAR ZUM AUSFUELLEN VON HAND
+ * ---------------------------------------------------------------------------
+ *  FRUEHER hatte dieses Formular 16 Zeilen, keine Blattzahl-Auswahl und keine
+ *  Fortsetzungsblaetter. Bei einer Open-Air-Buehne mit 186 Prueflingen musste
+ *  man dasselbe Blatt zwoelfmal ausdrucken: jedes Mal "Nr. 1-16", jedes Mal
+ *  ein eigener Unterschriftenblock, keine Blattzaehlung - formal zwoelf
+ *  getrennte Protokolle fuer einen Pruefvorgang. Genau dieser Zustand war bei
+ *  Anlagen- und Anschlusspruefung bereits beseitigt; hier fehlte er.
+ *
+ *  Zeilenhoehe 6,5 mm -> 8,0 mm: 6,5 mm reichen zum Drucken, nicht zum
+ *  Schreiben. 8,0 mm ist dieselbe Hoehe wie in den beiden anderen Protokollen.
+ * ======================================================================== */
+const LEER_ZEILEN_BLATT1_GP = 16;   // Zeilen auf Blatt 1 (neben Kopf und Bewertung)
+const LEER_ZEILEN_FOLGE_GP  = 30;   // Zeilen je Fortsetzungsblatt
+const LEER_ZEILENHOEHE_GP   = 8.0;  // mm, Handschrift
+
+const GERAETE_HEAD = [[
+  'Nr.',
+  'Bezeichnung / Typ',
+  'Inv.-Nr.\nSeriennr.',
+  'Schutz-\nklasse',
+  'Leitung\n(m)',
+  'Sicht-\nprüfung',
+  'Funk-\ntion',
+  'R_{PE} (Ω)\n≤ 0,30 bis 5 m\n+0,1 je 7,5 m',
+  'R_{ISO} (MΩ) @ 500 V\nSK I ≥ 1,0 (Heiz. 0,3)\nSK II ≥ 2,0 · III ≥ 0,25',
+  'Ableitstrom (mA)\nSK I ≤ 3,5 (>3,5 kW: 1/kW, max 10)\nSK II/III ≤ 0,5 · Messverfahren'
+]];
+
+const GERAETE_SPALTEN = {
+  0: { cellWidth: 8 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 16 },
+  3: { cellWidth: 9 }, 4: { cellWidth: 10 }, 5: { cellWidth: 24 },
+  6: { cellWidth: 12 }, 7: { cellWidth: 19 }, 8: { cellWidth: 20 },
+  9: { cellWidth: 38 }
+};
+
+/* Legende fuer das handschriftlich ausgefuellte Blatt. Ohne sie sind die
+ * Formelzeichen im Tabellenkopf fuer Auszubildende im ersten Lehrjahr nicht
+ * aufloesbar - in der App steht die Erklaerung unter jedem Feld, auf dem
+ * Papier stand sie nirgends. */
+const LEER_LEGENDE_GP =
+  'Legende: R_{PE} = Schutzleiterwiderstand (Messstrom ≥ 200 mA, Leitung dabei bewegen) · ' +
+  'R_{ISO} = Isolationswiderstand bei 500 V DC · SK = Schutzklasse (I mit Schutzleiter, II schutzisoliert, III Kleinspannung) · ' +
+  'Ableitstrom: SK I = Schutzleiterstrom, SK II/III = Berührungsstrom · ' +
+  'Ersatzableitstrommessung ist bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer) nicht aussagekräftig - dort Differenzstrom- oder Direktmessung.';
+
+function leerBlattzahlGeraete() {
+  const roh = parseInt(document.getElementById('leer_blaetter')?.value || '1', 10);
+  if (isNaN(roh)) return 1;
+  return Math.min(Math.max(roh, 1), 4);
+}
+
 function generatePDFGeraete(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
@@ -297,6 +415,18 @@ function generatePDFGeraete(isBlank = false) {
   if (!isBlank && document.querySelectorAll('#devicesContainer .feed-card').length === 0) {
     keinePrueflingeMelden('Gerät');
     return;
+  }
+
+  /* Ein Geraet ohne einen einzigen Messwert ist ebenso wenig eine Pruefung wie
+   * ein Protokoll ohne Geraet - und beim Start legt das Formular automatisch
+   * eine leere Karte an. Siehe prueflingeOhneMessung() in pdf-utils.js.
+   * R_PE entfaellt bei SK II/III (kein Schutzleiter), dort reicht R_ISO oder
+   * der Ableitstrom. */
+  if (!isBlank) {
+    const ohneMessung = prueflingeOhneMessung(
+      document.querySelectorAll('#devicesContainer .feed-card'),
+      ['.c-rpe', '.c-riso', '.c-ableitstrom']);
+    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Gerät'); return; }
   }
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
@@ -365,8 +495,16 @@ function generatePDFGeraete(isBlank = false) {
   const protokollNr = getVal('protokollnummer', "GP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
-  const naechsterTermin = isBlank ? "" : formatDatum(document.getElementById('res_termin_date').value);
-  const ort = getVal('unterschrift_ort', "Konstanz");
+  /* Das Feld ist ein <input type="month"> und liefert "JJJJ-MM".
+   * FRUEHER war es ein type="date"-Feld, in das updateNaechsterTermin() einen
+   * Monatswert schrieb - den der Browser verwarf. Das Feld blieb leer und im
+   * PDF stand bei "Nächster Prüftermin" nichts. */
+  const naechsterTermin = isBlank ? "" : formatMonat(document.getElementById('res_termin_date').value);
+  /* Im Leerformular bleibt der Ort offen: frueher stand dort fest "Konstanz",
+   * weil getVal() bei isBlank den Vorgabewert zurueckgibt. Auf einem
+   * unterschriebenen Dokument von einem auswaertigen Spielort war das eine
+   * falsche Ortsangabe. (In pdf-generator.js war das bereits behoben.) */
+  const ort = isBlank ? "" : getVal('unterschrift_ort', "");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
@@ -409,9 +547,8 @@ function generatePDFGeraete(isBlank = false) {
   const isKalAbgelaufen = !isBlank &&
     kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
                            document.getElementById('datum')?.value);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
+  // Rot/Fett laeuft ueber den opts-Parameter von drawFeldZeile (siehe pdf-utils.js).
+  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank, { rot: isKalAbgelaufen });
   // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
   // der Messwerte erforderlich.
   drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, z1(4), spB, isBlank);
@@ -433,6 +570,8 @@ function generatePDFGeraete(isBlank = false) {
 
   const tableRows = [];
   let anyDeviceOut = false;
+  // Gewaehlte Blattzahl des Leerformulars (1-4).
+  const blaetterGp = isBlank ? leerBlattzahlGeraete() : 1;
 
   // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
   const BEISPIEL_ZEILE_GP = [
@@ -443,8 +582,8 @@ function generatePDFGeraete(isBlank = false) {
     "10 m",
     "i.O.",
     "i.O.",
-    "0,22 Ohm\n(max. 0,40)",
-    "> 100 MOhm\n(min. 1)",
+    "0,22 Ω\n(max. 0,40)",
+    "> 100 MΩ\n(min. 1)",
     "0,3 mA (max. 3,5)\nSchutzleiterstrom\nErsatzableitstrom"
   ];
 
@@ -455,7 +594,7 @@ function generatePDFGeraete(isBlank = false) {
   if (isBlank) {
     // Zeilenzahl so gewaehlt, dass Tabelle, Gesamtbeurteilung und Unterschriften
     // gemeinsam auf eine A4-Seite passen.
-    for (let i = 1; i <= 16; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+    for (let i = 1; i <= LEER_ZEILEN_BLATT1_GP; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
     beispielIndex = tableRows.length;
     tableRows.push(BEISPIEL_ZEILE_GP);
   } else {
@@ -472,11 +611,22 @@ function generatePDFGeraete(isBlank = false) {
       const sichtLabelsGeraet = ['Gehäuse/Isolierung', 'Leitung/Stecker', 'Kennzeichnung', 'Reparaturspuren'];
       const sichtVals = Array.from(card.querySelectorAll('.c-sicht-item')).map(el => el.value);
       const sichtNiO = sichtVals.some(v => v === 'n.i.O.');
-      // Bei Beanstandung wird jetzt benannt, WELCHER Punkt betroffen ist,
-      // statt nur ein pauschales "n.i.O." auszugeben.
-      const sichtText = sichtNiO
-        ? 'n.i.O.: ' + sichtVals.map((v, i) => v === 'n.i.O.' ? sichtLabelsGeraet[i] : null).filter(Boolean).join(', ')
-        : 'i.O.';
+      /* Bei Beanstandung wird benannt, WELCHER Punkt betroffen ist, statt ein
+       * pauschales "n.i.O." auszugeben.
+       * "n.a." wird ebenfalls benannt: ein selbstkonfektioniertes Kabel hat
+       * kein Typenschild - ohne diesen Zustand stand dort "i.O." fuer einen
+       * Punkt, den es nicht gibt. */
+      const sichtNa = sichtVals.map((v, i) => v === 'n.a.' ? sichtLabelsGeraet[i] : null).filter(Boolean);
+      let sichtText;
+      if (sichtNiO) {
+        sichtText = 'n.i.O.: ' + sichtVals.map((v, i) => v === 'n.i.O.' ? sichtLabelsGeraet[i] : null).filter(Boolean).join(', ');
+      } else if (sichtNa.length === sichtVals.length) {
+        sichtText = 'n.a.';
+      } else if (sichtNa.length) {
+        sichtText = 'i.O. (n.a.: ' + sichtNa.join(', ') + ')';
+      } else {
+        sichtText = 'i.O.';
+      }
 
       const funktion = card.querySelector('.c-funktion').value;
 
@@ -491,12 +641,12 @@ function generatePDFGeraete(isBlank = false) {
       // Grenzwert mitdrucken: er haengt von der Leitungslaenge ab und war fuer
       // den Leser des PDF sonst nicht nachvollziehbar.
       const rpeText = !rpeGiltPdf ? 'n.a.'
-        : (rpeVal ? `${rpeVal} Ohm\n(max. ${rpeMax.toFixed(2)})` : '-');
+        : (rpeVal ? `${rpeVal} Ω\n(max. ${rpeMax.toFixed(2)})` : '-');
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
       const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseFloat(risoVal.replace(',', '.'))) && parseFloat(risoVal.replace(',', '.')) < risoMin;
-      const risoText = risoVal ? `${risoVal} MOhm\n(min. ${risoMin})` : '-';
+      const risoText = risoVal ? `${risoVal} MΩ\n(min. ${risoMin})` : '-';
 
       const ableitVal = card.querySelector('.c-ableitstrom').value;
       const heizleistung = card.querySelector('.c-heizleistung')?.value;
@@ -529,21 +679,10 @@ function generatePDFGeraete(isBlank = false) {
     });
   }
 
-  doc.autoTable({
+  doc.autoTable(mitFormelHooks(doc, {
     startY: y + 5,
     // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert untereinander
-    head: [[
-      'Nr.',
-      'Bezeichnung / Typ',
-      'Inv.-Nr.\nSeriennr.',
-      'Schutz-\nklasse',
-      'Leitung\n(m)',
-      'Sicht-\nprüfung',
-      'Funk-\ntion',
-      'R_PE (Ohm)\n<= 0,30 bis 5 m\n+0,1 je 7,5 m',
-      'R_ISO (MOhm)\nSK I >= 1,0\nSK II >= 2,0',
-      'Ableitstrom (mA)\nSK I <= 3,5 / SK II <= 0,5\nMessverfahren'
-    ]],
+    head: GERAETE_HEAD,
     body: tableRows,
     theme: 'grid',
     // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
@@ -558,14 +697,10 @@ function generatePDFGeraete(isBlank = false) {
     },
     bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
     // Summe = 190 mm (Seitenbreite 210 abzueglich 2 x 10 mm Rand)
-    columnStyles: {
-      0: { cellWidth: 8 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 16 },
-      3: { cellWidth: 9 }, 4: { cellWidth: 10 }, 5: { cellWidth: 24 },
-      6: { cellWidth: 12 }, 7: { cellWidth: 19 }, 8: { cellWidth: 20 },
-      9: { cellWidth: 38 }
-    },
+    columnStyles: GERAETE_SPALTEN,
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 6.5 : 5, overflow: 'linebreak',
+    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+              minCellHeight: isBlank ? LEER_ZEILENHOEHE_GP : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
       if (data.section === 'body' && data.row.index === beispielIndex) {
@@ -575,7 +710,7 @@ function generatePDFGeraete(isBlank = false) {
         data.cell.styles.fontSize = 5.4;
       }
     }
-  });
+  }));
 
   let finalY = doc.lastAutoTable.finalY + 6;
 
@@ -652,6 +787,14 @@ function generatePDFGeraete(isBlank = false) {
     return;
   }
 
+  // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
+  // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
+  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
+    alert(plaketteWiderspruchHinweis());
+    document.getElementById('res_plakette')?.focus();
+    return;
+  }
+
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : hasIssues
@@ -683,7 +826,9 @@ function generatePDFGeraete(isBlank = false) {
 
   finalY += 4 + complianceLines.length * 3.2 + 4;
 
-  const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
+  const ortDatum = isBlank
+    ? '________________, den ____________'
+    : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padPruefer.isEmpty()) {
     doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
@@ -701,6 +846,65 @@ function generatePDFGeraete(isBlank = false) {
   }
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
+
+  /* --- LEERFORMULAR: LEGENDE IM FUSSBEREICH VON BLATT 1 -------------------
+   * Auf dem Papier gibt es keine Hinweiszeile unter jedem Feld wie in der App.
+   * Ohne diese Legende ist der Tabellenkopf fuer Auszubildende im ersten
+   * Lehrjahr nicht aufloesbar. Der Fussbereich reicht bis 291 mm. */
+  if (isBlank) {
+    doc.setPage(1);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(4.8);
+    doc.setTextColor(...PDF_MUTED);
+    drawFormelAbsatz(doc, LEER_LEGENDE_GP, PDF_MARGIN_LEFT, 284.0, PDF_CONTENT_WIDTH, 2.6, { fontSize: 4.8 });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...PDF_TEXT);
+  }
+
+  /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ----------------------------
+   * Nur die Geraetetabelle, mit fortlaufender Nummerierung. Kopfdaten,
+   * Gesamtbewertung und Unterschriften stehen genau einmal auf Blatt 1 -
+   * sonst waeren es formal mehrere Protokolle fuer denselben Pruefvorgang.
+   * Die Seitenzahl in der Kopfbox ("Seite 2 von 3") stimmt dadurch
+   * automatisch; eine Blattzaehlung von Hand entfaellt. */
+  if (isBlank && blaetterGp > 1) {
+    let laufendeNr = LEER_ZEILEN_BLATT1_GP + 1;
+    for (let blatt = 2; blatt <= blaetterGp; blatt++) {
+      doc.addPage();
+      let yy = PDF_CONTENT_TOP;
+      drawKategorieTitel(doc, `FORTSETZUNG DER GERÄTEPRÜFUNG (BLATT ${blatt} VON ${blaetterGp})`, yy, 'messen');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.6);
+      doc.setTextColor(...PDF_MUTED);
+      doc.text('Gehört zum Protokoll mit der oben stehenden Protokoll-Nr. Kopfdaten, Gesamtbeurteilung und ' +
+               'Unterschriften stehen auf Blatt 1.', PDF_MARGIN_LEFT, yy + 3.4);
+      doc.setTextColor(...PDF_TEXT);
+
+      const folgeZeilen = [];
+      for (let i = 0; i < LEER_ZEILEN_FOLGE_GP; i++) {
+        folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", ""]);
+      }
+      doc.autoTable(mitFormelHooks(doc, {
+        startY: yy + 5,
+        head: GERAETE_HEAD,
+        body: folgeZeilen,
+        theme: 'grid',
+        rowPageBreak: 'avoid',
+        headStyles: {
+          fillColor: katMessen.kopf, textColor: katMessen.akzent,
+          fontSize: 5.4, fontStyle: 'bold', halign: 'center', valign: 'middle',
+          lineColor: katMessen.rand, lineWidth: 0.15,
+          cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+        },
+        bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
+        columnStyles: GERAETE_SPALTEN,
+        margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+        styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+                  minCellHeight: LEER_ZEILENHOEHE_GP, overflow: 'linebreak',
+                  cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
+      }));
+    }
+  }
 
   drawProtokollSeitenkoepfe(doc, {
     ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: GERAETE_REVISION

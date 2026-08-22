@@ -99,7 +99,11 @@
       </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
       <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum" oninput="validateKalibrierung()"></div>
-      <div class="form-group"><label>Nächster Prüftermin (Auto):</label><input type="date" id="res_termin_date"></div>
+      <div class="form-group">
+        <label>Nächster Prüftermin (Monat/Jahr, automatisch):</label>
+        <input type="month" id="res_termin_date">
+        <div class="limit-hint">Ergibt sich aus der Prüffrist, kann überschrieben werden.</div>
+      </div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
       <div class="form-group">
@@ -114,7 +118,8 @@
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Grenzwerte (DIN EN 50678/50699): R<sub>PE</sub> &le; 0,30 &Omega; bis 5 m Leitung, danach +0,1 &Omega; je 7,5 m ·
       R<sub>ISO</sub> SK I &ge; 1,0 M&Omega; (mit Heizelement &ge; 0,3) / SK II &ge; 2,0 M&Omega; / SK III &ge; 0,25 M&Omega; ·
-      Ableitstrom SK I &le; 3,5 mA, SK II &le; 0,5 mA
+      Ableitstrom SK I &le; 3,5 mA (Heizleistung &gt; 3,5 kW: 1 mA je kW, höchstens 10 mA) / SK II und III &le; 0,5 mA ·
+      Prüfspannung R<sub>ISO</sub> 500 V DC
     </p>
     <div id="devicesContainer"></div>
     <button type="button" class="btn btn-secondary" onclick="addDeviceCard()">+ Gerät hinzufügen</button>
@@ -172,7 +177,17 @@
       </div>
     </div>
 
-    <div class="actions">
+    <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
+      <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
+        <label style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
+        <select id="leer_blaetter">
+          <option value="1" selected>1 Blatt (16 Geräte)</option>
+          <option value="2">2 Blätter (46 Geräte)</option>
+          <option value="3">3 Blätter (76 Geräte)</option>
+          <option value="4">4 Blätter (106 Geräte)</option>
+        </select>
+        <div class="limit-hint">Blatt 2 und folgende sind Fortsetzungsblätter: nur die Gerätetabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1.</div>
+      </div>
       <button type="button" class="btn btn-secondary" onclick="generatePDFGeraete(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
       <button type="button" class="btn btn-success" onclick="generatePDFGeraete(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
     </div>
@@ -198,8 +213,10 @@
   padPruefer = pads.pruefer;
   padKunde = pads.kunde;
 
-  document.getElementById('geraeteForm').addEventListener('input', autosaveProtocol);
-  document.getElementById('geraeteForm').addEventListener('change', autosaveProtocol);
+  // Autosave entprellt (400 ms) - siehe autosaveAnhaengen() in pdf-utils.js.
+  // Ohne Entprellung schrieb jeder einzelne Tastendruck das komplette Formular
+  // in den localStorage; bei vielen Karten wurde die Eingabe dadurch zaeh.
+  autosaveAnhaengen('geraeteForm', autosaveProtocol);
 </script>
 
 </body>

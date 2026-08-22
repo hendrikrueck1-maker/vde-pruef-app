@@ -4,6 +4,16 @@
  *  Kopiere diese Datei nach  js/<name>-generator.js  und passe sie an.
  *  Die Hilfsfunktionen (cleanStr, drawProtokollHeader, savePdfCompatible …)
  *  stammen aus js/pdf-utils.js und stehen hier automatisch zur Verfügung.
+ *
+ *  FORMELZEICHEN IM PDF
+ *  Größen werden in Formelschreibweise gesetzt - genau wie in der App:
+ *      'R_{PE}'   ->  R mit tiefgestelltem PE
+ *      'I_{Δmess}' -> I mit tiefgestelltem Δmess
+ *      'mm^{2}'   ->  mm mit hochgestellter 2   (oder direkt 'mm²')
+ *  Einheiten und Vergleichszeichen werden direkt geschrieben: Ω, MΩ, ≤, ≥, Δ.
+ *  Damit autoTable das Markup setzt, MUSS jeder Tabellenaufruf durch
+ *  mitFormelHooks(doc, {...}) laufen - siehe unten. Freier Text außerhalb von
+ *  Tabellen wird mit drawTextF(doc, text, x, y) statt doc.text() gesetzt.
  * ========================================================================== */
 
 /* ANPASSEN: Kopfzeile des PDF */
@@ -25,7 +35,7 @@ function generiereVorlagePdf() {
   drawProtokollHeader(doc, VORLAGE_KOPF);
 
   /* --- Kopfdaten als Tabelle --- */
-  doc.autoTable({
+  doc.autoTable(mitFormelHooks(doc, {
     startY: 34,
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 1.6 },
@@ -39,10 +49,10 @@ function generiereVorlagePdf() {
       ['Prüfgerät', wert('messgeraet') + ' (' + wert('seriennummer') + ')'],
       ['Kalibriert bis', wert('kalibriert_bis')]
     ]
-  });
+  }));
 
   /* --- Prüfgegenstand --- */
-  doc.autoTable({
+  doc.autoTable(mitFormelHooks(doc, {
     startY: doc.lastAutoTable.finalY + 5,
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 1.6 },
@@ -53,25 +63,25 @@ function generiereVorlagePdf() {
       ['Standort', wert('standort')],
       ['Ergebnis', wert('ergebnis')]
     ]
-  });
+  }));
 
   /* --- Bemerkungen --- */
   const bem = wert('bemerkungen');
   if (bem) {
-    doc.autoTable({
+    doc.autoTable(mitFormelHooks(doc, {
       startY: doc.lastAutoTable.finalY + 5,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 1.6 },
       headStyles: { fillColor: [0, 51, 102], textColor: 255 },
       head: [['Bemerkungen']],
       body: [[bem]]
-    });
+    }));
   }
 
   /* --- Unterschrift --- */
   let y = doc.lastAutoTable.finalY + 12;
   doc.setFontSize(8);
-  doc.text(wert('unterschrift_ort') + ', ' + datum, 14, y);
+  drawTextF(doc, wert('unterschrift_ort') + ', ' + datum, 14, y);
 
   const pad = window.padPruefer;
   if (pad && !pad.isEmpty()) {

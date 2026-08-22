@@ -183,7 +183,7 @@
     <!-- 3. BESICHTIGEN -->
     <h2 class="kat-sicht">3. Besichtigen (Sichtprüfung gemäß VDE-Vorlage)</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
-      „n.a." für Punkte, die es an dieser Anlage nicht gibt (z. B. keine Brandabschottung bei Open-Air-Bühnen,
+      „n.a.“ für Punkte, die es an dieser Anlage nicht gibt (z. B. keine Brandabschottung bei Open-Air-Bühnen,
       keine Gebäudesystemtechnik an einer mobilen Verteilung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
@@ -193,10 +193,10 @@
       <div class="form-group"><label>4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>6. Doku / Warnung:</label><select class="sicht-item" id="sicht_doku"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Zus. Potenzialausgl.:</label><select class="sicht-item" id="sicht_pa"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>7. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>8. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>9. Typenschild:</label><select class="sicht-item" id="sicht_typenschild"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>10. Brandabschottungen:</label><select class="sicht-item" id="sicht_brandschott"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>10. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>11. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>12. Gebäudesystemtechnik:</label><select class="sicht-item" id="sicht_gst"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
@@ -243,14 +243,14 @@
       Drehfeld gilt für CEE 16&ndash;125 A. Die Polaritätsprüfung (L/N vertauscht, PE oder N offen) ist das
       Gegenstück bei einphasigen Steckdosen und nach DIN VDE 0100-600 gefordert. Die RCD-Prüftaste prüft die
       Mechanik und ist ein anderer Nachweis als die Messung von I<sub>&Delta;mess</sub>/t<sub>A</sub>.
-      Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.".
+      Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.“.
     </p>
     <div class="grid kat-block kat-sicht">
       <div class="form-group"><label>Funktion Anlage:</label><select class="erp-item" id="erp_anlage"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
       <div class="form-group"><label>Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_pruaftaste"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
       <div class="form-group"><label>Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
       <div class="form-group"><label>Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
       <div class="form-group"><label>Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
@@ -260,8 +260,9 @@
     <h2 class="kat-messen">5. Messtechnische Prüfungen (Stromkreise)</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Richtwerte: R<sub>PE</sub> &le; 0,30 &Omega; · R<sub>ISO</sub> &ge; 1,0 M&Omega; (SELV/PELV &ge; 0,5 M&Omega;) ·
-      I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) · RCD: I<sub>&Delta;mess</sub> 0,5–1,0&times;I<sub>&Delta;n</sub>,
-      t<sub>A</sub> &le; 40 ms bei 5&times;I<sub>&Delta;n</sub> · U<sub>mess</sub> &le; 50 V AC / 120 V DC
+      I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) / 20&times;I<sub>n</sub> (D) · RCD: I<sub>&Delta;mess</sub> 0,5–1,0&times;I<sub>&Delta;n</sub>,
+      t<sub>A</sub> &le; 40 ms bei 5&times;I<sub>&Delta;n</sub> (150 ms bei 2&times;, 300 ms bei 1&times;) ·
+      U<sub>mess</sub> &le; 50 V AC / 120 V DC, bei erh&ouml;hter Gef&auml;hrdung &le; 25 V AC / 60 V DC
     </p>
     <div id="circuitsContainer"></div>
     <button type="button" class="btn btn-secondary" onclick="addCircuitCard()">+ Stromkreis hinzufügen</button>
@@ -406,8 +407,10 @@
   validatePaWiderstand();
   validateKalibrierung();
 
-  document.getElementById('vdeForm').addEventListener('input', autosaveProtocol);
-  document.getElementById('vdeForm').addEventListener('change', autosaveProtocol);
+  // Autosave entprellt (400 ms) - siehe autosaveAnhaengen() in pdf-utils.js.
+  // Ohne Entprellung schrieb jeder einzelne Tastendruck das komplette Formular
+  // in den localStorage; bei vielen Karten wurde die Eingabe dadurch zaeh.
+  autosaveAnhaengen('vdeForm', autosaveProtocol);
 </script>
 
 </body>

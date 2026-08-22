@@ -334,3 +334,19 @@ input.wert-widerspruch {
   border-color: #d97706 !important;
   background: #fffbeb !important;
 }
+
+/* Wert liegt im zulaessigen Bereich, aber ohne Reserve (Z_S zwischen
+   2/3 x Z_S,max und Z_S,max). Das ist ein Praxishinweis, keine Beanstandung -
+   deshalb nur ein farbiger Rand, kein roter Hintergrund wie bei out-of-norm. */
+input.wert-hinweis {
+  border-color: #ca8a04 !important;
+  background: #fefce8 !important;
+}
+
+/* Hinweiszeile, die auf eine Randbedingung aufmerksam macht, ohne einen
+   Fehler zu behaupten (z. B. Ersatzableitstrommessung: bei Geraeten mit
+   Elektronik nicht aussagekraeftig, bei Kabeln dagegen richtig). */
+.limit-hint.hinweis-wichtig {
+  color: #b45309;
+  font-weight: 600;
+}
