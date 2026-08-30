@@ -340,13 +340,25 @@ function validateCardNorms(cardId) {
   if (zsLimitLabel) {
     if (maxZs !== null) {
       zsLimitLabel.innerHTML = `max. ${maxZs.toFixed(2).replace('.', ',')} &Omega; &middot; Praxiswert (2/3): ${(maxZs * 2 / 3).toFixed(2).replace('.', ',')} &Omega;`;
+      zsLimitLabel.classList.remove('hinweis-wichtig');
     } else if (sichElem && istSchmelzsicherung(sichElem.value)) {
       /* Schmelzsicherung: der Ausloesestrom folgt der Herstellerkennlinie,
        * nicht der 5x/10x/20x-Regel. Frueher fand hier stillschweigend keine
        * Bewertung statt und niemand erfuhr davon. */
       zsLimitLabel.innerHTML = 'Schmelzsicherung &ndash; Grenzwert nach Herstellerkennlinie (I<sub>a</sub> f&uuml;r 0,4 s). Wird nicht automatisch bewertet, bitte selbst pr&uuml;fen.';
+      zsLimitLabel.classList.add('hinweis-wichtig');
+    } else if (sichElem && istAbsicherungUnbekannt(sichElem.value)) {
+      /* [Befund N3] Angabe vorhanden, aber weder als B/C/D-Charakteristik noch
+       * als Schmelzsicherung erkannt - genauso unuebersehbar kennzeichnen wie
+       * die Schmelzsicherung, statt nur einen allgemeinen Platzhalter zu
+       * zeigen. Sonst wird das PDF erzeugt, ohne dass Z_S/I_K in diesem
+       * Stromkreis tatsaechlich bewertet wurden UND ohne dass das im
+       * Dokument selbst sichtbar wird. */
+      zsLimitLabel.innerHTML = '<b>Absicherungsart nicht erkannt</b> &ndash; Z_S/I_K werden NICHT automatisch bewertet, bitte selbst pr&uuml;fen. Erwartet wird eine B/C/D-Charakteristik (z.&nbsp;B. &bdquo;B16&ldquo;) oder eine Schmelzsicherung (gG/gL/NH/Diazed/Neozed).';
+      zsLimitLabel.classList.add('hinweis-wichtig');
     } else {
       zsLimitLabel.innerHTML = 'Absicherung eintragen, dann erscheint der zulässige Höchstwert.';
+      zsLimitLabel.classList.remove('hinweis-wichtig');
     }
   }
 
@@ -431,6 +443,13 @@ function updateEinspeisung() {
   if (istErsatzstromversorgung()) {
     hint.textContent = 'Pflichtangabe bei Ersatzstromversorgung – Sollwert 50 Hz.';
     freq.classList.toggle('missing-value', freq.value.trim() === '');
+    /* Bei Netzersatzanlage/Wechselrichter ist die Frequenz ein echter
+     * Pflicht-Messwert (siehe Abbruch weiter unten in generatePDF). Die
+     * Netzmessung steht dafuer im Formular als eingeklapptes Detail-Element -
+     * ohne automatisches Aufklappen faellt eine fehlende Angabe erst beim
+     * PDF-Export auf, wenn das Messgeraet oft schon eingepackt ist. */
+    const block = document.getElementById('netzmessung_block');
+    if (block) block.open = true;
   } else {
     hint.textContent = '';
     freq.classList.remove('missing-value');
@@ -991,6 +1010,17 @@ function generatePDF(isBlank = false) {
       if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
       // Netzimpedanz nur drucken, wenn sie tatsaechlich gemessen wurde.
       if (zln || ik2) zsik += `\nL-N: ${kommaZahl(zln) || '-'} Ω / ${kommaZahl(ik2) || '-'} A`;
+      // [Befund N3] Absicherung angegeben, aber weder als B/C/D-Charakteristik
+      // noch als Schmelzsicherung erkannt: Z_S/I_K wurden in diesem
+      // Stromkreis NICHT bewertet. Das muss im gedruckten Protokoll selbst
+      // stehen, nicht nur als Hinweis auf dem Bildschirm - sonst gibt das PDF
+      // die Anlage frei, ohne die Schutzabschaltung geprueft zu haben, ohne
+      // dass ein Leser des Dokuments das erkennen kann.
+      const absicherungUnbekannt = istAbsicherungUnbekannt(sich);
+      if (absicherungUnbekannt) {
+        zsik += '\nAbsicherung nicht erkannt – Z_S/I_K nicht bewertet';
+        anyDokumentationsmangel = true;
+      }
 
       const rcdTyp = card.querySelector('.c-rcd-typ').value;
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
@@ -1044,7 +1074,7 @@ function generatePDF(isBlank = false) {
         makeCell(cleanStr(rpeText), isRpeOut),
         makeCell(cleanStr(risoText), isRisoOut),
         cleanStr(sich),
-        makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch),
+        makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch || absicherungUnbekannt),
         makeCell(cleanStr(rcdText), isRcdOut),
         makeCell(cleanStr(uText), isUOut)
       ]);
@@ -1119,13 +1149,18 @@ function generatePDF(isBlank = false) {
   const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
-  const OFF_R = 10;
+  const OFF_R = 9;
   const OFF_PUNKT = OFF_R + ZA;
-  const offErgebnis   = OFF_PUNKT + ZA + 2;
+  // [Befund N5] DIN VDE 0105-100 verlangt bei Wiederholungspruefungen die
+  // Angabe, was tatsaechlich geprueft wurde (Vollpruefung oder Stichprobe,
+  // und in welchem Umfang) - ohne dieses Feld dokumentiert das Protokoll nur,
+  // was gemessen wurde, nicht, was bewusst ungeprueft blieb.
+  const OFF_UMFANG = OFF_PUNKT + ZA;
+  const offErgebnis   = OFF_UMFANG + ZA;
   const offTermin     = offErgebnis + 5.5;
   const offBemLabel   = offTermin + 5.5;
   const offBemStart   = offBemLabel + 4.2;
-  const boxHeight     = offBemStart + bemZeilen * 4.2 + 2.5;
+  const boxHeight     = offBemStart + bemZeilen * 4.2 + 1.5;
 
   /* 4.5.0 (C1): Kasten 4 und der Abschlussblock (Freigabe, Konformitaetstext,
    * Unterschriften) werden GEMEINSAM auf Platz geprueft. Vorher wurden beide
@@ -1149,6 +1184,9 @@ function generatePDF(isBlank = false) {
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
                 feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
+
+  // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), 13, finalY + OFF_UMFANG, 184, isBlank);
 
   /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
    * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
@@ -1400,6 +1438,7 @@ const AUTOSAVE_FIELD_IDS = [
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erdung_re', 'erdung_messpunkt',
+  'pruefumfang',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
   'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];

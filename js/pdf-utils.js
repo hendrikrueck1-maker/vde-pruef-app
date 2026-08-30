@@ -497,14 +497,64 @@ function istSchmelzsicherung(sicherungText) {
   return /\b(gG|gL|gl|NH|Diazed|Neozed|D0|DII|DIII|Schmelz)\b/i.test(String(sicherungText || ''));
 }
 
+/* [Befund N3] Fruehere Fassung erkannte die B/C/D-Charakteristik nur, wenn
+ * Buchstabe+Zahl am ANFANG der Zeichenkette standen (^([BCD])\s*([\d.,]+)).
+ * Schreibweisen mit Zusatztext davor - "LS B16", "B16A, 3-polig" - oder mit
+ * vertauschter Reihenfolge - "16 A Typ B" - wurden dadurch nicht erkannt, und
+ * die App bewertete Z_S/I_K in diesem Fall stillschweigend gar nicht, ohne das
+ * im Protokoll kenntlich zu machen. Jetzt wird an BELIEBIGER Stelle im Text
+ * gesucht, in beiden ueblichen Reihenfolgen:
+ *   - Buchstabe vor der Zahl:  "B16", "LS B 16", "Typ B16A"
+ *   - Zahl vor dem Buchstaben: "16 A Typ B", "16A Typ B, 3-polig"
+ * Wortgrenzen (\b) verhindern, dass B/C/D aus anderen Woertern (z. B. "Bau",
+ * "CEE") faelschlich als Charakteristik gelesen wird. */
 function getMinIk(sicherungText) {
-  if (!sicherungText) return null;
-  const match = sicherungText.trim().match(/^([BCD])\s*([\d.,]+)/i);
+  const info = sicherungCharakteristik(sicherungText);
+  if (!info) return null;
+  const multiplier = { B: 5, C: 10, D: 20 }[info.buchstabe];
+  return multiplier ? multiplier * info.rating : null;
+}
+
+/* Sagt, ob die Absicherung ANGEGEBEN, aber WEDER als Schmelzsicherung NOCH
+ * als B/C/D-Charakteristik erkannt wurde. Genau dieser Fall durfte bisher
+ * unbemerkt bleiben: die App zeigte nur einen unauffaelligen Platzhaltertext
+ * und erzeugte das PDF trotzdem, ohne dass Z_S/I_K in diesem Stromkreis
+ * tatsaechlich bewertet wurden. */
+function istAbsicherungUnbekannt(sicherungText) {
+  const text = String(sicherungText || '').trim();
+  if (!text) return false;
+  if (istSchmelzsicherung(text)) return false;
+  return sicherungCharakteristik(text) === null;
+}
+
+/* Liefert { buchstabe, rating } wenn eine B/C/D-Charakteristik mit Nennstrom
+ * gefunden wird, sonst null. Zentral, damit Bewertung (getMinIk/getMaxZs) und
+ * die "nicht erkannt"-Kennzeichnung im PDF exakt dieselbe Erkennung nutzen.
+ * Schmelzsicherungen (Diazed/Neozed/NH/gG/gL) haben Vorrang: "Diazed D2 20A"
+ * enthaelt zwar ein "D2", ist aber keine D-Charakteristik - istSchmelzsicherung()
+ * wird deshalb zuerst geprueft. */
+function sicherungCharakteristik(sicherungText) {
+  const text = String(sicherungText || '').trim();
+  if (!text || istSchmelzsicherung(text)) return null;
+  // Reihenfolge 1: Buchstabe direkt vor der Zahl, ggf. mit Zusatztext davor
+  // ("B16", "Typ B16A", "LS B16", "B16A, 3-polig", "LS-B16").
+  let match = text.match(/\b([BCD])\s*([\d]+(?:[.,]\d+)?)\s*A?\b/i);
+  if (!match) {
+    // Reihenfolge 2: Zahl vor dem Buchstaben ("16 A Typ B", "16A Typ B, 3-polig").
+    const m2 = text.match(/\b([\d]+(?:[.,]\d+)?)\s*A\b.{0,20}?\b([BCD])\b/i);
+    if (m2) match = [m2[0], m2[2], m2[1]];
+  }
+  if (!match) {
+    // Reihenfolge 1b: Buchstabe und Zahl getrennt durch Komma/Doppelpunkt,
+    // Zahl mit Einheit "A" ("Typ B, 16 A"). Enger gefasst als 1/2, damit z. B.
+    // "16A Typ B, 3-polig" nicht ueber diesen Zweig die "3" aus "3-polig" als
+    // Nennstrom nimmt.
+    match = text.match(/\b([BCD])\b\s*[,:]\s*([\d]+(?:[.,]\d+)?)\s*A\b/i);
+  }
   if (!match) return null;
   const rating = parseFloat(match[2].replace(',', '.'));
-  if (isNaN(rating)) return null;
-  const multiplier = { B: 5, C: 10, D: 20 }[match[1].toUpperCase()];
-  return multiplier ? multiplier * rating : null;
+  if (isNaN(rating) || rating <= 0) return null;
+  return { buchstabe: match[1].toUpperCase(), rating: rating };
 }
 
 // NENNSPANNUNG AUSSENLEITER GEGEN ERDE (Grundlage aller Ik-Berechnungen)
@@ -968,11 +1018,16 @@ const MAENGEL_BEHOBEN_HINWEIS =
   'Das PDF wurde deshalb nicht erstellt.';
 
 // MAX. SCHUTZLEITERWIDERSTAND (Ohm): 0,3 Ohm BIS 5m LEITUNGSLÄNGE,
-// DANACH +0,1 Ohm JE ANGEFANGENE 7,5m (Prüfstrom mind. 200mA)
+// DANACH +0,1 Ohm JE ANGEFANGENE 7,5m (Prüfstrom mind. 200mA).
+// DIN EN 50699 begrenzt den zulässigen Wert unabhängig von der Leitungslänge
+// grundsätzlich auf 1,0 Ohm - bei langen Kabelwegen (Kabeltrommeln,
+// Verlängerungen über 50-100 m auf Open-Air-Flächen) würde die Formel ohne
+// diesen Deckel sonst Werte weit über der Norm freigeben.
+const RPE_DEVICE_DECKEL = 1.0;
 function getRpeMaxDevice(lengthM) {
   const len = parseFloat(String(lengthM).replace(',', '.'));
   if (isNaN(len) || len <= 5) return 0.3;
-  return 0.3 + Math.ceil((len - 5) / 7.5) * 0.1;
+  return Math.min(RPE_DEVICE_DECKEL, 0.3 + Math.ceil((len - 5) / 7.5) * 0.1);
 }
 
 // ---------------------------------------------------------------------------

@@ -344,8 +344,10 @@ const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-
  *  Zeilenhoehe 6,5 mm -> 8,0 mm: 6,5 mm reichen zum Drucken, nicht zum
  *  Schreiben. 8,0 mm ist dieselbe Hoehe wie in den beiden anderen Protokollen.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1_GP = 14;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
-                                    // und die Legende auf Blatt 1 passen (Befund C1)
+const LEER_ZEILEN_BLATT1_GP = 13;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
+                                    // und die Legende auf Blatt 1 passen (Befund C1).
+                                    // 4.6.0 (N5): 14 -> 13, um Platz fuer die neue
+                                    // Pruefumfang-Zeile in Sektion 3 zu schaffen.
 const LEER_ZEILEN_FOLGE_GP  = 30;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE_GP   = 8.0;  // mm, Handschrift
 
@@ -357,7 +359,7 @@ const GERAETE_HEAD = [[
   'Leitung\n(m)',
   'Sicht-\nprüfung',
   'Funk-\ntion',
-  'R_{PE} (Ω)\n≤ 0,30 bis 5 m\n+0,1 je 7,5 m',
+  'R_{PE} (Ω)\n≤ 0,30 bis 5 m\n+0,1 je 7,5 m\nmax. 1,00 Ω (normativer Deckel)',
   'R_{ISO} (MΩ) @ 500 V\nSK I ≥ 1,0 (Heiz. 0,3)\nSK II ≥ 2,0 · III ≥ 0,25',
   'Ableitstrom (mA)\nSK I ≤ 3,5 (>3,5 kW: 1/kW, max 10)\nSK II/III ≤ 0,5 · Messverfahren'
 ]];
@@ -374,7 +376,7 @@ const GERAETE_SPALTEN = {
  * aufloesbar - in der App steht die Erklaerung unter jedem Feld, auf dem
  * Papier stand sie nirgends. */
 const LEER_LEGENDE_GP =
-  'Legende: R_{PE} = Schutzleiterwiderstand (Messstrom ≥ 200 mA, Leitung dabei bewegen) · ' +
+  'Legende: R_{PE} = Schutzleiterwiderstand (Messstrom ≥ 200 mA, Leitung dabei bewegen, max. 1,00 Ω nach DIN EN 50699 unabhängig von der Leitungslänge) · ' +
   'R_{ISO} = Isolationswiderstand bei 500 V DC · SK = Schutzklasse (I mit Schutzleiter, II schutzisoliert, III Kleinspannung) · ' +
   'Ableitstrom: SK I = Schutzleiterstrom, SK II/III = Berührungsstrom · ' +
   'Ersatzableitstrommessung ist bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer) nicht aussagekräftig - dort Differenzstrom- oder Direktmessung.';
@@ -719,19 +721,29 @@ function generatePDFGeraete(isBlank = false) {
   // passen Bewertung UND Unterschriften wieder auf Blatt 1.
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
+  // [Befund N5] Pruefumfang (Vollpruefung/Stichprobe, DIN VDE 0105-100)
+  // bekommt die erste Zeile im Kasten, UNTER dem Kastentitel (Titel-Baseline
+  // liegt bei y+5, siehe drawKategorieBox) - alles Weitere ruesckt um
+  // denselben Abstand nach unten.
+  const offUmfang = 9;
   // Die Ergebniszeile braucht seit dem dritten Ankreuzfeld ("Mängel behoben")
   // die volle Breite -> die Prüfplakette bekommt eine eigene Zeile.
-  const offErgebnis = 11;
+  const offErgebnis = offUmfang + 5.5;
   const offPlakette = offErgebnis + 5.5;
   const offBemLabel = offPlakette + 5.5;
   const offBemStart = offBemLabel + 4.2;
-  const boxHeight   = offBemStart + bemZeilen * 4.2 + 2.5;
+  const boxHeight   = offBemStart + bemZeilen * 4.2 + 1.5;
 
   /* 4.5.0 (C1): Bewertungskasten und Abschlussblock gemeinsam pruefen, damit
    * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen. */
   finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "3. GESAMTBEURTEILUNG", kat: 'ergebnis' });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+  // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), 13, finalY + offUmfang, 184, isBlank);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
@@ -929,6 +941,7 @@ const GERAETE_AUTOSAVE_KEY = 'vde_autosave_gp';
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
   'pruefart', 'pruefintervall', 'res_termin_date',
+  'pruefumfang',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
   'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];

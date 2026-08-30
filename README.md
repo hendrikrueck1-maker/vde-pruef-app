@@ -343,7 +343,7 @@ Anpassungen und Modifikationen sind erlaubt.
 
 ---
 
-**Version:** 4.6.0  
+**Version:** 4.6.1  
 **Letztes Update:** 2026-08-30  
 **Status:** ✅ Produktiv
 
