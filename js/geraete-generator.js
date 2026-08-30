@@ -543,16 +543,7 @@ function generatePDFGeraete(isBlank = false) {
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(2), spB, isBlank);
-  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot; der Hinweis
-  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
-  const isKalAbgelaufen = !isBlank &&
-    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
-                           document.getElementById('datum')?.value);
-  // Rot/Fett laeuft ueber den opts-Parameter von drawFeldZeile (siehe pdf-utils.js).
-  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank, { rot: isKalAbgelaufen });
-  // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
-  // der Messwerte erforderlich.
-  drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, z1(4), spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
 
   drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(1), spB, isBlank);
@@ -814,7 +805,7 @@ function generatePDFGeraete(isBlank = false) {
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText + (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : ''), 190);
+  const complianceLines = doc.splitTextToSize(complianceText, 190);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
   doc.setFont("helvetica", "bold");
@@ -937,7 +928,7 @@ const GERAETE_AUTOSAVE_KEY = 'vde_autosave_gp';
 
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
-  'kalibriert_bis', 'pruefart', 'pruefintervall', 'res_termin_date',
+  'pruefart', 'pruefintervall', 'res_termin_date',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
   'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -986,7 +977,6 @@ function restoreGeraeteState(state) {
   });
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
-  validateKalibrierung();
 
   if (state.devices && state.devices.length) {
     document.getElementById('devicesContainer').innerHTML = '';

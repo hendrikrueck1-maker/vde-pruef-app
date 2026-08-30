@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '4.5.0';
+var APP_VERSION = '4.6.0';
 
 /* ---------------------------------------------------------------------------
  * 2. PROTOKOLLE
@@ -111,6 +111,7 @@ var CORE_ASSETS = [
   'js/vendor/jspdf.plugin.autotable.min.js',
   'js/vendor/liberation-sans-font.js',
   'js/vendor/signature_pad.umd.min.js',
+  'js/vendor/jszip.min.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-192-maskable.png',

@@ -19,6 +19,7 @@
 
   <script src="js/app-config.js"></script>
   <script src="js/pwa.js" defer></script>
+  <script src="js/vendor/jszip.min.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/archiv.js"></script>
 </head>
@@ -34,6 +35,14 @@
     <input type="search" id="suchfeld" placeholder="Nummer, Gebäude, Prüfer, Dateiname …"
            oninput="listeZeichnen()" autocomplete="off">
     <div class="chip-row" id="chipRow"></div>
+  </div>
+
+  <div class="archiv-leiste" id="zipLeiste" hidden>
+    <span>Als ZIP-Datei sichern, monatsweise:</span>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <select id="zipMonatAuswahl" aria-label="Monat für ZIP-Export wählen"></select>
+      <button type="button" class="btn btn-secondary" onclick="zipMonatHerunterladen(this)">ZIP herunterladen</button>
+    </div>
   </div>
 
   <div class="archiv-leiste" id="auswahlLeiste" hidden>
@@ -89,6 +98,39 @@
       alleEintraege = liste;
       chipsZeichnen();
       listeZeichnen();
+      zipLeisteAktualisieren();
+    });
+  }
+
+  /* ---- ZIP-Export (monatsweise) ----------------------------------------- */
+  function zipLeisteAktualisieren() {
+    var leiste = document.getElementById('zipLeiste');
+    var monate = archivMonateListe(alleEintraege);
+    leiste.hidden = monate.length === 0;
+    if (!monate.length) return;
+
+    var auswahl = document.getElementById('zipMonatAuswahl');
+    var vorherGewaehlt = auswahl.value;
+    auswahl.innerHTML = '';
+    monate.forEach(function (m) {
+      var opt = document.createElement('option');
+      opt.value = m.schluessel;
+      opt.textContent = m.label + ' (' + m.anzahl + (m.anzahl === 1 ? ' Protokoll' : ' Protokolle') + ')';
+      auswahl.appendChild(opt);
+    });
+    if (vorherGewaehlt && monate.some(function (m) { return m.schluessel === vorherGewaehlt; })) {
+      auswahl.value = vorherGewaehlt;
+    }
+  }
+
+  function zipMonatHerunterladen(btn) {
+    var auswahl = document.getElementById('zipMonatAuswahl');
+    var schluessel = auswahl.value;
+    if (!schluessel) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird erstellt …'; }
+    archivZipMonatErstellen(schluessel, alleEintraege).then(function (anzahl) {
+      if (btn) { btn.disabled = false; btn.textContent = 'ZIP herunterladen'; }
+      if (!anzahl) alert('Für diesen Monat sind keine Protokolle im Archiv.');
     });
   }
 

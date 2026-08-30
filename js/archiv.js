@@ -233,6 +233,96 @@ function archivPdfHerunterladen(eintrag) {
   setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
 }
 
+/* ============================================================================
+ *  ZIP-EXPORT (ab App-Version 4.6.0)
+ * ----------------------------------------------------------------------------
+ *  Alle archivierten PDFs eines Monats werden zu einer einzigen .zip-Datei
+ *  gepackt und heruntergeladen. Zweck: bequemer Versand per E-Mail, ohne
+ *  jedes PDF einzeln anhaengen zu muessen. Die PDFs liegen in der ZIP-Datei
+ *  flach (kein Unterordner) und sind mit jedem Zip-Programm entpackbar.
+ * ========================================================================== */
+
+/* Schluessel im Format 'YYYY-MM', passend zur Sortierung von archivAlle(). */
+function archivMonatSchluessel(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return 'ohne-datum';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+/* Liefert die im Archiv vorkommenden Monate als Liste { schluessel, label, anzahl },
+ * neueste zuerst - fuer die Monatsauswahl im ZIP-Export. */
+function archivMonateListe(eintraege) {
+  var liste = eintraege || [];
+  var karte = {};
+  var reihenfolge = [];
+  liste.forEach(function (e) {
+    var schluessel = archivMonatSchluessel(e.erstellt);
+    if (!karte[schluessel]) {
+      karte[schluessel] = { schluessel: schluessel, label: archivMonatLabel(e.erstellt), anzahl: 0 };
+      reihenfolge.push(schluessel);
+    }
+    karte[schluessel].anzahl++;
+  });
+  return reihenfolge.map(function (s) { return karte[s]; });
+}
+
+/* Macht aus einem Dateinamen einen innerhalb der ZIP-Datei eindeutigen Namen,
+ * falls zwei Protokolle zufaellig denselben Dateinamen haetten. */
+function archivZipEindeutigerName(name, vergeben) {
+  var basis = name || 'Protokoll.pdf';
+  var stamm = basis.replace(/\.pdf$/i, '');
+  var endung = '.pdf';
+  var kandidat = basis;
+  var n = 2;
+  while (vergeben[kandidat]) {
+    kandidat = stamm + ' (' + n + ')' + endung;
+    n++;
+  }
+  vergeben[kandidat] = true;
+  return kandidat;
+}
+
+/* Packt alle Eintraege des angegebenen Monats (Schluessel 'YYYY-MM') zu einer
+ * ZIP-Datei und stoesst den Download an. Gibt die Anzahl gepackter PDFs zurueck
+ * (0 = nichts zu tun, ruft dann keinen Download auf). */
+function archivZipMonatErstellen(monatSchluessel, alleEintraege) {
+  if (typeof JSZip === 'undefined') {
+    alert('ZIP-Funktion nicht verfügbar (JSZip nicht geladen). Bitte Seite neu laden.');
+    return Promise.resolve(0);
+  }
+  var treffer = (alleEintraege || []).filter(function (e) {
+    return archivMonatSchluessel(e.erstellt) === monatSchluessel;
+  });
+  if (!treffer.length) return Promise.resolve(0);
+
+  var zip = new JSZip();
+  var vergeben = {};
+  treffer.forEach(function (e) {
+    var name = archivZipEindeutigerName(e.dateiname, vergeben);
+    zip.file(name, e.blob);
+  });
+
+  var monatLabel = treffer.length ? archivMonatLabel(treffer[0].erstellt) : monatSchluessel;
+  var dateiname = 'VDE-Protokolle_' + monatSchluessel + '.zip';
+
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+    .then(function (zipBlob) {
+      var url = URL.createObjectURL(zipBlob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = dateiname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
+      return treffer.length;
+    })
+    .catch(function (err) {
+      console.warn('[Archiv] ZIP-Erstellung fehlgeschlagen:', err);
+      alert('Die ZIP-Datei konnte nicht erstellt werden: ' + (err && err.message ? err.message : err));
+      return 0;
+    });
+}
+
 function archivPdfTeilen(eintraege) {
   var liste = Array.isArray(eintraege) ? eintraege : [eintraege];
   if (typeof File === 'undefined' || !navigator.share) {
@@ -293,7 +383,7 @@ var ARCHIV_UEBERNEHMEN = [
   'hausanschluss', 'vnb',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon',
   'uebergabe_standort', 'anschlussleistung_vertrag',
-  'messgeraet', 'seriennummer', 'kalibriert_bis',
+  'messgeraet', 'seriennummer',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erdung_messpunkt', 'pa_messpunkt', 'unterschrift_ort',
 

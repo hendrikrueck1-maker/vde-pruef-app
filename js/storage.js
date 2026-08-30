@@ -12,7 +12,6 @@ function getMasterData() {
     pruefer: "",
     messgeraet: "Fluke 1663",
     seriennummer: "SN-1663-98214",
-    kalibriert_bis: "",
     ort: "Konstanz"
   };
 }
@@ -26,7 +25,6 @@ function saveMasterData(showNotification = false) {
     pruefer: document.getElementById('m_pruefer').value,
     messgeraet: document.getElementById('m_messgeraet').value,
     seriennummer: document.getElementById('m_seriennummer').value,
-    kalibriert_bis: document.getElementById('m_kalibriert_bis')?.value || '',
     ort: document.getElementById('m_ort').value
   };
   localStorage.setItem('vde_master_data', JSON.stringify(data));
@@ -42,7 +40,6 @@ function loadMasterDataToDashboard() {
   document.getElementById('m_pruefer').value = data.pruefer || '';
   document.getElementById('m_messgeraet').value = data.messgeraet || '';
   document.getElementById('m_seriennummer').value = data.seriennummer || '';
-  if (document.getElementById('m_kalibriert_bis')) document.getElementById('m_kalibriert_bis').value = data.kalibriert_bis || '';
   document.getElementById('m_ort').value = data.ort || '';
 }
 
@@ -57,7 +54,6 @@ function applyMasterDataToForm() {
   setIfPresent('pruefer', data.pruefer || '');
   setIfPresent('messgeraet', data.messgeraet || '');
   setIfPresent('seriennummer', data.seriennummer || '');
-  setIfPresent('kalibriert_bis', data.kalibriert_bis || '');
   setIfPresent('unterschrift_ort', data.ort || '');
 }
 

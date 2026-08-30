@@ -95,7 +95,7 @@
         <div class="limit-hint">Wird automatisch vergeben, kann aber überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum" oninput="validateKalibrierung()"></div>
+      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
       <div class="form-group grid-full">
         <label>Hausanschluss / Speisepunkt (Vorsicherung):</label>
         <input type="text" id="hausanschluss" placeholder="z. B. NH 3x100 A gL – HAK Keller / CEE 63 A Einspeisung Open Air">
@@ -154,11 +154,6 @@
       <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="vnb"></div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
-      <div class="form-group">
-        <label>Prüfgerät kalibriert bis:</label>
-        <input type="date" id="kalibriert_bis" oninput="validateKalibrierung()">
-        <div class="limit-hint">Liegt das Datum vor dem Prüfdatum, wird das im Protokoll vermerkt: Messwerte ohne gültigen Kalibriernachweis sind im Streitfall angreifbar.</div>
-      </div>
     </div>
 
     <!-- NETZMESSUNG (optional) -->
@@ -275,11 +270,6 @@
       <div class="form-group">
         <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
         <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdung()">
-      </div>
-      <div class="form-group">
-        <label>Widerstand Schutzleiter / PA R<sub>PA</sub> (&Omega;) [&le; 1,0 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,12" oninput="validatePaWiderstand()">
-        <div class="limit-hint">Durchgängigkeitsmessung mit Prüfstrom &ge; 200 mA (DIN VDE 0100-600).</div>
       </div>
       <div class="form-group grid-full">
         <label>Messpunkt / Bezugspunkt der Messung:</label>
@@ -404,9 +394,6 @@
   const pads = initSignaturePads();
   padPruefer = pads.pruefer;
   padKunde = pads.kunde;
-
-  validatePaWiderstand();
-  validateKalibrierung();
 
   // Autosave entprellt (400 ms) - siehe autosaveAnhaengen() in pdf-utils.js.
   // Ohne Entprellung schrieb jeder einzelne Tastendruck das komplette Formular

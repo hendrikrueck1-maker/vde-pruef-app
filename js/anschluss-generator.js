@@ -305,7 +305,6 @@ function fillExampleDataAnschluss() {
   document.getElementById('uebergabe_standort').value = 'Verteilerkasten Bühnenzugang Ost';
   document.getElementById('anschlussleistung_vertrag').value = '63';
   document.getElementById('erdung_re').value = '3,2';
-  document.getElementById('pa_widerstand').value = '0,14';
   document.getElementById('pa_messpunkt').value = 'PA-Schiene im Übergabeverteiler Bühnenzugang Ost';
   // Netzmessung am Uebergabepunkt (neu in 4.5.0)
   document.getElementById('u_l1n').value = '231';
@@ -529,11 +528,8 @@ function generatePDFAnschluss(isBlank = false) {
     const g = feldWert('messgeraet');
     if (!g) return '';
     const sn = feldWert('seriennummer');
-    const kal = formatDatum(document.getElementById('kalibriert_bis')?.value);
     let t = g;
-    if (sn) t += ` (SN ${sn}`;
-    if (sn && kal) t += `, kal. bis ${kal}`;
-    if (sn) t += ')';
+    if (sn) t += ` (SN ${sn})`;
     return t;
   })();
 
@@ -543,13 +539,7 @@ function generatePDFAnschluss(isBlank = false) {
   drawFeldZeile(doc, "Veranstaltung/Anlass:", feldWert('veranstaltung'),   spL, z1(2), spB, isBlank);
   drawFeldZeile(doc, "Prüfer/-in:",           feldWert('pruefer'),         spL, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Prüfdatum:",            datum,                       spL, z1(4), spB, isBlank);
-  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot; der Hinweis
-  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
-  const isKalAbgelaufen = !isBlank &&
-    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
-                           document.getElementById('datum')?.value);
-  // Rot/Fett laeuft ueber den opts-Parameter von drawFeldZeile (siehe pdf-utils.js).
-  drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank, { rot: isKalAbgelaufen });
+  drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank);
 
   drawFeldZeile(doc, "Firma/Netzbetreiber:",     feldWert('vnb'),                           spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Ansprechpartner/-in:",     feldWert('bereitsteller_ansprechpartner'),  spR, z1(1), spB, isBlank);
@@ -829,8 +819,7 @@ function generatePDFAnschluss(isBlank = false) {
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
   const OFF_PA = 10;
-  const OFF_MESS = OFF_PA + ZA;
-  const OFF_PUNKT = OFF_MESS + ZA;
+  const OFF_PUNKT = OFF_PA + ZA;
   const offErgebnis   = OFF_PUNKT + ZA + 2;
   const offFreigabe   = offErgebnis + 5.5;
   const offBemLabel   = offFreigabe + 5.5;
@@ -853,19 +842,11 @@ function generatePDFAnschluss(isBlank = false) {
   drawCheckbox(doc, 70, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
   drawCheckbox(doc, 85, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
 
-  /* R_PA gegen den Grenzwert pruefen, der ohnehin auf dem Blatt steht. */
-  const isPaOut = !isBlank && paWiderstandUeberschritten(document.getElementById('pa_widerstand')?.value);
-  // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
-  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_{PA} (≤ ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ω):`,
-                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ω') : '', 107, finalY + OFF_PA, 90, isBlank, { rot: isPaOut });
-
-
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
 
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_MESS, 90, isBlank, { rot: isErdungOut });
-
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 107, finalY + OFF_PA, 90, isBlank, { rot: isErdungOut });
 
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, Erdspieß, Fundamenterder):",
                 feldWert('pa_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
@@ -886,7 +867,7 @@ function generatePDFAnschluss(isBlank = false) {
    * ohne eigenen Potenzialausgleich, z. B. reine Schutztrennung). */
   const isPaFehlt = paVal === 'Nein';
   const restBeanstandungen = !isBlank && (freigabeVal === 'Nein' || leistungVal === 'Nein' ||
-                             anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut || isPaFehlt || isPaOut);
+                             anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut || isPaFehlt);
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
@@ -941,8 +922,7 @@ function generatePDFAnschluss(isBlank = false) {
 
   // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
   const complianceGesamt = complianceText +
-    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '') +
-    (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : '');
+    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
 
   /* Der Warntext bei Maengeln wird FETT gesetzt und ist damit rund 7 %
    * breiter als in normaler Schrift. Wurde er normal gemessen und fett
@@ -1056,12 +1036,11 @@ const ANSCHLUSS_AUTOSAVE_KEY = 'vde_autosave_ap';
 
 const ANSCHLUSS_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
-  'kalibriert_bis',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon', 'einspeisung_art', 'einspeisung_sonstiges',
   'uebergabe_standort', 'anschlussleistung_vertrag', 'vnb',
   // Netzmessung am Uebergabepunkt (neu in 4.5.0, Befund B1)
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'netzfrequenz',
-  'pa_angeschlossen', 'erdung_re', 'pa_widerstand', 'pa_messpunkt',
+  'pa_angeschlossen', 'erdung_re', 'pa_messpunkt',
   'res_maengel', 'res_leistung_ausreichend',
   'res_freigabe', 'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum',
   'protokollnummer'
@@ -1135,8 +1114,6 @@ function restoreAnschlussState(state) {
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
   validateErdungAnschluss();
-  validatePaWiderstand();
-  validateKalibrierung();
 
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });

@@ -485,7 +485,6 @@ function fillExampleData() {
   document.getElementById('anschluss_leiter').value = "5G";
   document.getElementById('anschluss_qs').value = "10 mm²";
   document.getElementById('erdung_re').value = "0,18";
-  document.getElementById('pa_widerstand').value = "0,11";
   document.getElementById('erdung_messpunkt').value = "HES (Haupterdungsschiene) Keller Gr. Haus";
   document.getElementById('hausanschluss').value = "NH 3x100 A gL (HAK Keller)";
   document.getElementById('u_l1n').value = "231";
@@ -545,10 +544,11 @@ const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017
  *     mehrere Protokolle fuer eine Anlage. Jetzt entsteht EIN PDF mit echten
  *     Fortsetzungsblaettern und fortlaufender Nummerierung.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1 = 6;    // 4.5.0: 7 -> 6. Gemessen: mit 7 Zeilen braucht
-                                 // Blatt 1 genau 289,4 mm - 6,4 mm zu viel. Lieber
-                                 // eine Zeile weniger als eine zweite Seite, auf der
-                                 // nichts steht als zwei Unterschriftslinien (C1)
+const LEER_ZEILEN_BLATT1 = 5;    // 4.6.0: 6 -> 5. Sektion 1 (Stammdaten) ist im
+                                 // Leerformular jetzt grosszuegiger fuer die
+                                 // Handschrift (ZA1 4,4 -> 6,2 mm) - die dafuer
+                                 // noetigen 13 mm werden hier eingespart, damit
+                                 // Blatt 1 weiterhin eine einzelne Seite bleibt.
 const LEER_ZEILEN_FOLGE  = 28;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE   = 8.0;  // mm, Handschrift (6,5 mm reichten nur zum Drucken)
 
@@ -747,8 +747,15 @@ function generatePDF(isBlank = false) {
   /* 4.5.0: 49 mm -> 44 mm. Das Ankreuzfeld "einphasig" ist entfallen, die
    * Netzmessung belegt nur noch zwei Zeilen Kurzfelder. Die gewonnenen 5 mm
    * werden gebraucht, damit Bewertung UND Unterschriften auf Blatt 1 passen. */
-  const SEK1_H = 42;
-  const ZA = 4.4;                        // Zeilenabstand innerhalb der Boxen (4.5.0: 4,6 -> 4,4)
+  const ZA = 4.4;                        // Zeilenabstand ab Sektion 4 (unveraendert)
+  /* 4.6.0: Im Leerformular sind die Stammdaten-Zeilen (Sektion 1) jetzt
+   * grosszuegiger, damit von Hand lesbar eingetragen werden kann - 5,7 mm statt
+   * 4,4 mm Zeilenabstand (+30 %). Im ausgefuellten Protokoll bleibt es beim
+   * kompakten Abstand, da dort ohnehin am Rechner getippt wird. Damit Blatt 1
+   * trotzdem eine Seite bleibt, wurde dafuer eine Eintragezeile aus der
+   * Messtabelle herausgenommen (LEER_ZEILEN_BLATT1 6 -> 5, siehe unten). */
+  const ZA1 = isBlank ? 5.7 : ZA;
+  const SEK1_H = isBlank ? 51 : 42;
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
 
   doc.setFontSize(7.2);
@@ -764,15 +771,12 @@ function generatePDF(isBlank = false) {
     const g = feldWert('messgeraet');
     if (!g) return '';
     const sn = feldWert('seriennummer');
-    const kal = formatDatum(document.getElementById('kalibriert_bis')?.value);
     let t = g;
-    if (sn) t += ` (SN ${sn}`;
-    if (sn && kal) t += `, kal. bis ${kal}`;
-    if (sn) t += ')';
+    if (sn) t += ` (SN ${sn})`;
     return t;
   })();
 
-  const z1 = (i) => y + 10 + i * ZA;
+  const z1 = (i) => y + 10 + i * ZA1;
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Anlage:",           feldWert('anlage_bez'),      spL, z1(2), spB, isBlank);
@@ -787,12 +791,7 @@ function generatePDF(isBlank = false) {
   drawFeldZeile(doc, "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - '), spR, z1(2), spB, isBlank);
   drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, z1(4), spB, isBlank);
-  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot. Der Hinweis
-  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
-  const isKalAbgelaufen = !isBlank &&
-    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
-                           document.getElementById('datum')?.value);
-  drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(5), spB, isBlank, { rot: isKalAbgelaufen });
+  drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(5), spB, isBlank);
 
   /* --- NETZMESSUNG ------------------------------------------------------
    * FRUEHER war das im Leerformular EINE beschriftete Linie ueber 184 mm
@@ -827,7 +826,7 @@ function generatePDF(isBlank = false) {
        * bleibt die Schreiblinie natuerlich stehen. */
       const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
       drawFeldZeile(doc, label + ':', text,
-                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA, NM_FELD_B, isBlank, { rot: !!rot });
+                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA1, NM_FELD_B, isBlank, { rot: !!rot });
     };
     doc.setFontSize(6.6);
     nmZelle('U L1-N',  'u_l1n', 0, 0);
@@ -924,7 +923,11 @@ function generatePDF(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.", 10, y + 3.4);
+  // Der Hinweis auf rot hinterlegte Werte ergibt im Leerformular keinen Sinn -
+  // dort wird nichts ausgefuellt und es kann nichts rot markiert sein.
+  doc.text(isBlank ? "Grenzwerte je Spalte im Tabellenkopf."
+                   : "Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.",
+           10, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -1141,17 +1144,7 @@ function generatePDF(isBlank = false) {
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_R, 90, isBlank, { rot: isErdungOut });
-
-
-  /* R_PA gegen den Grenzwert pruefen, der ohnehin auf dem Blatt steht.
-   * Bisher wurde der Wert nur gedruckt - ein Protokoll mit R_PA 5 Ohm gab die
-   * Anlage frei und widersprach damit seiner eigenen gedruckten Grenze. */
-  const isPaOut = !isBlank && paWiderstandUeberschritten(document.getElementById('pa_widerstand')?.value);
-
-  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_{PA} (≤ ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ω):`,
-                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ω') : '', 107, finalY + OFF_R, 90, isBlank, { rot: isPaOut });
-
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_R, 184, isBlank, { rot: isErdungOut });
 
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
@@ -1172,12 +1165,12 @@ function generatePDF(isBlank = false) {
   // "n.a." ist kein Befund und darf die Gesamtbewertung nicht kippen -
   // gezaehlt wird nur ein ausdrueckliches n.i.O.
   const anyErpNiO = Array.from(document.querySelectorAll('.erp-item')).some(el => el?.value === 'n.i.O.');
-  /* R_PA und die N-PE-Spannung gehen jetzt ebenfalls in die Gesamtbewertung
-   * ein. Die N-PE-Spannung ist der einzige Wert der Netzmessung, der
-   * eigenstaendig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung) -
-   * am Buehnenverteiler ist das lebensgefaehrlich. */
+  /* Die N-PE-Spannung geht ebenfalls in die Gesamtbewertung ein - sie ist der
+   * einzige Wert der Netzmessung, der eigenstaendig einen Fehler findet
+   * (hochohmiger PEN, Fremdeinspeisung) - am Buehnenverteiler ist das
+   * lebensgefaehrlich. */
   const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO ||
-                             anyMeasurementOut || isErdungOut || isPaOut || isNpeOut);
+                             anyMeasurementOut || isErdungOut || isNpeOut);
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
@@ -1250,8 +1243,7 @@ function generatePDF(isBlank = false) {
 
   // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
   const complianceGesamt = complianceText +
-    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '') +
-    (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : '');
+    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
 
   /* Derselbe Grund wie oben, hier aber mit groesserer Wirkung: der Warntext
    * bei Maengeln wird FETT gesetzt und ist damit rund 7 % breiter als in
@@ -1267,7 +1259,21 @@ function generatePDF(isBlank = false) {
   // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
   const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
   finalY += boxHeight + 5;
-  finalY = pdfPlatzPruefen(doc, finalY, abschlussHoehe);
+  /* 4.6.0: Im Leerformular darf der Abschlussblock nicht nur bis
+   * PDF_CONTENT_BOTTOM reichen, sondern muss VOR der Fussnotenzeile enden -
+   * sonst ueberschreiben sich Unterschriftenzeile und Fussnoten (siehe
+   * leerFussOben() in pdf-utils.js). Ohne diese Pruefung passte der Block
+   * nach dem Vergroessern der Stammdaten-Zeilen (Sektion 1) rechnerisch noch
+   * auf Blatt 1, kollidierte dort aber mit der Legende. */
+  if (isBlank) {
+    const fussGrenze = leerFussOben(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]) - 2;
+    if (finalY + abschlussHoehe > fussGrenze) {
+      doc.addPage();
+      finalY = PDF_CONTENT_TOP;
+    }
+  } else {
+    finalY = pdfPlatzPruefen(doc, finalY, abschlussHoehe);
+  }
 
   // GEWÄHRLEISTUNG & UNTERSCHRIFTEN
   doc.setFont("helvetica", "bold");
@@ -1391,10 +1397,9 @@ const AUTOSAVE_KEY = 'vde_autosave_pr';
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
   'netzspannung', 'netzfrequenz', 'einspeisung', 'hausanschluss', 'vnb', 'messgeraet', 'seriennummer',
-  'kalibriert_bis',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
-  'erdung_re', 'pa_widerstand', 'erdung_messpunkt',
+  'erdung_re', 'erdung_messpunkt',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
   'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -1474,8 +1479,6 @@ function restoreProtocolState(state) {
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
   validateErdung();
-  validatePaWiderstand();
-  validateKalibrierung();
 
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });

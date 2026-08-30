@@ -1045,6 +1045,33 @@ function formelZeilenUmbrechen(doc, text, maxBreite, basis) {
   return zeilen;
 }
 
+/* Bricht die Fussnoten-Textbloecke in Zeilen um (gemeinsam von drawLeerFuss()
+ * und leerFussOben() genutzt, damit beide IMMER dieselbe Zeilenzahl sehen). */
+function leerFussZeilen(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  const zeilen = [];
+  texte.forEach(function (t) {
+    formelZeilenUmbrechen(doc, t, PDF_CONTENT_WIDTH, LEER_FUSS_PT)
+      .forEach(function (z) { zeilen.push(z); });
+  });
+  return zeilen;
+}
+
+/* Liefert die y-Position der OBERSTEN Fussnotenzeile, OHNE zu zeichnen -
+ * damit die Aufrufstelle VOR dem Zeichnen des darueberliegenden Inhalts
+ * (Freigabe, Unterschriften) weiss, wie viel Platz die Fussnoten brauchen
+ * werden, und nicht erst hinterher durch Ueberlappung davon erfaehrt. */
+function leerFussOben(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  if (!texte.length) return LEER_FUSS_UNTEN;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(LEER_FUSS_PT);
+  const zeilen = leerFussZeilen(doc, bloecke);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  return LEER_FUSS_UNTEN - (zeilen.length - 1) * LEER_FUSS_ZEILE;
+}
+
 /* Setzt die uebergebenen Textbloecke als Fussnoten der AKTUELLEN Seite.
  * Rueckgabe: y der obersten Grundlinie - damit die Aufrufstelle pruefen kann,
  * ob der darueberliegende Inhalt noch Platz hat. */
@@ -1056,11 +1083,7 @@ function drawLeerFuss(doc, bloecke) {
   doc.setFontSize(LEER_FUSS_PT);
   doc.setTextColor.apply(doc, PDF_MUTED);
 
-  const zeilen = [];
-  texte.forEach(function (t) {
-    formelZeilenUmbrechen(doc, t, PDF_CONTENT_WIDTH, LEER_FUSS_PT)
-      .forEach(function (z) { zeilen.push(z); });
-  });
+  const zeilen = leerFussZeilen(doc, bloecke);
 
   const yOben = LEER_FUSS_UNTEN - (zeilen.length - 1) * LEER_FUSS_ZEILE;
   zeilen.forEach(function (z, i) {
@@ -1176,9 +1199,9 @@ function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
 /* opts.rot = true  ->  Beschriftung UND Wert werden rot und fett gesetzt.
  *
  * FRUEHER: Die Funktion begann mit setFont('normal') + setTextColor(PDF_TEXT).
- * Aufrufer, die vorher auf Rot/Fett geschaltet hatten (abgelaufene
- * Kalibrierung, U_N-PE ueber Schwelle, R_E und R_PA ueber Grenzwert), bekamen
- * ihre Markierung genau hier zurueckgesetzt. Die Gesamtbewertung kippte
+ * Aufrufer, die vorher auf Rot/Fett geschaltet hatten (U_N-PE ueber Schwelle,
+ * R_E ueber Grenzwert), bekamen ihre Markierung genau hier zurueckgesetzt.
+ * Die Gesamtbewertung kippte
  * korrekt, aber der Wert, der sie gekippt hatte, stand schwarz im Dokument -
  * wer das Protokoll las, sah die Warnung und fand die Ursache nicht.
  * Deshalb wird die Hervorhebung jetzt ueber diesen Parameter gesteuert und
@@ -1456,49 +1479,6 @@ function validateErdung() {
 
 // Gleiche Logik, eigener Name fuer die Anschlusspruefung (Aufrufe im HTML).
 const validateErdungAnschluss = validateErdung;
-
-/* DURCHGAENGIGKEIT SCHUTZLEITER / POTENZIALAUSGLEICH R_PA
- * 1,0 Ohm steht als Grenzwert im Formular UND im gedruckten Protokoll - der
- * Wert wurde bisher aber nirgends geprueft. Ein Protokoll, das seinen eigenen
- * gedruckten Grenzwert verletzt und trotzdem freigibt, ist als Nachweis
- * wertlos. Messung mit Pruefstrom >= 200 mA (DIN VDE 0100-600). */
-const PA_WIDERSTAND_GRENZWERT = 1.0;
-
-function paWiderstandUeberschritten(wert) {
-  var num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
-  return !isNaN(num) && num > PA_WIDERSTAND_GRENZWERT;
-}
-
-function validatePaWiderstand() {
-  var el = document.getElementById('pa_widerstand');
-  if (!el) return;
-  if (el.value.trim() === '') { el.classList.remove('out-of-norm'); return; }
-  if (paWiderstandUeberschritten(el.value)) el.classList.add('out-of-norm');
-  else el.classList.remove('out-of-norm');
-}
-
-/* KALIBRIERUNG DES PRUEFGERAETS
- * Ein Protokoll, das mit einem nicht kalibrierten Messgeraet aufgenommen
- * wurde, ist im Streitfall der erste Angriffspunkt. Die Angabe stand bisher
- * nur als Text im Kopf und wurde nicht mit dem Pruefdatum verglichen. */
-function kalibrierungAbgelaufen(kalibriertBisIso, pruefdatumIso) {
-  var kal = String(kalibriertBisIso || '').trim();
-  var pruef = String(pruefdatumIso || '').trim() || heuteIso();
-  if (!kal) return false;
-  return kal < pruef;   // ISO-Datumsstrings lassen sich direkt vergleichen
-}
-
-const KALIBRIERUNG_HINWEIS_PDF =
-  ' Hinweis: Das verwendete Prüfgerät war zum Prüfzeitpunkt nicht mehr kalibriert. Die Messwerte sind ' +
-  'ohne gültigen Kalibriernachweis dokumentiert.';
-
-function validateKalibrierung() {
-  var el = document.getElementById('kalibriert_bis');
-  if (!el) return;
-  var pruef = document.getElementById('datum');
-  if (kalibrierungAbgelaufen(el.value, pruef ? pruef.value : '')) el.classList.add('out-of-norm');
-  else el.classList.remove('out-of-norm');
-}
 
 /* ============================================================================
  *  PDF-AUSGABE FUER ALLE PLATTFORMEN

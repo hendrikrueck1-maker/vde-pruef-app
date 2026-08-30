@@ -98,7 +98,7 @@
         <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum" oninput="validateKalibrierung()"></div>
+      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
       <div class="form-group">
         <label>Nächster Prüftermin (Monat/Jahr, automatisch):</label>
         <input type="month" id="res_termin_date">
@@ -106,11 +106,6 @@
       </div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
-      <div class="form-group">
-        <label>Prüfgerät kalibriert bis:</label>
-        <input type="date" id="kalibriert_bis" oninput="validateKalibrierung()">
-        <div class="limit-hint">Liegt das Datum vor dem Prüfdatum, wird das im Protokoll vermerkt.</div>
-      </div>
     </div>
 
     <!-- 2. GERÄTE -->
