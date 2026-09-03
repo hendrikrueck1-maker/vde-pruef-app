@@ -32,7 +32,10 @@ function addDeviceCard(data = {}) {
   card.innerHTML = `
     <div class="feed-header">
       <span>Gerät #${cardCounter}</span>
-      <button type="button" class="btn-danger" onclick="removeCard('device_${cardCounter}')">Entfernen</button>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereGeraet('device_${cardCounter}')" title="Neue Karte mit derselben Schutzklasse, Leitungslänge und Messmethode. Messwerte und Inventarnummer bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('device_${cardCounter}')">Entfernen</button>
+      </span>
     </div>
 
     <div class="grid">
@@ -67,7 +70,7 @@ function addDeviceCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2.0" oninput="heizleistungGeaendert(${cardCounter})">
+        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2,0" oninput="heizleistungGeaendert(${cardCounter})">
         <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
       </div>
     </div>
@@ -75,10 +78,10 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
-        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option></select></div>
+        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       </div>
     </div>
 
@@ -94,7 +97,7 @@ function addDeviceCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.20" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,20" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_${cardCounter}"></span>:</label>
@@ -102,21 +105,84 @@ function addDeviceCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0.3" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0,3" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Messmethode Ableitstrom:</label>
-          <select class="c-ableit-methode">
+          <select class="c-ableit-methode" onchange="ableitMethodeGeaendert(${cardCounter})">
             <option>Ersatzableitstrom</option>
             <option>Differenzstrommessung</option>
             <option>Direktmessung Berührungsstrom</option>
           </select>
+          <div class="limit-hint" id="ableit_methode_hint_${cardCounter}"></div>
         </div>
       </div>
     </div>
   `;
+  if (data.ableit_methode) {
+    const m = card.querySelector('.c-ableit-methode');
+    if (m) m.value = data.ableit_methode;
+  }
   container.appendChild(card);
+  nummeriereKartenNeu('#devicesContainer', '.feed-card', 'Gerät');
   validateDeviceNorms(cardCounter);
+  ableitMethodeGeaendert(cardCounter);
+}
+
+/* Karte duplizieren - ohne Messwerte und ohne Inventarnummer.
+ * Auf einer Buehne stehen 24 baugleiche Scheinwerfer: gleiche Schutzklasse,
+ * gleiche Leitungslaenge, gleiches Messverfahren, verschiedene Inventarnummern
+ * und verschiedene Messwerte. Die Inventarnummer wird bewusst NICHT kopiert -
+ * sie identifiziert den Prueflinge eindeutig (DIN EN 50699) und darf nie
+ * doppelt vergeben werden. */
+function dupliziereGeraet(cardDomId) {
+  const card = document.getElementById(cardDomId);
+  if (!card) return;
+  const w = (sel) => card.querySelector(sel)?.value || '';
+  const bezAlt = w('.c-bez').trim();
+  addDeviceCard({
+    bez: bezAlt ? bezAlt + ' (Kopie)' : '',
+    typ: w('.c-typ'),
+    schutzklasse: w('.c-schutzklasse'),
+    laenge: w('.c-laenge'),
+    heizelement: card.querySelector('.c-heizelement')?.checked || false,
+    heizleistung: w('.c-heizleistung'),
+    ableit_methode: w('.c-ableit-methode')
+    // invnr, rpe, riso, ableitstrom bleiben leer.
+  });
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  const neu = document.querySelector('#devicesContainer .feed-card:last-child .c-invnr');
+  if (neu) neu.focus();
+}
+
+/* MESSVERFAHREN DES ABLEITSTROMS
+ * Die Ersatzableitstrommessung speist eine Pruefspannung ein, bei der
+ * netzspannungsabhaengige Schaltelemente NICHT arbeiten. Bei Geraeten mit
+ * Elektronik - LED-Scheinwerfer, Movinglights, elektronische Vorschaltgeraete,
+ * Schaltnetzteile, Dimmer, Endstufen - misst sie deshalb systematisch zu
+ * niedrig. Auf einer Konzertbuehne ist das heute der Regelfall, nicht die
+ * Ausnahme: das Verfahren liefert dort einen unauffaelligen Wert, der nichts
+ * beweist. DIN EN 50699 verlangt in diesem Fall die Differenzstrom- oder die
+ * direkte Messung des Beruehrungsstroms.
+ * Der Hinweis blockiert nichts - es gibt Geraete ohne Elektronik, bei denen
+ * das Ersatzverfahren richtig ist. Er sagt nur, worauf zu achten ist. */
+function ableitMethodeGeaendert(cardId) {
+  const card = document.getElementById(`device_${cardId}`);
+  if (!card) return;
+  const hint = document.getElementById(`ableit_methode_hint_${cardId}`);
+  const methode = card.querySelector('.c-ableit-methode')?.value || '';
+  if (hint) {
+    /* Bewusst nur ein Hinweis, keine Beanstandung: bei einem Verlaengerungs-
+     * kabel oder einem Geraet ohne Elektronik ist das Ersatzverfahren richtig.
+     * Ob Elektronik verbaut ist, kann nur die pruefende Person wissen - eine
+     * Annahme waere hier so falsch wie beim RCD-Pruefstrom. Deshalb erinnert
+     * die Zeile, statt zu markieren. */
+    hint.textContent = /ersatzableitstrom/i.test(methode)
+      ? 'Hinweis: bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer, Endstufe) nicht aussagekräftig – dort Differenzstrom- oder Direktmessung. Bei Kabeln und Geräten ohne Elektronik ist das Verfahren richtig.'
+      : '';
+    hint.classList.remove('out-of-norm');
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
 }
 
 /* Haekchen umgeschaltet: ohne Heizelement ist eine Heizleistung gegenstandslos
@@ -198,7 +264,7 @@ function validateDeviceNorms(cardId) {
     rpeElem.classList.remove('out-of-norm');
   } else {
     rpeElem.disabled = false;
-    rpeElem.placeholder = 'z. B. 0.20';
+    rpeElem.placeholder = 'z. B. 0,20';
     if (rpeElem.value.trim() !== '') {
       const num = parseFloat(rpeElem.value.replace(',', '.'));
       if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
@@ -253,8 +319,8 @@ function fillExampleDataGeraete() {
 
   document.getElementById('devicesContainer').innerHTML = '';
   cardCounter = 0;
-  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0.22', riso: '> 100', ableitstrom: '0.3' });
-  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2.5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0.48', riso: '> 200', ableitstrom: '0.1' });
+  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0,22', riso: '> 100', ableitstrom: '0,3' });
+  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2,5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0,48', riso: '> 200', ableitstrom: '0,1' });
 }
 
 // KOPFDATEN. Der Titel folgt jetzt dem Sprachgebrauch der geltenden Normen:
@@ -264,7 +330,66 @@ const GERAETE_KOPF = {
   titel: "PRÜFUNG ELEKTRISCHER GERÄTE",
   normzeile: "Wiederholungsprüfung nach DIN EN 50699 (VDE 0702) / Prüfung nach Reparatur nach DIN EN 50678 (VDE 0701)"
 };
-const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
+const GERAETE_REVISION = "Formular Rev. 2026-09 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
+
+/* ===========================================================================
+ *  LEERFORMULAR ZUM AUSFUELLEN VON HAND
+ * ---------------------------------------------------------------------------
+ *  FRUEHER hatte dieses Formular 16 Zeilen, keine Blattzahl-Auswahl und keine
+ *  Fortsetzungsblaetter. Bei einer Open-Air-Buehne mit 186 Prueflingen musste
+ *  man dasselbe Blatt zwoelfmal ausdrucken: jedes Mal "Nr. 1-16", jedes Mal
+ *  ein eigener Unterschriftenblock, keine Blattzaehlung - formal zwoelf
+ *  getrennte Protokolle fuer einen Pruefvorgang. Genau dieser Zustand war bei
+ *  Anlagen- und Anschlusspruefung bereits beseitigt; hier fehlte er.
+ *
+ *  Zeilenhoehe 6,5 mm -> 8,0 mm: 6,5 mm reichen zum Drucken, nicht zum
+ *  Schreiben. 8,0 mm ist dieselbe Hoehe wie in den beiden anderen Protokollen.
+ * ======================================================================== */
+const LEER_ZEILEN_BLATT1_GP = 13;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
+                                    // und die Legende auf Blatt 1 passen (Befund C1).
+                                    // 4.6.0 (N5): 14 -> 13, um Platz fuer die neue
+                                    // Pruefumfang-Zeile in Sektion 3 zu schaffen.
+const LEER_ZEILEN_FOLGE_GP  = 30;   // Zeilen je Fortsetzungsblatt
+const LEER_ZEILENHOEHE_GP   = 8.0;  // mm, Handschrift
+
+const GERAETE_HEAD = [[
+  'Nr.',
+  'Bezeichnung / Typ',
+  'Inv.-Nr.\nSeriennr.',
+  'Schutz-\nklasse',
+  'Leitung\n(m)',
+  'Sicht-\nprüfung',
+  'Funk-\ntion',
+  'R_{PE} (Ω)\n≤ 0,30 bis 5 m\n+0,1 je 7,5 m\nmax. 1,00 Ω (normativer Deckel)',
+  'R_{ISO} (MΩ) @ 500 V\nSK I ≥ 1,0 (Heiz. 0,3)\nSK II ≥ 2,0 · III ≥ 0,25',
+  'Ableitstrom (mA)\nSK I ≤ 3,5 (>3,5 kW: 1/kW, max 10)\nSK II/III ≤ 0,5 · Messverfahren'
+]];
+
+// 4.7.0: Summe = 180 mm statt vorher 190 mm - seit PDF_MARGIN_LEFT auf
+// 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle sonst 10 mm
+// ueber den neuen Satzspiegel hinaus. Alle Spalten proportional verkleinert.
+const GERAETE_SPALTEN = {
+  0: { cellWidth: 8 }, 1: { cellWidth: 32, halign: 'left' }, 2: { cellWidth: 15 },
+  3: { cellWidth: 9 }, 4: { cellWidth: 9 }, 5: { cellWidth: 23 },
+  6: { cellWidth: 11 }, 7: { cellWidth: 18 }, 8: { cellWidth: 19 },
+  9: { cellWidth: 36 }
+};
+
+/* Legende fuer das handschriftlich ausgefuellte Blatt. Ohne sie sind die
+ * Formelzeichen im Tabellenkopf fuer Auszubildende im ersten Lehrjahr nicht
+ * aufloesbar - in der App steht die Erklaerung unter jedem Feld, auf dem
+ * Papier stand sie nirgends. */
+const LEER_LEGENDE_GP =
+  'Legende: R_{PE} = Schutzleiterwiderstand (Messstrom ≥ 200 mA, Leitung dabei bewegen, max. 1,00 Ω nach DIN EN 50699 unabhängig von der Leitungslänge) · ' +
+  'R_{ISO} = Isolationswiderstand bei 500 V DC · SK = Schutzklasse (I mit Schutzleiter, II schutzisoliert, III Kleinspannung) · ' +
+  'Ableitstrom: SK I = Schutzleiterstrom, SK II/III = Berührungsstrom · ' +
+  'Ersatzableitstrommessung ist bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer) nicht aussagekräftig - dort Differenzstrom- oder Direktmessung.';
+
+function leerBlattzahlGeraete() {
+  const roh = parseInt(document.getElementById('leer_blaetter')?.value || '1', 10);
+  if (isNaN(roh)) return 1;
+  return Math.min(Math.max(roh, 1), 4);
+}
 
 function generatePDFGeraete(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
@@ -297,6 +422,18 @@ function generatePDFGeraete(isBlank = false) {
   if (!isBlank && document.querySelectorAll('#devicesContainer .feed-card').length === 0) {
     keinePrueflingeMelden('Gerät');
     return;
+  }
+
+  /* Ein Geraet ohne einen einzigen Messwert ist ebenso wenig eine Pruefung wie
+   * ein Protokoll ohne Geraet - und beim Start legt das Formular automatisch
+   * eine leere Karte an. Siehe prueflingeOhneMessung() in pdf-utils.js.
+   * R_PE entfaellt bei SK II/III (kein Schutzleiter), dort reicht R_ISO oder
+   * der Ableitstrom. */
+  if (!isBlank) {
+    const ohneMessung = prueflingeOhneMessung(
+      document.querySelectorAll('#devicesContainer .feed-card'),
+      ['.c-rpe', '.c-riso', '.c-ableitstrom']);
+    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Gerät'); return; }
   }
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
@@ -365,8 +502,16 @@ function generatePDFGeraete(isBlank = false) {
   const protokollNr = getVal('protokollnummer', "GP-JJJJ-MM-TT-XXX");
   const pruefNr = getVal('pruefungsnummer', "__________");
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
-  const naechsterTermin = isBlank ? "" : formatDatum(document.getElementById('res_termin_date').value);
-  const ort = getVal('unterschrift_ort', "Konstanz");
+  /* Das Feld ist ein <input type="month"> und liefert "JJJJ-MM".
+   * FRUEHER war es ein type="date"-Feld, in das updateNaechsterTermin() einen
+   * Monatswert schrieb - den der Browser verwarf. Das Feld blieb leer und im
+   * PDF stand bei "Nächster Prüftermin" nichts. */
+  const naechsterTermin = isBlank ? "" : formatMonat(document.getElementById('res_termin_date').value);
+  /* Im Leerformular bleibt der Ort offen: frueher stand dort fest "Konstanz",
+   * weil getVal() bei isBlank den Vorgabewert zurueckgibt. Auf einem
+   * unterschriebenen Dokument von einem auswaertigen Spielort war das eine
+   * falsche Ortsangabe. (In pdf-generator.js war das bereits behoben.) */
+  const ort = isBlank ? "" : getVal('unterschrift_ort', "");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
@@ -386,7 +531,10 @@ function generatePDFGeraete(isBlank = false) {
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
 
   doc.setFontSize(7.2);
-  const spL = 13, spR = 107, spB = 90;
+  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
+  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
+  // vor spR (107) endet.
+  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;
 
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
@@ -404,17 +552,7 @@ function generatePDFGeraete(isBlank = false) {
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(2), spB, isBlank);
-  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot; der Hinweis
-  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
-  const isKalAbgelaufen = !isBlank &&
-    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
-                           document.getElementById('datum')?.value);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
   drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
-  // Kalibriergueltigkeit des Pruefmittels: nach DGUV V3 fuer die Beweiskraft
-  // der Messwerte erforderlich.
-  drawFeldZeile(doc, "Prüfgerät kalibriert bis:", formatDatum(document.getElementById('kalibriert_bis')?.value) || '', spL, z1(4), spB, isBlank);
 
   drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(1), spB, isBlank);
@@ -428,11 +566,13 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", 10, y + 3.4);
+  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", PDF_MARGIN_LEFT, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
   let anyDeviceOut = false;
+  // Gewaehlte Blattzahl des Leerformulars (1-4).
+  const blaetterGp = isBlank ? leerBlattzahlGeraete() : 1;
 
   // BEISPIELZEILE IM LEERFORMULAR (grau/kursiv, als "Bsp" gekennzeichnet)
   const BEISPIEL_ZEILE_GP = [
@@ -455,7 +595,7 @@ function generatePDFGeraete(isBlank = false) {
   if (isBlank) {
     // Zeilenzahl so gewaehlt, dass Tabelle, Gesamtbeurteilung und Unterschriften
     // gemeinsam auf eine A4-Seite passen.
-    for (let i = 1; i <= 16; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
+    for (let i = 1; i <= LEER_ZEILEN_BLATT1_GP; i++) tableRows.push([i, "", "", "", "", "", "", "", "", ""]);
     beispielIndex = tableRows.length;
     tableRows.push(BEISPIEL_ZEILE_GP);
   } else {
@@ -472,11 +612,22 @@ function generatePDFGeraete(isBlank = false) {
       const sichtLabelsGeraet = ['Gehäuse/Isolierung', 'Leitung/Stecker', 'Kennzeichnung', 'Reparaturspuren'];
       const sichtVals = Array.from(card.querySelectorAll('.c-sicht-item')).map(el => el.value);
       const sichtNiO = sichtVals.some(v => v === 'n.i.O.');
-      // Bei Beanstandung wird jetzt benannt, WELCHER Punkt betroffen ist,
-      // statt nur ein pauschales "n.i.O." auszugeben.
-      const sichtText = sichtNiO
-        ? 'n.i.O.: ' + sichtVals.map((v, i) => v === 'n.i.O.' ? sichtLabelsGeraet[i] : null).filter(Boolean).join(', ')
-        : 'i.O.';
+      /* Bei Beanstandung wird benannt, WELCHER Punkt betroffen ist, statt ein
+       * pauschales "n.i.O." auszugeben.
+       * "n.a." wird ebenfalls benannt: ein selbstkonfektioniertes Kabel hat
+       * kein Typenschild - ohne diesen Zustand stand dort "i.O." fuer einen
+       * Punkt, den es nicht gibt. */
+      const sichtNa = sichtVals.map((v, i) => v === 'n.a.' ? sichtLabelsGeraet[i] : null).filter(Boolean);
+      let sichtText;
+      if (sichtNiO) {
+        sichtText = 'n.i.O.: ' + sichtVals.map((v, i) => v === 'n.i.O.' ? sichtLabelsGeraet[i] : null).filter(Boolean).join(', ');
+      } else if (sichtNa.length === sichtVals.length) {
+        sichtText = 'n.a.';
+      } else if (sichtNa.length) {
+        sichtText = 'i.O. (n.a.: ' + sichtNa.join(', ') + ')';
+      } else {
+        sichtText = 'i.O.';
+      }
 
       const funktion = card.querySelector('.c-funktion').value;
 
@@ -491,12 +642,12 @@ function generatePDFGeraete(isBlank = false) {
       // Grenzwert mitdrucken: er haengt von der Leitungslaenge ab und war fuer
       // den Leser des PDF sonst nicht nachvollziehbar.
       const rpeText = !rpeGiltPdf ? 'n.a.'
-        : (rpeVal ? `${rpeVal} Ω\n(max. ${rpeMax.toFixed(2)})` : '-');
+        : (rpeVal ? `${kommaZahl(rpeVal)} Ω\n(max. ${kommaZahl(rpeMax.toFixed(2))})` : '-');
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
       const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseFloat(risoVal.replace(',', '.'))) && parseFloat(risoVal.replace(',', '.')) < risoMin;
-      const risoText = risoVal ? `${risoVal} MΩ\n(min. ${risoMin})` : '-';
+      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(min. ${kommaZahl(risoMin)})` : '-';
 
       const ableitVal = card.querySelector('.c-ableitstrom').value;
       const heizleistung = card.querySelector('.c-heizleistung')?.value;
@@ -506,7 +657,7 @@ function generatePDFGeraete(isBlank = false) {
       const methode = card.querySelector('.c-ableit-methode').value || '';
       const methodeKurz = methode.replace('Direktmessung Berührungsstrom', 'Direktmessung').replace('Differenzstrommessung', 'Differenzstrom');
       const ableitText = ableitVal
-        ? `${ableitVal} mA (max. ${ableitMax})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
+        ? `${kommaZahl(ableitVal)} mA (max. ${kommaZahl(ableitMax)})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
         : '-';
 
       const isFunktionOut = funktion === 'n.i.O.';
@@ -519,7 +670,7 @@ function generatePDFGeraete(isBlank = false) {
         cleanStr(invnr),
         `Kl. ${sk}`,
         // auch dieses Feld ist Freitext -> ueber cleanStr ausgeben
-        laengeVal ? cleanStr(`${laengeVal} m`) : '-',
+        laengeVal ? cleanStr(`${kommaZahl(laengeVal)} m`) : '-',
         makeCell(cleanStr(sichtText), sichtNiO),
         makeCell(cleanStr(funktion), isFunktionOut),
         makeCell(cleanStr(rpeText), isRpeOut),
@@ -532,18 +683,7 @@ function generatePDFGeraete(isBlank = false) {
   doc.autoTable(mitFormelHooks(doc, {
     startY: y + 5,
     // Kopfzeilen mit Umbruch: Groesse / Einheit / Grenzwert untereinander
-    head: [[
-      'Nr.',
-      'Bezeichnung / Typ',
-      'Inv.-Nr.\nSeriennr.',
-      'Schutz-\nklasse',
-      'Leitung\n(m)',
-      'Sicht-\nprüfung',
-      'Funk-\ntion',
-      'R_{PE} (Ω)\n≤ 0,30 bis 5 m\n+0,1 je 7,5 m',
-      'R_{ISO} (MΩ)\nSK I ≥ 1,0\nSK II ≥ 2,0',
-      'Ableitstrom (mA)\nSK I ≤ 3,5 / SK II ≤ 0,5\nMessverfahren'
-    ]],
+    head: GERAETE_HEAD,
     body: tableRows,
     theme: 'grid',
     // Eine Messzeile darf nie am Seitenumbruch zerschnitten werden: das Fragment
@@ -558,14 +698,10 @@ function generatePDFGeraete(isBlank = false) {
     },
     bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
     // Summe = 190 mm (Seitenbreite 210 abzueglich 2 x 10 mm Rand)
-    columnStyles: {
-      0: { cellWidth: 8 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 16 },
-      3: { cellWidth: 9 }, 4: { cellWidth: 10 }, 5: { cellWidth: 24 },
-      6: { cellWidth: 12 }, 7: { cellWidth: 19 }, 8: { cellWidth: 20 },
-      9: { cellWidth: 38 }
-    },
+    columnStyles: GERAETE_SPALTEN,
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: isBlank ? 6.5 : 5, overflow: 'linebreak',
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
+              minCellHeight: isBlank ? LEER_ZEILENHOEHE_GP : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
       if (data.section === 'body' && data.row.index === beispielIndex) {
@@ -587,20 +723,34 @@ function generatePDFGeraete(isBlank = false) {
    * die letzten Zeichen fehlten im PDF. */
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 4 : Math.max(splitBemerkung.length, 1);
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
+  // 4.5.0 (C1): 4 -> 3 Schreiblinien. Zusammen mit einer Geraetezeile weniger
+  // passen Bewertung UND Unterschriften wieder auf Blatt 1.
+  const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
+  // [Befund N5] Pruefumfang (Vollpruefung/Stichprobe, DIN VDE 0105-100)
+  // bekommt die erste Zeile im Kasten, UNTER dem Kastentitel (Titel-Baseline
+  // liegt bei y+5, siehe drawKategorieBox) - alles Weitere ruesckt um
+  // denselben Abstand nach unten.
+  const offUmfang = 9;
   // Die Ergebniszeile braucht seit dem dritten Ankreuzfeld ("Mängel behoben")
   // die volle Breite -> die Prüfplakette bekommt eine eigene Zeile.
-  const offErgebnis = 11;
+  const offErgebnis = offUmfang + 5.5;
   const offPlakette = offErgebnis + 5.5;
   const offBemLabel = offPlakette + 5.5;
   const offBemStart = offBemLabel + 4.2;
-  const boxHeight   = offBemStart + bemZeilen * 4.2 + 2.5;
+  const boxHeight   = offBemStart + bemZeilen * 4.2 + 1.5;
 
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
+  /* 4.5.0 (C1): Bewertungskasten und Abschlussblock gemeinsam pruefen, damit
+   * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen. */
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "3. GESAMTBEURTEILUNG", kat: 'ergebnis' });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+  // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + offUmfang, 177, isBlank);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
@@ -618,26 +768,27 @@ function generatePDFGeraete(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
-  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfplakette erteilt:", 13, finalY + offPlakette);
-  drawCheckbox(doc, 45, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 57, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.text("Prüfplakette erteilt:", PDF_MARGIN_LEFT + 3, finalY + offPlakette);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
+  drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
+  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
+    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 13, finalY + offBemStart);
+    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
   }
 
   finalY += boxHeight + 5;
@@ -649,6 +800,14 @@ function generatePDFGeraete(isBlank = false) {
   if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
     alert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
     document.getElementById('res_gewaehrleistung')?.focus();
+    return;
+  }
+
+  // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
+  // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
+  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
+    alert(plaketteWiderspruchHinweis());
+    document.getElementById('res_plakette')?.focus();
     return;
   }
 
@@ -666,41 +825,104 @@ function generatePDFGeraete(isBlank = false) {
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText + (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : ''), 190);
+  const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
-  drawCheckbox(doc, 58, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 118, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  drawCheckbox(doc, 68, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
+  drawCheckbox(doc, 128, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  doc.text(complianceLines, 10, finalY + 4);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 4;
 
-  const ortDatum = unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`;
+  const ortDatum = isBlank
+    ? '________________, den ____________'
+    : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padPruefer.isEmpty()) {
-    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
+    // 4.7.0: x=10 -> PDF_MARGIN_LEFT (20 mm, Locherrand).
+    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', PDF_MARGIN_LEFT, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.2);
-  doc.line(10, finalY + 12, 90, finalY + 12);
+  doc.line(PDF_MARGIN_LEFT, finalY + 12, PDF_MARGIN_LEFT + 80, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
   }
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
+
+  /* --- LEERFORMULAR: LEGENDE IM FUSSBEREICH VON BLATT 1 -------------------
+   * Auf dem Papier gibt es keine Hinweiszeile unter jedem Feld wie in der App.
+   * Ohne diese Legende ist der Tabellenkopf fuer Auszubildende im ersten
+   * Lehrjahr nicht aufloesbar. Der Fussbereich reicht bis 291 mm. */
+  /* 4.5.0 (C4): 6 pt statt 4,8 pt und auf JEDEM Blatt - das Fortsetzungsblatt
+   * traegt denselben Tabellenkopf mit denselben Formelzeichen. */
+  if (isBlank) {
+    doc.setPage(1);
+    drawLeerFuss(doc, [LEER_LEGENDE_GP]);
+  }
+
+  /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ----------------------------
+   * Nur die Geraetetabelle, mit fortlaufender Nummerierung. Kopfdaten,
+   * Gesamtbewertung und Unterschriften stehen genau einmal auf Blatt 1 -
+   * sonst waeren es formal mehrere Protokolle fuer denselben Pruefvorgang.
+   * Die Seitenzahl in der Kopfbox ("Seite 2 von 3") stimmt dadurch
+   * automatisch; eine Blattzaehlung von Hand entfaellt. */
+  if (isBlank && blaetterGp > 1) {
+    let laufendeNr = LEER_ZEILEN_BLATT1_GP + 1;
+    for (let blatt = 2; blatt <= blaetterGp; blatt++) {
+      doc.addPage();
+      let yy = PDF_CONTENT_TOP;
+      drawKategorieTitel(doc, `FORTSETZUNG DER GERÄTEPRÜFUNG (BLATT ${blatt} VON ${blaetterGp})`, yy, 'messen');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.6);
+      doc.setTextColor(...PDF_MUTED);
+      doc.text('Gehört zum Protokoll mit der oben stehenden Protokoll-Nr. Kopfdaten, Gesamtbeurteilung und ' +
+               'Unterschriften stehen auf Blatt 1.', PDF_MARGIN_LEFT, yy + 3.4);
+      doc.setTextColor(...PDF_TEXT);
+
+      const folgeZeilen = [];
+      for (let i = 0; i < LEER_ZEILEN_FOLGE_GP; i++) {
+        folgeZeilen.push([laufendeNr++, "", "", "", "", "", "", "", "", ""]);
+      }
+      doc.autoTable(mitFormelHooks(doc, {
+        startY: yy + 5,
+        head: GERAETE_HEAD,
+        body: folgeZeilen,
+        theme: 'grid',
+        rowPageBreak: 'avoid',
+        headStyles: {
+          fillColor: katMessen.kopf, textColor: katMessen.akzent,
+          fontSize: 5.4, fontStyle: 'bold', halign: 'center', valign: 'middle',
+          lineColor: katMessen.rand, lineWidth: 0.15,
+          cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+        },
+        bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
+        columnStyles: GERAETE_SPALTEN,
+        margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+        styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
+                  minCellHeight: LEER_ZEILENHOEHE_GP, overflow: 'linebreak',
+                  cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
+      }));
+
+      // 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt.
+      drawLeerFuss(doc, [LEER_LEGENDE_GP]);
+    }
+  }
 
   drawProtokollSeitenkoepfe(doc, {
     ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: GERAETE_REVISION
@@ -717,18 +939,25 @@ function generatePDFGeraete(isBlank = false) {
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'GP');
-    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave);
+    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave, function () {
+      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('GP');
+    });
   });
 }
 
 // AUTOSAVE
 // Einheitliches Praefix 'vde_': der alte Schluessel 'geraete_protocol_autosave'
 // wurde von der Datensicherung nicht erfasst (siehe storage.js).
-const GERAETE_AUTOSAVE_KEY = 'vde_autosave_gp';
+// 4.7.0: siehe pdf-generator.js AUTOSAVE_KEY_AKTUELL() - mehrere parallele
+// Entwuerfe statt eines einzigen festen Schluessels.
+entwurfAusUrlUebernehmen('GP');
+let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('GP', 'vde_autosave_gp');
+function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AKTUELLER_ENTWURF_ID); }
 
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
-  'kalibriert_bis', 'pruefart', 'pruefintervall', 'res_termin_date',
+  'pruefart', 'pruefintervall', 'res_termin_date',
+  'pruefumfang',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
   'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -773,11 +1002,14 @@ function restoreGeraeteState(state) {
      * (heutiges Datum, Folgetermin) nicht ueberschreiben. */
     if ((id === 'datum' || id === 'unterschrift_datum' || id === 'res_termin_date') &&
         !String(val || '').trim()) return;
+    /* BUGFIX: siehe pdf-generator.js restoreProtocolState() - ein leerer
+     * Wert in einem Stammdatenfeld darf den frisch aus den zentralen
+     * Stammdaten uebernommenen Wert nicht ueberschreiben. */
+    if (MASTERDATA_FIELD_IDS.includes(id) && !String(val || '').trim()) return;
     el.value = val;
   });
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
-  validateKalibrierung();
 
   if (state.devices && state.devices.length) {
     document.getElementById('devicesContainer').innerHTML = '';
@@ -801,18 +1033,29 @@ function restoreGeraeteState(state) {
 }
 
 function autosaveProtocol() {
-  try { localStorage.setItem(GERAETE_AUTOSAVE_KEY, JSON.stringify(collectGeraeteState())); } catch (e) {}
+  try {
+    localStorage.setItem(GERAETE_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectGeraeteState()));
+    const anzahl = document.querySelectorAll('#devicesContainer .feed-card').length;
+    entwurfMerken('GP', AKTUELLER_ENTWURF_ID, {
+      protokollnummer: document.getElementById('protokollnummer')?.value || '',
+      bezeichnung: entwurfBezeichnung('GP', () => ({
+        anlage: document.getElementById('auftraggeber')?.value,
+        gebaeude: (document.getElementById('gebaeude_custom')?.value || '') + (anzahl ? ' · ' + anzahl + ' Geräte' : '')
+      }))
+    });
+  } catch (e) {}
 }
 
 function loadGeraeteAutosave() {
   try {
-    const raw = localStorage.getItem(GERAETE_AUTOSAVE_KEY);
+    const raw = localStorage.getItem(GERAETE_AUTOSAVE_KEY_AKTUELL());
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
 function clearGeraeteAutosave() {
-  localStorage.removeItem(GERAETE_AUTOSAVE_KEY);
+  localStorage.removeItem(GERAETE_AUTOSAVE_KEY_AKTUELL());
+  entwurfEntfernen(AKTUELLER_ENTWURF_ID);
 }
 
 function resetGeraeteForm() {
@@ -835,11 +1078,13 @@ function resetGeraeteForm() {
 }
 
 function neuesGeraeteProtokoll() {
-  if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular werden zurückgesetzt.')) return;
+  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('GP');
+  verbraucheProtokollNummer(nr, 'GP');
+  AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('GP');
   resetGeraeteForm();
   document.getElementById('protokollnummer').value = nr;
-  clearGeraeteAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
+  autosaveProtocol();
+  alert(`Neues Protokoll angelegt: ${nr}`);
 }

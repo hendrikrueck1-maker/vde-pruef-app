@@ -366,6 +366,16 @@ function monatIsoInJahren(n) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+/* "JJJJ-MM" (Wert eines <input type="month">) -> "MM / JJJJ".
+ * Ein leerer oder unerwarteter Wert bleibt unveraendert. */
+function formatMonat(isoMonat) {
+  var m = String(isoMonat === undefined || isoMonat === null ? '' : isoMonat).trim();
+  if (!m) return '';
+  var teile = m.split('-');
+  if (teile.length !== 2) return m;
+  return teile[1] + ' / ' + teile[0];
+}
+
 // Setzt ein <input type="date"> auf das heutige LOKALE Datum.
 function datumsfeldAufHeute(id) {
   var el = document.getElementById(id);
@@ -411,18 +421,184 @@ function setValue(fieldId, val) {
   }
 }
 
-function removeCard(id) { const el = document.getElementById(id); if (el) el.remove(); }
+/* ---------------------------------------------------------------------------
+ *  KARTEN NACH LOESCHEN LUECKENLOS NEU DURCHNUMMERIEREN
+ * ---------------------------------------------------------------------------
+ *  FRUEHER zeigte jede Karte im Header "Stromkreis #N" mit N = cardCounter
+ *  ZUM ZEITPUNKT DER ERSTELLUNG. cardCounter wird beim Loeschen nie wieder
+ *  heruntergezaehlt (das darf er auch nicht - er liefert die eindeutige DOM-
+ *  ID 'circuit_N' fuer onclick-Handler). Wurde z. B. Stromkreis 2 geloescht,
+ *  blieben die sichtbaren Nummern 1, 3, 4, ... stehen - keine fortlaufende
+ *  Reihenfolge mehr, obwohl im Protokoll (PDF-Spalte "Nr.") ohnehin lueckenlos
+ *  1, 2, 3 gezaehlt wird.
+ *
+ *  JETZT: nummeriereKartenNeu() aendert NUR den sichtbaren Text im Header
+ *  (z. B. "Stromkreis #2"), NICHT die interne DOM-ID/den cardCounter - die
+ *  bleiben fuer onclick="removeCard('circuit_7')" etc. unveraendert gueltig.
+ *  Wird nach jedem Hinzufuegen/Entfernen/Wiederherstellen aufgerufen. */
+/* Konfiguration je Formulartyp - Container-ID -> {kartenSelector, praefix}.
+ * removeCard() schlaegt hier nach, WELCHE Nummerierung fuer den Container
+ * gilt, aus dem gerade eine Karte entfernt wurde. */
+const KARTEN_NUMMERIERUNG = {
+  '#circuitsContainer': { kartenSelector: '.circuit-card', praefix: 'Stromkreis' },
+  '#feedsContainer': { kartenSelector: '.feed-card', praefix: 'Übergabepunkt' },
+  '#devicesContainer': { kartenSelector: '.feed-card', praefix: 'Gerät' }
+};
+
+function nummeriereKartenNeu(containerSelector, kartenSelector, praefix) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  const karten = container.querySelectorAll(kartenSelector);
+  karten.forEach((karte, i) => {
+    const label = karte.querySelector('.circuit-header span, .feed-header span');
+    if (label) label.textContent = praefix + ' #' + (i + 1);
+  });
+}
+
+function removeCard(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const container = el.parentElement;
+  el.remove();
+  if (container && typeof KARTEN_NUMMERIERUNG !== 'undefined') {
+    const cfg = KARTEN_NUMMERIERUNG['#' + container.id];
+    if (cfg) nummeriereKartenNeu('#' + container.id, cfg.kartenSelector, cfg.praefix);
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+/* ---------------------------------------------------------------------------
+ *  AUTOSAVE ENTPRELLEN
+ * ---------------------------------------------------------------------------
+ *  Die Formulare haengen autosaveProtocol an das 'input'-Ereignis. Bisher las
+ *  damit JEDER EINZELNE TASTENDRUCK das komplette Formular aus, baute ein JSON
+ *  und schrieb es synchron in den localStorage. Bei zwei Stromkreiskarten
+ *  faellt das nicht auf. Bei 40 Karten sind das rund 500 Felder pro Anschlag -
+ *  auf einem Baustellen-Tablet wird die Eingabe spuerbar zaeh, auf aelteren
+ *  Geraeten unbenutzbar. Genau die grossen Anlagen, fuer die sich die App
+ *  lohnt, waren am langsamsten.
+ *
+ *  400 ms Verzoegerung: fuer den Datenverlust-Schutz voellig ausreichend
+ *  (gespeichert wird, sobald die Person kurz innehaelt), fuer die Tippgefuehl
+ *  ist der Unterschied vollstaendig. Vor dem Erzeugen eines PDF und beim
+ *  Verlassen der Seite wird zusaetzlich sofort geschrieben.
+ * ------------------------------------------------------------------------ */
+function entprellt(fn, ms) {
+  var timer = null;
+  var wrapped = function () {
+    var args = arguments, self = this;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () { timer = null; fn.apply(self, args); }, ms || 400);
+  };
+  // Sofort schreiben, ohne auf die Verzoegerung zu warten.
+  wrapped.sofort = function () {
+    if (timer) { clearTimeout(timer); timer = null; }
+    fn();
+  };
+  return wrapped;
+}
+
+/* Haengt Autosave entprellt an ein Formular und sorgt dafuer, dass beim
+ * Verlassen der Seite nichts verlorengeht. */
+function autosaveAnhaengen(formId, speichern) {
+  var form = document.getElementById(formId);
+  if (!form) return speichern;
+  var e = entprellt(speichern, 400);
+  form.addEventListener('input', e);
+  form.addEventListener('change', e);
+
+  /* 4.5.0 (D1): Dezimalkomma auch auf dem Bildschirm.
+   * Wer "0.11" tippt, sieht nach dem Verlassen des Feldes "0,11" - genau das,
+   * was spaeter im PDF steht. Umgestellt wird nur ein Punkt ZWISCHEN Ziffern
+   * und nur in Zahlenfeldern (inputmode="decimal"); Freitextfelder,
+   * Typbezeichnungen und Datumsangaben bleiben unangetastet. Alle
+   * Auswertungsfunktionen rechnen ohnehin bereits mit Komma. */
+  form.addEventListener('focusout', function (ev) {
+    var el = ev.target;
+    if (!el || el.tagName !== 'INPUT') return;
+    if (el.getAttribute('inputmode') !== 'decimal') return;
+    var neu = kommaZahl(el.value);
+    if (neu !== el.value) { el.value = neu; e(); }
+  });
+
+  window.addEventListener('pagehide', function () { e.sofort(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') e.sofort();
+  });
+  return e;
+}
 
 // MINDEST-KURZSCHLUSSSTROM FÜR SICHERES AUSLÖSEN DER ÜBERSTROMSCHUTZEINRICHTUNG
 // (oberer Auslösebereich der Charakteristik: B=5x, C=10x, D=20x In, nach DIN VDE 0100-410)
+/* SCHMELZSICHERUNGEN (gG/gL, NH, Diazed/Neozed) HABEN KEINE FESTE KENNLINIE
+ * IM SINNE VON 5x/10x/20x I_n. Ihr Ausloesestrom fuer 0,4 s ergibt sich aus der
+ * Herstellerkennlinie und liegt je nach Nennstrom etwa beim 4- bis 10-fachen.
+ * Frueher lieferte getMinIk() hier stillschweigend null: es fand KEINE
+ * Bewertung von I_K und Z_S statt, und das Protokoll sagte nicht, dass keine
+ * stattfand - die Zelle blieb unauffaellig schwarz. Auf einer Open-Air-
+ * Einspeisung mit NH-Vorsicherung war das der Regelfall. */
+function istSchmelzsicherung(sicherungText) {
+  return /\b(gG|gL|gl|NH|Diazed|Neozed|D0|DII|DIII|Schmelz)\b/i.test(String(sicherungText || ''));
+}
+
+/* [Befund N3] Fruehere Fassung erkannte die B/C/D-Charakteristik nur, wenn
+ * Buchstabe+Zahl am ANFANG der Zeichenkette standen (^([BCD])\s*([\d.,]+)).
+ * Schreibweisen mit Zusatztext davor - "LS B16", "B16A, 3-polig" - oder mit
+ * vertauschter Reihenfolge - "16 A Typ B" - wurden dadurch nicht erkannt, und
+ * die App bewertete Z_S/I_K in diesem Fall stillschweigend gar nicht, ohne das
+ * im Protokoll kenntlich zu machen. Jetzt wird an BELIEBIGER Stelle im Text
+ * gesucht, in beiden ueblichen Reihenfolgen:
+ *   - Buchstabe vor der Zahl:  "B16", "LS B 16", "Typ B16A"
+ *   - Zahl vor dem Buchstaben: "16 A Typ B", "16A Typ B, 3-polig"
+ * Wortgrenzen (\b) verhindern, dass B/C/D aus anderen Woertern (z. B. "Bau",
+ * "CEE") faelschlich als Charakteristik gelesen wird. */
 function getMinIk(sicherungText) {
-  if (!sicherungText) return null;
-  const match = sicherungText.trim().match(/^([BCD])\s*([\d.,]+)/i);
+  const info = sicherungCharakteristik(sicherungText);
+  if (!info) return null;
+  const multiplier = { B: 5, C: 10, D: 20 }[info.buchstabe];
+  return multiplier ? multiplier * info.rating : null;
+}
+
+/* Sagt, ob die Absicherung ANGEGEBEN, aber WEDER als Schmelzsicherung NOCH
+ * als B/C/D-Charakteristik erkannt wurde. Genau dieser Fall durfte bisher
+ * unbemerkt bleiben: die App zeigte nur einen unauffaelligen Platzhaltertext
+ * und erzeugte das PDF trotzdem, ohne dass Z_S/I_K in diesem Stromkreis
+ * tatsaechlich bewertet wurden. */
+function istAbsicherungUnbekannt(sicherungText) {
+  const text = String(sicherungText || '').trim();
+  if (!text) return false;
+  if (istSchmelzsicherung(text)) return false;
+  return sicherungCharakteristik(text) === null;
+}
+
+/* Liefert { buchstabe, rating } wenn eine B/C/D-Charakteristik mit Nennstrom
+ * gefunden wird, sonst null. Zentral, damit Bewertung (getMinIk/getMaxZs) und
+ * die "nicht erkannt"-Kennzeichnung im PDF exakt dieselbe Erkennung nutzen.
+ * Schmelzsicherungen (Diazed/Neozed/NH/gG/gL) haben Vorrang: "Diazed D2 20A"
+ * enthaelt zwar ein "D2", ist aber keine D-Charakteristik - istSchmelzsicherung()
+ * wird deshalb zuerst geprueft. */
+function sicherungCharakteristik(sicherungText) {
+  const text = String(sicherungText || '').trim();
+  if (!text || istSchmelzsicherung(text)) return null;
+  // Reihenfolge 1: Buchstabe direkt vor der Zahl, ggf. mit Zusatztext davor
+  // ("B16", "Typ B16A", "LS B16", "B16A, 3-polig", "LS-B16").
+  let match = text.match(/\b([BCD])\s*([\d]+(?:[.,]\d+)?)\s*A?\b/i);
+  if (!match) {
+    // Reihenfolge 2: Zahl vor dem Buchstaben ("16 A Typ B", "16A Typ B, 3-polig").
+    const m2 = text.match(/\b([\d]+(?:[.,]\d+)?)\s*A\b.{0,20}?\b([BCD])\b/i);
+    if (m2) match = [m2[0], m2[2], m2[1]];
+  }
+  if (!match) {
+    // Reihenfolge 1b: Buchstabe und Zahl getrennt durch Komma/Doppelpunkt,
+    // Zahl mit Einheit "A" ("Typ B, 16 A"). Enger gefasst als 1/2, damit z. B.
+    // "16A Typ B, 3-polig" nicht ueber diesen Zweig die "3" aus "3-polig" als
+    // Nennstrom nimmt.
+    match = text.match(/\b([BCD])\b\s*[,:]\s*([\d]+(?:[.,]\d+)?)\s*A\b/i);
+  }
   if (!match) return null;
   const rating = parseFloat(match[2].replace(',', '.'));
-  if (isNaN(rating)) return null;
-  const multiplier = { B: 5, C: 10, D: 20 }[match[1].toUpperCase()];
-  return multiplier ? multiplier * rating : null;
+  if (isNaN(rating) || rating <= 0) return null;
+  return { buchstabe: match[1].toUpperCase(), rating: rating };
 }
 
 // NENNSPANNUNG AUSSENLEITER GEGEN ERDE (Grundlage aller Ik-Berechnungen)
@@ -438,6 +614,43 @@ function getMaxZs(sicherungText) {
   const minIk = getMinIk(sicherungText);
   if (minIk === null || minIk <= 0) return null;
   return U_NULL / minIk;
+}
+
+/* Der 2/3-Wert war bisher nur ein Kommentar. Jetzt gibt es ihn wirklich:
+ * liegt Z_S zwischen 2/3 x Z_S,max und Z_S,max, ist der Wert zwar zulaessig,
+ * aber ohne Reserve fuer Messunsicherheit und Leitungserwaermung im
+ * Betriebszustand. Das ist ein HINWEIS (gelb), keine Beanstandung (rot). */
+function getZsHinweisgrenze(sicherungText) {
+  const maxZs = getMaxZs(sicherungText);
+  return maxZs === null ? null : maxZs * (2 / 3);
+}
+
+function zsOhneReserve(zsText, sicherungText) {
+  const grenze = getZsHinweisgrenze(sicherungText);
+  const maxZs = getMaxZs(sicherungText);
+  if (grenze === null || maxZs === null) return false;
+  const z = parseFloat(String(zsText || '').replace(',', '.'));
+  return !isNaN(z) && z > grenze && z <= maxZs;
+}
+
+/* RUECKWAERTSPLAUSIBILITAET DER AUSLOESEZEIT
+ * Eine Ausloesezeit von 210 ms bei angegebenem Pruefstrom 5x I_dn ist zwar
+ * unzulaessig, aber vor allem ist sie unwahrscheinlich: 210 ms ist ein
+ * typischer Wert fuer eine Messung mit 1x I_dn. Der haeufigste Fehler ist
+ * nicht der defekte RCD, sondern der falsch angegebene Pruefstrom. Statt nur
+ * "zu hoch" zu melden, wird darauf hingewiesen.
+ * Rueckgabe: der Pruefstrom, zu dem der Wert besser passt - oder null. */
+function passenderPruefstromFuerTa(taText, pruefstrom, istSelektiv) {
+  const ta = parseFloat(String(taText || '').replace(',', '.'));
+  if (isNaN(ta) || ta <= 0) return null;
+  const gemeldet = String(pruefstrom || '').replace(/[^\d]/g, '');
+  if (!gemeldet) return null;
+  const grenzen = istSelektiv ? { '5': 150, '2': 200, '1': 500 } : { '5': 40, '2': 150, '1': 300 };
+  // Der Wert ueberschreitet die Grenze des gemeldeten Pruefstroms nicht -> alles gut.
+  if (ta <= grenzen[gemeldet]) return null;
+  // Kleinster Pruefstrom, dessen Grenzwert der Messwert einhalten wuerde.
+  const passend = ['5', '2', '1'].filter(f => ta <= grenzen[f]);
+  return passend.length ? passend[passend.length - 1] : null;
 }
 
 /* KURZSCHLUSSSTROM AUS DER IMPEDANZ - identisch zur Anzeige "PFC" am Fluke 1663:
@@ -627,9 +840,10 @@ function istRcdSelektiv(typ) {
 // Liefert Text und Bewertungsflags fuer die RCD-Spalte.
 function buildRcdZelle(roh) {
   const typ = String(roh.typ || '').trim();
-  const idn = String(roh.idn || '').trim();
-  const imess = String(roh.imess || '').trim();
-  const ta = String(roh.ta || '').trim();
+  // 4.5.0 (D1): Zahlenwerte der RCD-Zelle mit Dezimalkomma.
+  const idn = kommaZahl(String(roh.idn || '').trim());
+  const imess = kommaZahl(String(roh.imess || '').trim());
+  const ta = kommaZahl(String(roh.ta || '').trim());
   const pruefstrom = String(roh.pruefstrom || '').trim();
 
   const ohneRcd = /ohne\s*rcd/i.test(typ);
@@ -763,6 +977,83 @@ function freigabeWidersprichtBefund(isBlank, hasIssues, freigabeWert) {
   return !isBlank && hasIssues && String(freigabeWert || '') === 'Ja';
 }
 
+/* ---------------------------------------------------------------------------
+ *  VIERTER WIDERSPRUCHSPFAD: PRUEFLING OHNE JEDE MESSUNG
+ * ---------------------------------------------------------------------------
+ *  Die App fing bisher ab, dass ein Protokoll GAR KEINEN Pruefling enthaelt
+ *  ("Ein Protokoll ohne einen einzigen Stromkreis ist keine Pruefung"). Ein
+ *  Stromkreis ohne einen einzigen Messwert ist es aber genauso wenig - und
+ *  beide Formulare legen beim Start automatisch leere Karten an.
+ *
+ *  Wer nur die Stammdaten ausfuellt und auf "PDF erzeugen" tippt, bekam
+ *  deshalb ein vollstaendiges Protokoll: "Keine Mängel festgestellt",
+ *  "Prüfplakette erteilt: Ja", "Sicherer Gebrauch gewährleistet" - ueber eine
+ *  Anlage, an der nachweislich nichts gemessen wurde. Das ist genau der Fall,
+ *  vor dem alle anderen Widerspruchspruefungen schuetzen sollen.
+ *
+ *  Dieselbe Regel wie beim RCD (siehe buildRcdZelle, Regel 3): eine Messung,
+ *  die nicht stattgefunden hat, darf nicht als bestanden erscheinen.
+ * ------------------------------------------------------------------------ */
+function istLeerWert(v) {
+  const t = String(v === undefined || v === null ? '' : v).trim();
+  return t === '' || t === '-';
+}
+
+/* Liefert die 1-basierten Nummern aller Karten, in denen KEIN einziges der
+ * angegebenen Messfelder gefuellt ist.
+ *
+ * totgelegtSelektor (optional): eine Karte, die als "totgelegt/Mangel
+ * festgestellt" markiert ist (siehe toggleTotlegung() in pdf-generator.js),
+ * wird von dieser Pruefung ausgenommen. Ein freigeschalteter, nicht in
+ * Betrieb befindlicher Stromkreis hat DEFINITIONSGEMAESS keine Messwerte -
+ * das darf den PDF-Export nicht blockieren, sonst waere eine dokumentierte
+ * Totlegung technisch gar nicht moeglich. */
+function prueflingeOhneMessung(karten, messSelektoren, totgelegtSelektor) {
+  const leer = [];
+  Array.from(karten).forEach((card, i) => {
+    const totEl = totgelegtSelektor ? card.querySelector(totgelegtSelektor) : null;
+    // Unterstuetzt sowohl die alte Checkbox (.checked) als auch das aktuelle
+    // i.O./n.i.O.-Auswahlfeld (siehe istTotgelegt() in pdf-generator.js) -
+    // ohne harte Abhaengigkeit von pdf-generator.js an dieser Stelle.
+    const istTot = totEl && (totEl.type === 'checkbox' ? totEl.checked : String(totEl.value || '').trim() === 'n.i.O.');
+    if (istTot) return;
+    const hatEinen = messSelektoren.some(sel => !istLeerWert(card.querySelector(sel)?.value));
+    if (!hatEinen) leer.push(i + 1);
+  });
+  return leer;
+}
+
+function ohneMessungMelden(nummern, bezeichnung) {
+  alert('Ohne Messwerte ist das kein Prüfprotokoll:\n\n' +
+    (nummern.length === 1 ? `${bezeichnung} ${nummern[0]} enthält` : `${bezeichnung} ${nummern.join(', ')} enthalten`) +
+    ' keinen einzigen Messwert.\n\n' +
+    'Ein Protokoll, das "keine Mängel" und eine Prüfplakette bescheinigt, obwohl an dieser Stelle nichts ' +
+    'gemessen wurde, ist als Nachweis wertlos und im Streitfall angreifbar.\n\n' +
+    'Bitte die Messwerte eintragen – oder die leere Karte entfernen, wenn es diesen Prüfling nicht gibt.\n\n' +
+    'Das PDF wurde deshalb nicht erstellt.');
+}
+
+/* DRITTER WIDERSPRUCHSPFAD: PLAKETTE TROTZ BEANSTANDUNG
+ * Die Pruefplakette bescheinigt nach aussen die bestandene Pruefung - sie ist
+ * das Einzige, was am Geraet oder an der Verteilung sichtbar bleibt, wenn das
+ * Protokoll im Ordner liegt. Ein Protokoll, das Maengel feststellt und
+ * gleichzeitig "Plakette erteilt: Ja" ankreuzt, stellt eine Plakette aus, die
+ * an der Anlage das Gegenteil dessen behauptet, was im Dokument steht.
+ * Beim Feld "Sicherer Gebrauch" wurde dieser Widerspruch bereits abgefangen,
+ * bei der Plakette nicht. */
+function plaketteWidersprichtBefund(isBlank, hasIssues, plaketteWert) {
+  return !isBlank && hasIssues && String(plaketteWert || '') === 'Ja';
+}
+
+function plaketteWiderspruchHinweis() {
+  return 'Widerspruch im Prüfergebnis:\n\n' +
+    'Das Protokoll enthält Beanstandungen (Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis), ' +
+    'gleichzeitig steht "Prüfplakette erteilt" auf "Ja".\n\n' +
+    'Die Plakette bescheinigt an der Anlage die bestandene Prüfung. Sie darf erst erteilt werden, ' +
+    'wenn die Beanstandungen ausgeräumt und nachgemessen sind.\n\n' +
+    'Das PDF wurde deshalb nicht erstellt.';
+}
+
 function freigabeWiderspruchHinweis(feldName) {
   return 'Widerspruch im Prüfergebnis:\n\n' +
     'Das Protokoll enthält Beanstandungen (Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis), ' +
@@ -784,30 +1075,41 @@ const MAENGEL_BEHOBEN_HINWEIS =
   'Das PDF wurde deshalb nicht erstellt.';
 
 // MAX. SCHUTZLEITERWIDERSTAND (Ohm): 0,3 Ohm BIS 5m LEITUNGSLÄNGE,
-// DANACH +0,1 Ohm JE ANGEFANGENE 7,5m (Prüfstrom mind. 200mA)
+// DANACH +0,1 Ohm JE ANGEFANGENE 7,5m (Prüfstrom mind. 200mA).
+// DIN EN 50699 begrenzt den zulässigen Wert unabhängig von der Leitungslänge
+// grundsätzlich auf 1,0 Ohm - bei langen Kabelwegen (Kabeltrommeln,
+// Verlängerungen über 50-100 m auf Open-Air-Flächen) würde die Formel ohne
+// diesen Deckel sonst Werte weit über der Norm freigeben.
+const RPE_DEVICE_DECKEL = 1.0;
 function getRpeMaxDevice(lengthM) {
   const len = parseFloat(String(lengthM).replace(',', '.'));
   if (isNaN(len) || len <= 5) return 0.3;
-  return 0.3 + Math.ceil((len - 5) / 7.5) * 0.1;
+  return Math.min(RPE_DEVICE_DECKEL, 0.3 + Math.ceil((len - 5) / 7.5) * 0.1);
 }
 
 // ---------------------------------------------------------------------------
 // GEMEINSAMER PDF-KOPF UND -FUSS FUER ALLE DREI PROTOKOLLTYPEN
 // ---------------------------------------------------------------------------
 // Die Infobox oben rechts beginnt bei x = 125 mm, ihr Text bei x = 128 mm.
-// Der Titel startet bei x = 10 mm -> nutzbar sind 112 mm. Frueher waren Titel
+// Der Titel startet bei x = PDF_MARGIN_LEFT (20 mm, 4.7.0) -> nutzbar sind 102 mm. Frueher waren Titel
 // und Normzeile mit fester Schriftgroesse gesetzt; bei den laengeren Titeln der
 // Anschluss- und Geraetepruefung lief der Text in die Box und ueberdruckte sie
 // zeichenweise. drawFittedText verkleinert stattdessen so weit noetig.
 
 const PDF_HEADER_BOX_X = 125;      // linke Kante der Infobox
-const PDF_TITLE_MAX_WIDTH = 112;   // 10 mm Rand bis 3 mm vor der Box
+const PDF_TITLE_MAX_WIDTH = 102;   // 4.7.0: linker Rand jetzt 20 mm (vorher 10) bis 3 mm vor der Box - Breite entsprechend um 10 mm reduziert
 const PDF_PRIMARY = [0, 51, 102];
 const PDF_TEXT = [15, 23, 42];
 const PDF_MUTED = [71, 85, 105];
-const PDF_BOX_BORDER = [203, 213, 225];
+/* 4.7.0: Kontrast von Umrandungen, Tabellenlinien und Eintragelinien erhöht -
+ * die vorherigen hellen Grautöne ([203,213,225] / [148,163,184]) waren auf
+ * Papier (v. a. bei einfachen Laserdruckern/Kopien) zu blass ablesbar.
+ * PDF_TABLE_LINE ersetzt die frueher an mehreren Stellen wiederholte
+ * Literalfarbe [203, 213, 225] in den lineColor-Angaben der Tabellen. */
+const PDF_BOX_BORDER = [100, 116, 139];
 const PDF_RED_TEXT = [153, 27, 27];
-const PDF_LINE = [148, 163, 184];  // Farbe der Eintragelinien im Leerformular
+const PDF_LINE = [71, 85, 105];    // Farbe der Eintragelinien im Leerformular
+const PDF_TABLE_LINE = [100, 116, 139];
 
 /* ---------------------------------------------------------------------------
  *  SEITENGEOMETRIE - EINE ZENTRALE STELLE FUER ALLE PROTOKOLLE
@@ -817,12 +1119,131 @@ const PDF_LINE = [148, 163, 184];  // Farbe der Eintragelinien im Leerformular
  *  PDF_CONTENT_TOP beginnen - fruehere Umbrueche setzten y = 15 und liefen
  *  dadurch in Titel und Trennlinie hinein.
  * ------------------------------------------------------------------------ */
-const PDF_MARGIN_LEFT = 10;
+/* 4.7.0: linker Rand auf 20 mm vergroessert (vorher 10 mm) - die Protokolle
+ * werden von Hendrik gelocht und abgeheftet; ein Standard-Locher setzt seine
+ * Loecher mit Mittelpunkt bei ca. 12-15 mm vom Blattrand (Lochdurchmesser
+ * ca. 8 mm), sodass bei 10 mm Rand Text/Rahmenlinien angeschnitten worden
+ * waeren. Der rechte Rand bleibt bei 10 mm (dort wird nicht gelocht). */
+const PDF_MARGIN_LEFT = 20;
 const PDF_MARGIN_RIGHT = 10;
-const PDF_CONTENT_WIDTH = 190;     // 210 mm - 2 x 10 mm
+const PDF_CONTENT_WIDTH = 180;     // 210 mm - 20 mm (links) - 10 mm (rechts)
 const PDF_CONTENT_TOP = 25;        // erste Zeile unter der Kopf-Trennlinie
 const PDF_CONTENT_BOTTOM = 283;    // letzte nutzbare Zeile ueber der Fusszeile
 const PDF_FOOTER_Y = 291;
+
+/* ---------------------------------------------------------------------------
+ *  FUSSBEREICH DES LEERFORMULARS - LEGENDE AUF JEDEM BLATT  (4.5.0, Befund C4)
+ * ---------------------------------------------------------------------------
+ *  VORHER: Legende, Musterzeile und Sollwerte standen in 4,6 pt (rund 1,6 mm
+ *  Schrifthoehe) und AUSSCHLIESSLICH auf Blatt 1. Die Fortsetzungsblaetter
+ *  trugen denselben Tabellenkopf mit denselben Formelzeichen (I_a, Z_S, I_Δn,
+ *  t_A, U_mess) und keinerlei Erklaerung - fuer Auszubildende im ersten
+ *  Lehrjahr endete das Ausfuellen genau dort.
+ *
+ *  JETZT: 6 pt (absolute Untergrenze fuer Fussnoten) und auf JEDEM Blatt.
+ *  Der Block waechst von unten nach oben, damit er nie in die Fusszeile
+ *  laeuft, egal wie viele Zeilen er braucht.
+ * ------------------------------------------------------------------------ */
+const LEER_FUSS_PT      = 6;      // Schriftgroesse der Fussnoten
+const LEER_FUSS_ZEILE   = 2.9;    // mm Zeilenabstand
+const LEER_FUSS_UNTEN   = 287;    // Grundlinie der letzten Fussnotenzeile (Fusszeile 291)
+
+/* Zeilenumbruch eines Formeltextes, ohne zu zeichnen. Gleiche Logik wie
+ * drawFormelAbsatz - nur so stimmt die vorab berechnete Zeilenzahl mit dem
+ * spaeteren Satz ueberein. */
+function formelZeilenUmbrechen(doc, text, maxBreite, basis) {
+  const woerter = String(text === undefined || text === null ? '' : text).split(/\s+/).filter(Boolean);
+  const zeilen = [];
+  let zeile = '';
+  woerter.forEach(function (wort) {
+    const test = zeile ? zeile + ' ' + wort : wort;
+    if (zeile && formelBreite(doc, test, basis) > maxBreite) {
+      zeilen.push(zeile);
+      zeile = wort;
+    } else {
+      zeile = test;
+    }
+  });
+  if (zeile) zeilen.push(zeile);
+  return zeilen;
+}
+
+/* Bricht die Fussnoten-Textbloecke in Zeilen um (gemeinsam von drawLeerFuss()
+ * und leerFussOben() genutzt, damit beide IMMER dieselbe Zeilenzahl sehen). */
+function leerFussZeilen(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  const zeilen = [];
+  texte.forEach(function (t) {
+    formelZeilenUmbrechen(doc, t, PDF_CONTENT_WIDTH, LEER_FUSS_PT)
+      .forEach(function (z) { zeilen.push(z); });
+  });
+  return zeilen;
+}
+
+/* Liefert die y-Position der OBERSTEN Fussnotenzeile, OHNE zu zeichnen -
+ * damit die Aufrufstelle VOR dem Zeichnen des darueberliegenden Inhalts
+ * (Freigabe, Unterschriften) weiss, wie viel Platz die Fussnoten brauchen
+ * werden, und nicht erst hinterher durch Ueberlappung davon erfaehrt. */
+function leerFussOben(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  if (!texte.length) return LEER_FUSS_UNTEN;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(LEER_FUSS_PT);
+  const zeilen = leerFussZeilen(doc, bloecke);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  return LEER_FUSS_UNTEN - (zeilen.length - 1) * LEER_FUSS_ZEILE;
+}
+
+/* Setzt die uebergebenen Textbloecke als Fussnoten der AKTUELLEN Seite.
+ * Rueckgabe: y der obersten Grundlinie - damit die Aufrufstelle pruefen kann,
+ * ob der darueberliegende Inhalt noch Platz hat. */
+function drawLeerFuss(doc, bloecke) {
+  const texte = (bloecke || []).filter(function (t) { return t && String(t).trim(); });
+  if (!texte.length) return LEER_FUSS_UNTEN;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(LEER_FUSS_PT);
+  doc.setTextColor.apply(doc, PDF_MUTED);
+
+  const zeilen = leerFussZeilen(doc, bloecke);
+
+  const yOben = LEER_FUSS_UNTEN - (zeilen.length - 1) * LEER_FUSS_ZEILE;
+  zeilen.forEach(function (z, i) {
+    drawFormel(doc, z, PDF_MARGIN_LEFT, yOben + i * LEER_FUSS_ZEILE, { fontSize: LEER_FUSS_PT });
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor.apply(doc, PDF_TEXT);
+  return yOben;
+}
+
+/* N-PE-SPANNUNG: SOLLWERT 0 V   (4.5.0 aus pdf-generator.js hierher verschoben)
+ * Ein nennenswerter Wert deutet auf einen hochohmigen PEN, eine Fremdeinspeisung
+ * oder eine Vertauschung hin. 1 V als Schwelle, damit Messrauschen nicht sofort
+ * rot wird. Liegt jetzt zentral, weil die Anschlusspruefung dieselbe Bewertung
+ * braucht (Befund B1) - am fremden Uebergabepunkt ist das der wichtigste
+ * Messwert ueberhaupt. */
+const U_NPE_SCHWELLE = 1.0;
+
+function npeUeberschritten(wert) {
+  const num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
+  return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
+}
+
+/* KOMMA STATT PUNKT IN MESSWERTEN  (4.5.0, Befund D1)
+ * Im deutschen Pruefprotokoll ist das Komma das Dezimaltrennzeichen. Vorher
+ * standen im PDF Werte wie "0.08 Ω" direkt neben dem gedruckten Grenzwert
+ * "≤ 0,30 Ω" - uneinheitlich und bei Zahlen ueber 1000 sogar mehrdeutig.
+ *
+ * Ersetzt wird NUR ein Punkt zwischen zwei Ziffern. Bewusst nicht global auf
+ * jeden Zellentext angewandt: ein Datum ("22.08.2026") oder eine Aufzaehlung
+ * im Bemerkungsfeld darf davon nicht getroffen werden. Deshalb wird diese
+ * Funktion ausschliesslich auf Messwerte angewendet. */
+function kommaZahl(wert) {
+  return String(wert === undefined || wert === null ? '' : wert).replace(/(\d)\.(?=\d)/g, '$1,');
+}
 
 // Legt bei Bedarf eine neue Seite an und liefert die y-Position zurueck, an der
 // weitergezeichnet werden darf. IMMER statt "if (y > x) { addPage(); y = 15; }"
@@ -898,9 +1319,21 @@ function drawKategorieTitel(doc, titel, y, kat, x = PDF_MARGIN_LEFT) {
  *  eine echte Linie bis zum Spaltenende gezeichnet - dadurch ist ueberall die
  *  volle Breite zum handschriftlichen Ausfuellen nutzbar.
  * ------------------------------------------------------------------------ */
-function drawFeldZeile(doc, label, wert, x, y, breite, isBlank) {
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...PDF_TEXT);
+/* opts.rot = true  ->  Beschriftung UND Wert werden rot und fett gesetzt.
+ *
+ * FRUEHER: Die Funktion begann mit setFont('normal') + setTextColor(PDF_TEXT).
+ * Aufrufer, die vorher auf Rot/Fett geschaltet hatten (U_N-PE ueber Schwelle,
+ * R_E ueber Grenzwert), bekamen ihre Markierung genau hier zurueckgesetzt.
+ * Die Gesamtbewertung kippte
+ * korrekt, aber der Wert, der sie gekippt hatte, stand schwarz im Dokument -
+ * wer das Protokoll las, sah die Warnung und fand die Ursache nicht.
+ * Deshalb wird die Hervorhebung jetzt ueber diesen Parameter gesteuert und
+ * innerhalb der Funktion angewendet, statt sie ausserhalb zu setzen. */
+function drawFeldZeile(doc, label, wert, x, y, breite, isBlank, opts) {
+  const o = opts || {};
+  const rot = o.rot === true;
+  doc.setFont('helvetica', rot ? 'bold' : 'normal');
+  doc.setTextColor(...(rot ? PDF_RED_TEXT : PDF_TEXT));
   const labelBreite = drawTextF(doc, label, x, y);
   const startX = x + labelBreite + 1.5;
   const wertText = wert === undefined || wert === null ? '' : String(wert).trim();
@@ -915,6 +1348,9 @@ function drawFeldZeile(doc, label, wert, x, y, breite, isBlank) {
     drawFittedText(doc, wertText, startX, y, Math.max(breite - (startX - x), 10), alteGroesse, 5.5);
     doc.setFontSize(alteGroesse);
   }
+  // Zustand hinterlassen wie vorgefunden, damit die naechste Zeile nicht
+  // versehentlich rot weiterschreibt.
+  if (rot) { doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_TEXT); }
 }
 
 // Mehrere leere Schreiblinien untereinander (z. B. fuer Bemerkungen im Leerformular)
@@ -949,16 +1385,16 @@ function drawFittedText(doc, text, x, y, maxWidth, startSize, minSize = 6) {
 function drawProtokollHeader(doc, { titel, normzeile }) {
   doc.setTextColor(...PDF_PRIMARY);
   doc.setFont("helvetica", "bold");
-  drawFittedText(doc, titel, 10, 11, PDF_TITLE_MAX_WIDTH, 13, 8);
+  drawFittedText(doc, titel, PDF_MARGIN_LEFT, 11, PDF_TITLE_MAX_WIDTH, 13, 8);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...PDF_MUTED);
   // Die Normzeile darf ebenfalls nicht unter die Box laufen (dort steht "Seite x von y").
-  drawFittedText(doc, normzeile, 10, 16, PDF_TITLE_MAX_WIDTH, 7.5, 5.5);
+  drawFittedText(doc, normzeile, PDF_MARGIN_LEFT, 16, PDF_TITLE_MAX_WIDTH, 7.5, 5.5);
 
   doc.setDrawColor(...PDF_PRIMARY);
   doc.setLineWidth(0.5);
-  doc.line(10, 20, 200, 20);
+  doc.line(PDF_MARGIN_LEFT, 20, 200, 20);
   doc.setTextColor(...PDF_TEXT);
 }
 
@@ -1025,7 +1461,8 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
 // Einheit nur anhaengen, wenn sie nicht bereits eingetippt wurde.
 // (Verhinderte Ausgaben wie "1.2 V V".)
 function withUnit(value, unit) {
-  const v = String(value ?? '').trim();
+  // 4.5.0 (D1): Messwerte werden mit Dezimalkomma gesetzt.
+  const v = kommaZahl(String(value ?? '').trim());
   if (!v) return '';
   /* "Ohm" und "Ω" sind dieselbe Einheit. Wer im Formular noch "0,3 Ohm"
    * eintippt, soll im PDF nicht "0,3 Ohm Ω" lesen. */
@@ -1165,49 +1602,6 @@ function validateErdung() {
 
 // Gleiche Logik, eigener Name fuer die Anschlusspruefung (Aufrufe im HTML).
 const validateErdungAnschluss = validateErdung;
-
-/* DURCHGAENGIGKEIT SCHUTZLEITER / POTENZIALAUSGLEICH R_PA
- * 1,0 Ohm steht als Grenzwert im Formular UND im gedruckten Protokoll - der
- * Wert wurde bisher aber nirgends geprueft. Ein Protokoll, das seinen eigenen
- * gedruckten Grenzwert verletzt und trotzdem freigibt, ist als Nachweis
- * wertlos. Messung mit Pruefstrom >= 200 mA (DIN VDE 0100-600). */
-const PA_WIDERSTAND_GRENZWERT = 1.0;
-
-function paWiderstandUeberschritten(wert) {
-  var num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
-  return !isNaN(num) && num > PA_WIDERSTAND_GRENZWERT;
-}
-
-function validatePaWiderstand() {
-  var el = document.getElementById('pa_widerstand');
-  if (!el) return;
-  if (el.value.trim() === '') { el.classList.remove('out-of-norm'); return; }
-  if (paWiderstandUeberschritten(el.value)) el.classList.add('out-of-norm');
-  else el.classList.remove('out-of-norm');
-}
-
-/* KALIBRIERUNG DES PRUEFGERAETS
- * Ein Protokoll, das mit einem nicht kalibrierten Messgeraet aufgenommen
- * wurde, ist im Streitfall der erste Angriffspunkt. Die Angabe stand bisher
- * nur als Text im Kopf und wurde nicht mit dem Pruefdatum verglichen. */
-function kalibrierungAbgelaufen(kalibriertBisIso, pruefdatumIso) {
-  var kal = String(kalibriertBisIso || '').trim();
-  var pruef = String(pruefdatumIso || '').trim() || heuteIso();
-  if (!kal) return false;
-  return kal < pruef;   // ISO-Datumsstrings lassen sich direkt vergleichen
-}
-
-const KALIBRIERUNG_HINWEIS_PDF =
-  ' Hinweis: Das verwendete Prüfgerät war zum Prüfzeitpunkt nicht mehr kalibriert. Die Messwerte sind ' +
-  'ohne gültigen Kalibriernachweis dokumentiert.';
-
-function validateKalibrierung() {
-  var el = document.getElementById('kalibriert_bis');
-  if (!el) return;
-  var pruef = document.getElementById('datum');
-  if (kalibrierungAbgelaufen(el.value, pruef ? pruef.value : '')) el.classList.add('out-of-norm');
-  else el.classList.remove('out-of-norm');
-}
 
 /* ============================================================================
  *  PDF-AUSGABE FUER ALLE PLATTFORMEN

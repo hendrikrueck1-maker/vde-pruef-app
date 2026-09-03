@@ -1,5 +1,71 @@
 let cardCounter = 0;
 
+/* Pruefstrom fuer Ausloesestrom/Ausloesezeit: bei einer NEUEN Karte (data.rcd_pruefstrom
+ * === undefined) ist "5x In (max. 40 ms)" der in der Praxis fast immer verwendete
+ * Pruefstrom und wird jetzt vorbelegt, damit er nicht bei jedem Stromkreis erneut
+ * ausgewaehlt werden muss. Ein WIEDERHERGESTELLTER Zwischenstand (auch ein bewusst
+ * leerer, z. B. aus einer Archiv-Vorlage) behaelt weiterhin genau seinen Wert -
+ * "attrEscOderVorgabe"-Prinzip: Vorgabewert nur, wenn im Zwischenspeicher gar nichts steht. */
+function pruefstromSel(wert, optionWert) {
+  const eff = wert === undefined ? '5' : wert;
+  return eff === optionWert ? ' selected' : '';
+}
+
+/* ---------------------------------------------------------------------------
+ *  STROMKREIS TOTLEGEN (MANGEL FESTGESTELLT)
+ * ---------------------------------------------------------------------------
+ *  Wird an einem einzelnen Stromkreis ein Mangel festgestellt (z. B. eine
+ *  einzeln abgesicherte Schukosteckdose mit Isolationsfehler), muss dieser
+ *  eine Kreis freigeschaltet/totgelegt werden koennen, OHNE dass die uebrige,
+ *  einwandfreie Anlage deswegen als nicht VDE-konform gilt. Ein totgelegter
+ *  Stromkreis hat DEFINITIONSGEMAESS keine Messwerte (er wird ja gerade NICHT
+ *  betrieben) - er wird deshalb von der Pflicht "jeder Stromkreis braucht
+ *  mindestens einen Messwert" ausgenommen (siehe prueflingeOhneMessung-Aufruf
+ *  weiter unten) und im PDF eindeutig als totgelegt gekennzeichnet, statt als
+ *  gemessen und i.O. zu erscheinen. */
+function istTotgelegt(el) {
+  // el ist entweder das Auswahlfeld selbst (.c-totgelegt, <select>) oder ein
+  // Nachfahre davon (z. B. beim Auslesen einer Karte per querySelector).
+  return !!el && String(el.value || '').trim() === 'n.i.O.';
+}
+
+/* Reine Anzeige-Synchronisation (Grund-Feld ein-/ausblenden, rote Markierung,
+ * Messpruefungen ein-/ausklappen) - OHNE Seiteneffekte wie Fokus oder
+ * Autosave. Wird sowohl beim Anlegen/Wiederherstellen einer Karte als auch
+ * beim manuellen Umschalten (toggleTotlegung) verwendet. */
+function syncTotlegungAnzeige(select) {
+  const card = select.closest('.circuit-card, .feed-card');
+  if (!card) return;
+  const niO = istTotgelegt(select);
+  const grundBox = card.querySelector('.totlegung-grund');
+  if (grundBox) grundBox.style.display = niO ? '' : 'none';
+  card.classList.toggle('circuit-totgelegt', niO);
+  select.classList.toggle('circuit-niko', niO);
+
+  /* Bei "n.i.O." sind die Messpruefungen oben nicht mehr relevant (der Kreis
+   * wird ja gerade nicht betrieben) - automatisch einklappen, aber ueber die
+   * Ueberschrift jederzeit wieder aufklappbar lassen (siehe
+   * toggleMessSections). Bei Rueckwechsel auf "i.O." wieder aufklappen. */
+  const messSections = card.querySelector('.c-mess-sections');
+  if (messSections) messSections.classList.toggle('mess-sections-collapsed', niO);
+  return niO;
+}
+
+function toggleTotlegung(select) {
+  const niO = syncTotlegungAnzeige(select);
+  if (niO) {
+    const card = select.closest('.circuit-card, .feed-card');
+    const ta = card && card.querySelector('.c-totlegung-grund');
+    if (ta) ta.focus();
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+function toggleMessSections(header) {
+  const wrapper = header.closest('.c-mess-sections');
+  if (wrapper) wrapper.classList.toggle('mess-sections-collapsed');
+}
+
 function addCircuitCard(data = {}) {
   cardCounter++;
   const container = document.getElementById('circuitsContainer');
@@ -10,7 +76,10 @@ function addCircuitCard(data = {}) {
   card.innerHTML = `
     <div class="circuit-header">
       <span>Stromkreis #${cardCounter}</span>
-      <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
+      </span>
     </div>
 
     <div class="grid">
@@ -38,16 +107,29 @@ function addCircuitCard(data = {}) {
       </div>
       <div class="form-group">
         <label>Querschnitt:</label>
-        <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1.5 mm²')}" placeholder="z. B. 1.5 mm²">
+        <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1,5 mm²')}" placeholder="z. B. 1,5 mm²">
         <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1.5 mm²')">1.5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '2.5 mm²')">2.5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '4.0 mm²')">4.0 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '6.0 mm²')">6.0 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1,5 mm²')">1,5 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '2,5 mm²')">2,5 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '4 mm²')">4 mm²</button>
+          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '6 mm²')">6 mm²</button>
         </div>
       </div>
     </div>
 
+    <!-- MESSPRUEFUNGEN (4.7.0): ein gemeinsam einklappbarer Block. Wird der
+         Stromkreis weiter unten als "Mangel festgestellt / totgelegt"
+         markiert, sind diese Messwerte per Definition nicht mehr relevant
+         (der Kreis ist ja gerade nicht in Betrieb) - toggleTotlegung() klappt
+         den Block dann automatisch ein, laesst ihn aber jederzeit per Klick
+         auf die Ueberschrift wieder aufklappbar (z. B. falls doch noch
+         Werte nachgetragen werden muessen). -->
+    <div class="c-mess-sections">
+    <div class="mess-sections-header" onclick="toggleMessSections(this)">
+      <span class="mess-sections-titel">Messprüfungen</span>
+      <span class="mess-sections-hinweis">Bei „n.i.O." unten eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
+      <span class="mess-sections-chevron">▾</span>
+    </div>
     <!-- MESSWERTE: R_PE & R_ISO
          Zwei klar getrennte Gruppen: sonst wirkte am Desktop die Prüfspannung
          wie eine Angabe zu R_PE, obwohl sie zum Isolationswiderstand gehört. -->
@@ -58,7 +140,7 @@ function addCircuitCard(data = {}) {
           <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
           <div class="form-group">
             <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-            <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0.11" oninput="validateCardNorms(${cardCounter})">
+            <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,11" oninput="validateCardNorms(${cardCounter})">
             <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
           </div>
         </div>
@@ -98,8 +180,8 @@ function addCircuitCard(data = {}) {
           </div>
         </div>
         <div class="form-group">
-          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE:</label>
-          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0.38" oninput="onZsInput(${cardCounter})">
+          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
+          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0,38" oninput="onZsInput(${cardCounter})">
           <div class="limit-hint" id="zs_limit_${cardCounter}"></div>
         </div>
         <div class="form-group">
@@ -108,7 +190,7 @@ function addCircuitCard(data = {}) {
           <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
         </div>
         <div class="form-group">
-          <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="limit-hint">optional</span>:</label>
+          <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="feld-badge feld-badge-optional">Optional</span>:</label>
           <input type="text" inputmode="decimal" class="c-zln" value="${attrEsc(data.zln)}" placeholder="nur wenn gemessen" oninput="onZlnInput(${cardCounter})">
           <div class="limit-hint">Fluke 1663: Zi &ndash; <b>LINE</b> (L&ndash;N). Findet einen hochohmigen N-Leiter, den die L&ndash;PE-Messung nicht sieht. Leer lassen, wenn nicht gemessen.</div>
         </div>
@@ -150,10 +232,10 @@ function addCircuitCard(data = {}) {
         <div class="form-group">
           <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
           <select class="c-rcd-pruefstrom" onchange="validateCardNorms(${cardCounter})">
-            <option value="" selected>&ndash; bitte wählen &ndash;</option>
-            <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
-            <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-            <option value="5">5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
+            <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
+            <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
+            <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
+            <option value="5"${pruefstromSel(data.rcd_pruefstrom, '5')}>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
           </select>
         </div>
         <div class="form-group">
@@ -188,21 +270,90 @@ function addCircuitCard(data = {}) {
         </div>
         <div class="form-group">
           <label>Gemessene Berührungsspannung U<sub>mess</sub> (V):</label>
-          <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2.5 V" oninput="validateCardNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2,5 V" oninput="validateCardNorms(${cardCounter})">
         </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ERGEBNIS DIESER STROMKREISPRUEFUNG (4.7.0): steht bewusst am ENDE der
+         Karte - erst werden alle Messwerte erfasst, dann das Ergebnis
+         bewertet. Gleiches i.O./n.i.O.-Muster wie bei Sichtpruefung/Erprobung
+         (siehe .sicht-item/.erp-item). Ein Mangel (n.i.O.) klappt automatisch
+         die Messpruefungen oben ein (nicht mehr relevant, da der Kreis
+         freigeschaltet/totgelegt wird) und oeffnet/fokussiert das Feld fuer
+         den festgestellten Fehler. */-->
+    <div class="circuit-totlegung">
+      <div class="form-group">
+        <label>Ergebnis Stromkreisprüfung:</label>
+        <select class="c-totgelegt" onchange="toggleTotlegung(this)">
+          <option value="i.O."${data.totgelegt ? '' : ' selected'}>i.O.</option>
+          <option value="n.i.O."${data.totgelegt ? ' selected' : ''}>n.i.O. – Mangel festgestellt (Stromkreis freigeschaltet/totgelegt, fließt nicht in die Gesamtbewertung ein)</option>
+        </select>
+      </div>
+      <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
+        <label>Festgestellter Fehler / Grund der Totlegung:</label>
+        <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
       </div>
     </div>
   `;
   container.appendChild(card);
+  // Anzeige (collapse/rote Markierung/Grund-Feld) einmalig synchronisieren -
+  // ohne Fokus/Autosave-Seiteneffekt (siehe syncTotlegungAnzeige).
+  const totSelect = card.querySelector('.c-totgelegt');
+  if (totSelect) syncTotlegungAnzeige(totSelect);
+  nummeriereKartenNeu('#circuitsContainer', '.circuit-card', 'Stromkreis');
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
-  // Kein Vorgabewert: der Prüfstrom muss bewusst gewählt werden, weil davon
-  // der zulaessige Grenzwert der Ausloesezeit abhaengt.
-  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || '';
+  // Pruefstrom: bei einer neuen Karte (data.rcd_pruefstrom === undefined) ist
+  // "5" bereits per <option selected> vorbelegt (siehe pruefstromSel oben) -
+  // das darf hier NICHT ueberschrieben werden. Ein wiederhergestellter,
+  // auch bewusst leerer Wert wird weiterhin exakt uebernommen.
+  if (data.rcd_pruefstrom !== undefined) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
   if (data.art) card.querySelector('.c-spannung-art').value = data.art;
   if (data.gefaehrdung) card.querySelector('.c-gefaehrdung').value = data.gefaehrdung;
 
   validateCardNorms(cardCounter);
+}
+
+/* ---------------------------------------------------------------------------
+ *  KARTE DUPLIZIEREN - OHNE MESSWERTE
+ * ---------------------------------------------------------------------------
+ *  Auf einer Buehne sind 15 bis 30 Stromkreise identisch aufgebaut:
+ *  NYM-J 3G1,5 - B16 - RCD Typ A 30 mA - Pruefstrom 5x. Nur Bezeichnung und
+ *  vier Messwerte unterscheiden sich. Bisher musste jedes dieser Felder pro
+ *  Karte neu eingetippt werden.
+ *
+ *  Uebernommen wird alles, was die Anlage beschreibt (Leitung, Absicherung,
+ *  RCD-Typ, Pruefspannung, Gefaehrdungsgrad). NICHT uebernommen werden die
+ *  Messwerte - ein kopierter Messwert waere eine erfundene Messung, und genau
+ *  das darf in einem Beweisdokument nie entstehen. Die Bezeichnung bekommt
+ *  einen Zusatz, damit keine zwei Kreise gleich heissen.
+ * ------------------------------------------------------------------------ */
+function dupliziereStromkreis(cardDomId) {
+  const card = document.getElementById(cardDomId);
+  if (!card) return;
+  const w = (sel) => card.querySelector(sel)?.value || '';
+  const bezAlt = w('.c-bez').trim();
+  addCircuitCard({
+    // Anlagendaten - werden uebernommen
+    bez: bezAlt ? bezAlt + ' (Kopie)' : '',
+    kabel: w('.c-kabel-typ'),
+    leiter: w('.c-leiter'),
+    qs: w('.c-querschnitt'),
+    sich: w('.c-sich-typ'),
+    riso_mode: w('.c-riso-mode'),
+    rcd_typ: w('.c-rcd-typ'),
+    rcd_idn: w('.c-rcd-idn'),
+    rcd_pruefstrom: w('.c-rcd-pruefstrom'),
+    gefaehrdung: w('.c-gefaehrdung'),
+    art: w('.c-spannung-art')
+    // Messwerte (rpe, riso, zs, ik, zln, ik2, rcd_imess, rcd_ta, umess)
+    // werden bewusst NICHT uebernommen.
+  });
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  const neu = document.querySelector('#circuitsContainer .circuit-card:last-child .c-bez');
+  if (neu) { neu.focus(); neu.select(); }
 }
 
 function validateCardNorms(cardId) {
@@ -245,6 +396,15 @@ function validateCardNorms(cardId) {
   if (taElem && taMax !== null && taElem.value.trim() !== '' && taElem.value.trim() !== '-') {
     const num = parseFloat(taElem.value.replace(',', '.'));
     if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
+    /* Der haeufigste Fehler ist nicht der defekte RCD, sondern der falsch
+     * angegebene Pruefstrom: 210 ms bei "5x" ist ein typischer Wert fuer eine
+     * Messung mit 1x I_dn. Statt nur "zu hoch" zu melden, wird gesagt, wozu
+     * der Wert besser passt. */
+    const passt = passenderPruefstromFuerTa(taElem.value, pruefstromElem?.value, istSelektiv);
+    if (taLimitLabel && passt) {
+      taLimitLabel.textContent =
+        `[max. ${taMax} ms – dieser Wert passt zu einer Messung mit ${passt}× I\u0394n: mit welchem Prüfstrom wurde gemessen?]`;
+    }
   } else if (taElem) taElem.classList.remove('out-of-norm');
 
   // Ist ein RCD eingetragen, muss er auch geprueft worden sein (DIN VDE 0100-600).
@@ -286,9 +446,36 @@ function validateCardNorms(cardId) {
   const maxZs = sichElem ? getMaxZs(sichElem.value) : null;
   const zsLimitLabel = document.getElementById(`zs_limit_${cardId}`);
   if (zsLimitLabel) {
-    zsLimitLabel.innerHTML = maxZs !== null
-      ? `max. ${maxZs.toFixed(2).replace('.', ',')} &Omega; &middot; Praxiswert (2/3): ${(maxZs * 2 / 3).toFixed(2).replace('.', ',')} &Omega;`
-      : 'Absicherung eintragen, dann erscheint der zulässige Höchstwert.';
+    if (maxZs !== null) {
+      zsLimitLabel.innerHTML = `max. ${maxZs.toFixed(2).replace('.', ',')} &Omega; &middot; Praxiswert (2/3): ${(maxZs * 2 / 3).toFixed(2).replace('.', ',')} &Omega;`;
+      zsLimitLabel.classList.remove('hinweis-wichtig');
+    } else if (sichElem && istSchmelzsicherung(sichElem.value)) {
+      /* Schmelzsicherung: der Ausloesestrom folgt der Herstellerkennlinie,
+       * nicht der 5x/10x/20x-Regel. Frueher fand hier stillschweigend keine
+       * Bewertung statt und niemand erfuhr davon. */
+      zsLimitLabel.innerHTML = 'Schmelzsicherung &ndash; Grenzwert nach Herstellerkennlinie (I<sub>a</sub> f&uuml;r 0,4 s). Wird nicht automatisch bewertet, bitte selbst pr&uuml;fen.';
+      zsLimitLabel.classList.add('hinweis-wichtig');
+    } else if (sichElem && istAbsicherungUnbekannt(sichElem.value)) {
+      /* [Befund N3] Angabe vorhanden, aber weder als B/C/D-Charakteristik noch
+       * als Schmelzsicherung erkannt - genauso unuebersehbar kennzeichnen wie
+       * die Schmelzsicherung, statt nur einen allgemeinen Platzhalter zu
+       * zeigen. Sonst wird das PDF erzeugt, ohne dass Z_S/I_K in diesem
+       * Stromkreis tatsaechlich bewertet wurden UND ohne dass das im
+       * Dokument selbst sichtbar wird. */
+      zsLimitLabel.innerHTML = '<b>Absicherungsart nicht erkannt</b> &ndash; Z_S/I_K werden NICHT automatisch bewertet, bitte selbst pr&uuml;fen. Erwartet wird eine B/C/D-Charakteristik (z.&nbsp;B. &bdquo;B16&ldquo;) oder eine Schmelzsicherung (gG/gL/NH/Diazed/Neozed).';
+      zsLimitLabel.classList.add('hinweis-wichtig');
+    } else {
+      zsLimitLabel.innerHTML = 'Absicherung eintragen, dann erscheint der zulässige Höchstwert.';
+      zsLimitLabel.classList.remove('hinweis-wichtig');
+    }
+  }
+
+  /* Z_S im oberen Drittel: zulaessig, aber ohne Reserve fuer Messunsicherheit
+   * und Leitungserwaermung im Betriebszustand. Hinweis (gelb), keine
+   * Beanstandung (rot) - der 2/3-Wert ist ein Praxiswert, keine Norm. */
+  if (zsElem) {
+    zsElem.classList.toggle('wert-hinweis',
+      sichElem ? zsOhneReserve(zsElem.value, sichElem.value) : false);
   }
   if (zsElem) {
     const zsNum = parseFloat(zsElem.value.replace(',', '.'));
@@ -364,21 +551,21 @@ function updateEinspeisung() {
   if (istErsatzstromversorgung()) {
     hint.textContent = 'Pflichtangabe bei Ersatzstromversorgung – Sollwert 50 Hz.';
     freq.classList.toggle('missing-value', freq.value.trim() === '');
+    /* Bei Netzersatzanlage/Wechselrichter ist die Frequenz ein echter
+     * Pflicht-Messwert (siehe Abbruch weiter unten in generatePDF). Die
+     * Netzmessung steht dafuer im Formular als eingeklapptes Detail-Element -
+     * ohne automatisches Aufklappen faellt eine fehlende Angabe erst beim
+     * PDF-Export auf, wenn das Messgeraet oft schon eingepackt ist. */
+    const block = document.getElementById('netzmessung_block');
+    if (block) block.open = true;
   } else {
     hint.textContent = '';
     freq.classList.remove('missing-value');
   }
 }
 
-/* N-PE-SPANNUNG: Sollwert 0 V. Ein nennenswerter Wert deutet auf einen
- * hochohmigen PEN, eine Fremdeinspeisung oder eine Vertauschung hin.
- * 1 V als Schwelle, damit Messrauschen nicht sofort rot wird. */
-const U_NPE_SCHWELLE = 1.0;
-
-function npeUeberschritten(wert) {
-  const num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
-  return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
-}
+/* U_NPE_SCHWELLE und npeUeberschritten() liegen seit 4.5.0 zentral in
+ * pdf-utils.js - die Anschlusspruefung braucht dieselbe Bewertung (Befund B1). */
 
 function validateNetzmessung() {
   const el = document.getElementById('u_npe');
@@ -387,17 +574,32 @@ function validateNetzmessung() {
   else el.classList.remove('out-of-norm');
 }
 
-/* Netzmessung als EINE kompakte Zeile fuers PDF - leere Werte fallen weg,
- * damit nicht sieben halbleere Zeilen im Protokoll stehen. */
+/* NETZMESSUNG - JEDER WERT MIT SEINER EIGENEN BEZEICHNUNG
+ *
+ * FRUEHER stand hier "L-N: 231 / 230 / 229 V  |  L-L: 400 / 399 V". Die
+ * Zuordnung ergab sich ausschliesslich aus der Reihenfolge. Wurde nur eine
+ * der drei Aussenleiterspannungen gemessen - bei einer unsymmetrisch
+ * belasteten Buehnenverteilung der Normalfall - stand dort "L-L: 400 V" ohne
+ * jeden Hinweis, ob das L1-L2, L2-L3 oder L1-L3 war. In einem Beweisdokument
+ * ist das eine nicht rekonstruierbare Angabe.
+ *
+ * Die Frequenz gehoert mit in diese Zeile: bei Netzersatzanlage und
+ * Wechselrichter ist sie ein echter Messwert und nach der eigenen
+ * Formularlogik Pflichtangabe. */
+const NETZMESS_FELDER = [
+  { id: 'u_l1n', label: 'L1-N' }, { id: 'u_l2n', label: 'L2-N' }, { id: 'u_l3n', label: 'L3-N' },
+  { id: 'u_l12', label: 'L1-L2' }, { id: 'u_l23', label: 'L2-L3' }, { id: 'u_l13', label: 'L1-L3' },
+  { id: 'u_npe', label: 'N-PE' }
+];
+
 function netzmessungZeile() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
-  const teile = [];
-  const ln = ['u_l1n', 'u_l2n', 'u_l3n'].map(v).filter(Boolean);
-  if (ln.length) teile.push('L-N: ' + ln.join(' / ') + ' V');
-  const ll = ['u_l12', 'u_l23', 'u_l13'].map(v).filter(Boolean);
-  if (ll.length) teile.push('L-L: ' + ll.join(' / ') + ' V');
-  if (v('u_npe')) teile.push('N-PE: ' + v('u_npe') + ' V');
-  return teile.join('  |  ');
+  const teile = NETZMESS_FELDER
+    .filter(f => v(f.id))
+    .map(f => f.label + ' ' + v(f.id) + ' V');
+  const f = v('netzfrequenz');
+  if (f) teile.push('f ' + (/hz/i.test(f) ? f : f + ' Hz'));
+  return teile.join(' · ');
 }
 
 function fillExampleData() {
@@ -409,14 +611,18 @@ function fillExampleData() {
   document.getElementById('anschluss_typ').value = "H07RN-F";
   document.getElementById('anschluss_leiter').value = "5G";
   document.getElementById('anschluss_qs').value = "10 mm²";
-  document.getElementById('erdung_re').value = "0.18";
-  document.getElementById('pa_widerstand').value = "0.11";
+  document.getElementById('erdung_re').value = "0,18";
   document.getElementById('erdung_messpunkt').value = "HES (Haupterdungsschiene) Keller Gr. Haus";
   document.getElementById('hausanschluss').value = "NH 3x100 A gL (HAK Keller)";
   document.getElementById('u_l1n').value = "231";
   document.getElementById('u_l2n').value = "230";
   document.getElementById('u_l3n').value = "229";
-  document.getElementById('u_npe').value = "0.2";
+  // 4.5.0: Aussenleiterspannungen gehoeren ins Musterprotokoll. Solange sie
+  // fehlten, druckte das fertige PDF an dieser Stelle drei leere Schreiblinien.
+  document.getElementById('u_l12').value = "399";
+  document.getElementById('u_l23').value = "400";
+  document.getElementById('u_l13').value = "401";
+  document.getElementById('u_npe').value = "0,2";
   validateNetzmessung();
   updateEinspeisung();
   validateErdung();
@@ -434,9 +640,9 @@ function fillExampleData() {
   // Prüfstrom 5 x I_dn ist der Standard -> Auslösezeiten entsprechend unter 40 ms
   // Typ und I_dn muessen mitgegeben werden: die Beispieldaten sind das
   // Musterprotokoll der App und duerfen keine unvollstaendige RCD-Zelle erzeugen.
-  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1.5 mm²', rpe: '0.08', riso: '> 500', sich: 'B 10A', zs: '0.35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1.2' });
+  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1,5 mm²', rpe: '0,08', riso: '> 500', sich: 'B 10A', zs: '0,35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1,2' });
   // Buehnenstromkreis: erhoehte Gefaehrdung -> U_L 25 V AC statt 50 V AC
-  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2.5 mm²', rpe: '0.12', riso: '450', sich: 'B 16A', zs: '0.42', ik: '547', zln: '0.38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2.4' });
+  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2,5 mm²', rpe: '0,12', riso: '450', sich: 'B 16A', zs: '0,42', ik: '547', zln: '0,38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2,4' });
 }
 
 // KOPFDATEN DES PROTOKOLLS (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet)
@@ -444,7 +650,7 @@ const VDE0100_KOPF = {
   titel: "PRÜFPROTOKOLL ELEKTRISCHER ANLAGEN",
   normzeile: "Erst- und Wiederholungsprüfung nach DIN VDE 0100-600 / DIN VDE 0105-100"
 };
-const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0105-100:2015-10";
+const FORMULAR_REVISION = "Formular Rev. 2026-09 · Normstand: VDE 0100-600:2017-06 · VDE 0105-100:2015-10";
 
 /* ===========================================================================
  *  LEERFORMULAR ZUM AUSFUELLEN VON HAND
@@ -465,7 +671,11 @@ const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017
  *     mehrere Protokolle fuer eine Anlage. Jetzt entsteht EIN PDF mit echten
  *     Fortsetzungsblaettern und fortlaufender Nummerierung.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1 = 7;    // Zeilen auf Blatt 1 (neben Kopf und Bewertung)
+const LEER_ZEILEN_BLATT1 = 5;    // 4.6.0: 6 -> 5. Sektion 1 (Stammdaten) ist im
+                                 // Leerformular jetzt grosszuegiger fuer die
+                                 // Handschrift (ZA1 4,4 -> 6,2 mm) - die dafuer
+                                 // noetigen 13 mm werden hier eingespart, damit
+                                 // Blatt 1 weiterhin eine einzelne Seite bleibt.
 const LEER_ZEILEN_FOLGE  = 28;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE   = 8.0;  // mm, Handschrift (6,5 mm reichten nur zum Drucken)
 
@@ -483,12 +693,16 @@ const LEER_HEAD_VDE = [[
   'U_{mess} (V)\nU_{L} 50/25 AC\n120/60 DC'
 ]];
 
-// Summe = 190 mm (210 - 2 x 10 mm Rand)
+// 4.7.0: Summe = 180 mm (210 - 20 mm linker Rand - 10 mm rechter Rand).
+// Vorher 190 mm (bei 10 mm Rand beidseitig) - seit PDF_MARGIN_LEFT auf
+// 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle 10 mm
+// ueber den neuen Satzspiegel hinaus in den rechten Rand. Alle Spalten
+// proportional verkleinert (Faktor 180/190).
 const LEER_SPALTEN_VDE = {
-  0: { cellWidth: 6 }, 1: { cellWidth: 30, halign: 'left' }, 2: { cellWidth: 22 },
-  3: { cellWidth: 13 }, 4: { cellWidth: 17 }, 5: { cellWidth: 14 },
-  6: { cellWidth: 24 }, 7: { cellWidth: 18 }, 8: { cellWidth: 13 },
-  9: { cellWidth: 15 }, 10: { cellWidth: 18 }
+  0: { cellWidth: 6 }, 1: { cellWidth: 29, halign: 'left' }, 2: { cellWidth: 21 },
+  3: { cellWidth: 12 }, 4: { cellWidth: 16 }, 5: { cellWidth: 13 },
+  6: { cellWidth: 23 }, 7: { cellWidth: 17 }, 8: { cellWidth: 12 },
+  9: { cellWidth: 14 }, 10: { cellWidth: 17 }
 };
 
 /* Die Musterangabe stand frueher als eigene Tabellenzeile und verbrauchte auf
@@ -496,7 +710,21 @@ const LEER_SPALTEN_VDE = {
  * eine graue Zeile unter der Tabelle. */
 const LEER_BEISPIEL_TEXT_VDE =
   'Beispiel: Schukosteckdose Lichtregie | NYM-J 3G 1,5 mm² | R_{PE} 0,08 Ω | R_{ISO} > 500 MΩ (500 V DC) | ' +
-  'B 16A | Z_{S} 0,35 Ω / I_{K} 657 A | RCD Typ A 30 mA | I_{Δmess} 19 mA | t_{A} 12 ms @ 5x | U_{mess} 1,2 V';
+  'B 13A | Z_{S} 0,35 Ω / I_{K} 657 A | RCD Typ A 30 mA | I_{Δmess} 19 mA | t_{A} 12 ms @ 5x | U_{mess} 1,2 V ' +
+  '(1,5 mm² bei Häufung nur B10/B13 - Verlegeart beachten)';
+
+/* LEGENDE FUER DAS HANDSCHRIFTLICH AUSGEFUELLTE BLATT
+ * In der App steht unter jedem Feld eine Hinweiszeile mit dem Grenzwert. Auf
+ * dem Papier stand nichts davon: der Tabellenkopf nennt "Z_S ≤ 230 V / I_a",
+ * ohne dass irgendwo auf dem Blatt steht, was I_a ist. Fuer Auszubildende im
+ * ersten Lehrjahr war das Blatt damit nicht ausfuellbar - nicht wegen der
+ * Technik, sondern wegen der fehlenden Legende. */
+const LEER_LEGENDE_VDE =
+  'Legende: I_{a} = Strom der magnetischen Schnellauslösung (B 5× · C 10× · D 20× I_{n}) · ' +
+  'Z_{S} = Schleifenimpedanz, zulässig ≤ 230 V / I_{a} · I_{K} = Kurzschlussstrom · ' +
+  'I_{Δn} = Nennfehlerstrom RCD · I_{Δmess} = gemessener Auslösestrom (0,5–1,0 × I_{Δn}) · ' +
+  't_{A} = Auslösezeit ≤ 40 ms bei 5× · 150 ms bei 2× · 300 ms bei 1× (Typ S 150/200/500) · ' +
+  'U_{mess} = Berührungsspannung ≤ 50 V AC / 120 V DC, bei erhöhter Gefährdung (Bühne, Open Air, feucht) ≤ 25 V AC / 60 V DC.';
 
 const LEER_SOLLWERTE_VDE =
   'Netzmessung Sollwerte: L gegen N je 230 V - L gegen L je 400 V - N gegen PE 0 V - Frequenz 50 Hz.';
@@ -539,6 +767,31 @@ function generatePDF(isBlank = false) {
   if (!isBlank && document.querySelectorAll('.circuit-card').length === 0) {
     keinePrueflingeMelden('Stromkreis');
     return;
+  }
+
+  /* Ein Stromkreis ohne einen einzigen Messwert ist ebenso wenig eine Pruefung
+   * wie ein Protokoll ohne Stromkreis - und beim Start legt das Formular
+   * automatisch zwei leere Karten an. Siehe prueflingeOhneMessung(). */
+  if (!isBlank) {
+    const ohneMessung = prueflingeOhneMessung(
+      document.querySelectorAll('.circuit-card'),
+      ['.c-rpe', '.c-riso', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta', '.c-umess'],
+      '.c-totgelegt');
+    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Stromkreis'); return; }
+
+    // Ein totgelegter Stromkreis MUSS einen Fehlertext haben - sonst
+    // dokumentiert das Protokoll eine Freischaltung ohne erkennbaren Grund.
+    const totOhneGrund = [];
+    document.querySelectorAll('.circuit-card').forEach((card, i) => {
+      if (istTotgelegt(card.querySelector('.c-totgelegt')) && istLeerWert(card.querySelector('.c-totlegung-grund')?.value)) {
+        totOhneGrund.push(i + 1);
+      }
+    });
+    if (totOhneGrund.length) {
+      alert('Stromkreis ' + totOhneGrund.join(', ') + ' ist als totgelegt markiert, aber es fehlt die Angabe des festgestellten Fehlers.\n\n' +
+        'Bitte im Feld "Festgestellter Fehler / Grund der Totlegung" eintragen.\n\nDas PDF wurde deshalb nicht erstellt.');
+      return;
+    }
   }
 
   /* Mindestangaben: ohne sie ist das Protokoll keinem Vorgang zuzuordnen. */
@@ -637,12 +890,25 @@ function generatePDF(isBlank = false) {
    * Kompakt gehalten: 5 Zeilen je Spalte, Zeilenabstand 4,6 mm.
    * Protokoll-Nr. und Prueflings-ID stehen bereits in der Kopfbox oben rechts
    * und werden hier nicht wiederholt - das spart eine ganze Zeile. */
-  const SEK1_H = 40;
-  const ZA = 4.6;                        // Zeilenabstand innerhalb der Boxen
+  /* 4.5.0: 49 mm -> 44 mm. Das Ankreuzfeld "einphasig" ist entfallen, die
+   * Netzmessung belegt nur noch zwei Zeilen Kurzfelder. Die gewonnenen 5 mm
+   * werden gebraucht, damit Bewertung UND Unterschriften auf Blatt 1 passen. */
+  const ZA = 4.4;                        // Zeilenabstand ab Sektion 4 (unveraendert)
+  /* 4.6.0: Im Leerformular sind die Stammdaten-Zeilen (Sektion 1) jetzt
+   * grosszuegiger, damit von Hand lesbar eingetragen werden kann - 5,7 mm statt
+   * 4,4 mm Zeilenabstand (+30 %). Im ausgefuellten Protokoll bleibt es beim
+   * kompakten Abstand, da dort ohnehin am Rechner getippt wird. Damit Blatt 1
+   * trotzdem eine Seite bleibt, wurde dafuer eine Eintragezeile aus der
+   * Messtabelle herausgenommen (LEER_ZEILEN_BLATT1 6 -> 5, siehe unten). */
+  const ZA1 = isBlank ? 5.7 : ZA;
+  const SEK1_H = isBlank ? 51 : 42;
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
 
   doc.setFontSize(7.2);
-  const spL = 13, spR = 107, spB = 90;   // linke/rechte Spalte, Spaltenbreite
+  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
+  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
+  // vor spR (107) endet.
+  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;   // linke/rechte Spalte, Spaltenbreite
 
   let volt = feldWert('netzspannung');
   if (volt && !volt.toLowerCase().includes('v')) volt += ' V';
@@ -654,15 +920,12 @@ function generatePDF(isBlank = false) {
     const g = feldWert('messgeraet');
     if (!g) return '';
     const sn = feldWert('seriennummer');
-    const kal = formatDatum(document.getElementById('kalibriert_bis')?.value);
     let t = g;
-    if (sn) t += ` (SN ${sn}`;
-    if (sn && kal) t += `, kal. bis ${kal}`;
-    if (sn) t += ')';
+    if (sn) t += ` (SN ${sn})`;
     return t;
   })();
 
-  const z1 = (i) => y + 10 + i * ZA;
+  const z1 = (i) => y + 10 + i * ZA1;
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Anlage:",           feldWert('anlage_bez'),      spL, z1(2), spB, isBlank);
@@ -677,29 +940,63 @@ function generatePDF(isBlank = false) {
   drawFeldZeile(doc, "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - '), spR, z1(2), spB, isBlank);
   drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, z1(4), spB, isBlank);
-  // Kalibrierung zum Pruefzeitpunkt abgelaufen -> Zeile rot. Der Hinweis
-  // erscheint zusaetzlich im Freigabetext (KALIBRIERUNG_HINWEIS_PDF).
-  const isKalAbgelaufen = !isBlank &&
-    kalibrierungAbgelaufen(document.getElementById('kalibriert_bis')?.value,
-                           document.getElementById('datum')?.value);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
   drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(5), spB, isBlank);
-  if (isKalAbgelaufen) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
 
-  // NETZMESSUNG: nur drucken, wenn tatsaechlich gemessen wurde. Im Leerformular
-  // steht dort eine Schreiblinie, im ausgefuellten Protokoll nichts, wenn leer.
-  const netzZeile = isBlank ? '' : netzmessungZeile();
-  // N-PE ueber der Schwelle: die ganze Zeile rot, damit der Wert im Protokoll
-  // nicht als unauffaellige Zahl untergeht.
+  /* --- NETZMESSUNG ------------------------------------------------------
+   * FRUEHER war das im Leerformular EINE beschriftete Linie ueber 184 mm
+   * ("Netzmessung L-N / L-L / N-PE:") fuer sieben Einzelwerte. Wer von Hand
+   * eintrug, musste sich Reihenfolge und Format selbst ausdenken, und ein
+   * Feld fuer die Frequenz gab es nicht.
+   *
+   * JETZT: acht einzeln beschriftete Kurzfelder in zwei Zeilen. Nicht
+   * gemessene Werte bleiben leer - das frueher hier stehende Ankreuzfeld
+   * "einphasige Einspeisung" wurde in 4.5.0 ersatzlos entfernt (zu speziell,
+   * wurde automatisch gesetzt und widersprach dreiphasigen Messwerten). */
   const isNpeOut = !isBlank && npeUeberschritten(document.getElementById('u_npe')?.value);
-  if (isBlank || netzZeile) {
-    if (isNpeOut) { doc.setTextColor(...PDF_RED_TEXT); doc.setFont("helvetica", "bold"); }
-    // Kuerzere Beschriftung im Leerformular: die Sollwerte stehen dort in der
-    // Fusszeile, dafuer bleibt mehr Platz zum Eintragen von Hand.
-    drawFeldZeile(doc, isBlank ? "Netzmessung L-N / L-L / N-PE:"
-                               : "Netzmessung (Sollwerte 230 V / 400 V / N-PE 0 V):",
-                  netzZeile, spL, z1(6), 184, isBlank);
-    if (isNpeOut) { doc.setTextColor(...PDF_TEXT); doc.setFont("helvetica", "normal"); }
+  const netzWert = (id) => isBlank ? '' : (document.getElementById(id)?.value || '').trim();
+  const hatNetzmessung = isBlank || NETZMESS_FELDER.some(f => netzWert(f.id)) || netzWert('netzfrequenz');
+
+  if (hatNetzmessung) {
+    doc.setFont('helvetica', 'bold');
+    // 4.7.0: seit spL auf 23 mm verschoben wurde (Locherrand), passte die fett
+    // gesetzte Beschriftung "Netzmessung:" bei 7 pt nicht mehr vor die bei
+    // x = 36 beginnende erste Kurzfeld-Spalte und ueberdeckte "U L1-N".
+    // drawFittedText verkleinert die Schrift so weit wie noetig (ca. 13 mm
+    // verfuegbar) - bei Bedarf bis auf 5.5 pt, was hier immer noch gut lesbar
+    // ist, weil es sich um ein kurzes, einzeiliges Label handelt.
+    drawFittedText(doc, 'Netzmessung:', spL, z1(6), 36 - spL - 1, 7, 5.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+
+    // Vier Kurzfelder je Zeile, 45 mm Raster ab x = 36 mm
+    const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
+    const nmZelle = (label, id, spalte, zeile, rot) => {
+      const wert = netzWert(id);
+      const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
+      /* 4.5.0: Im AUSGEFUELLTEN Protokoll steht bei einem nicht gemessenen Wert
+       * "n. gem." statt einer leeren Schreiblinie. Eine leere Linie in einem
+       * abgeschlossenen Dokument sieht aus wie ein vergessenes Feld - genau das
+       * war der Punkt, an dem frueher zusaetzlich das Ankreuzfeld
+       * "einphasige Einspeisung" fuer Verwirrung sorgte. Im Leerformular
+       * bleibt die Schreiblinie natuerlich stehen. */
+      const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+      drawFeldZeile(doc, label + ':', text,
+                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA1, NM_FELD_B, isBlank, { rot: !!rot });
+    };
+    doc.setFontSize(6.6);
+    nmZelle('U L1-N',  'u_l1n', 0, 0);
+    nmZelle('U L2-N',  'u_l2n', 1, 0);
+    nmZelle('U L3-N',  'u_l3n', 2, 0);
+    nmZelle('f',       'netzfrequenz', 3, 0);
+    nmZelle('U L1-L2', 'u_l12', 0, 1);
+    nmZelle('U L2-L3', 'u_l23', 1, 1);
+    nmZelle('U L1-L3', 'u_l13', 2, 1);
+    // N-PE ist der einzige Wert der Netzmessung, der eigenstaendig einen
+    // Fehler findet (hochohmiger PEN, Fremdeinspeisung) -> bei Ueberschreitung
+    // rot, damit er nicht als unauffaellige Zahl untergeht.
+    nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
+
+    doc.setFontSize(7.2);
   }
 
   y += SEK1_H + 4;
@@ -714,7 +1011,7 @@ function generatePDF(isBlank = false) {
    * noetig, weil es Brandabschottungen, Gebaeudesystemtechnik oder Motoren
    * nicht an jeder Anlage gibt und ein erzwungenes i.O./n.i.O. dort falsch waere. */
   const SICHT_ZA = 4.3;
-  const SEK2_H = 51;
+  const SEK2_H = 47;   // 4.5.0: 51 -> 47 mm, Inhalt endet bei y+45,5 (siehe C1)
   drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht' });
 
   doc.setFont("helvetica", "normal");
@@ -726,9 +1023,15 @@ function generatePDF(isBlank = false) {
     "5. Kennzeichnung", "6. Doku/Warnung", "7. Zus. Potenzialausgl.", "8. Basisschutz",
     "9. Typenschild", "10. Brandabschottung", "11. Leiterverbindungen", "12. Gebäudesystemt."
   ];
-  const SICHT_LABEL_X = [13, 76, 139];   // Textbeginn je Spalte
-  const SICHT_CB_X    = [43, 106, 169];  // "i.O."-Kaestchen (30 mm Textbreite)
-  const SICHT_LABEL_W = 28;
+  // 4.7.0: Spalten neu berechnet (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  // Zwei Zwischenstaende hatten noch Ueberlappungen: zuerst ueberdeckte das
+  // "n.a." einer Spalte das Label der naechsten, danach stiess bei 9/18 mm
+  // Kaestchenabstand der Text von "n.i.O." an das "n.a."-Kaestchen. Jetzt:
+  // schmaleres Label (22 mm) UND etwas weiterer Kaestchenabstand (11/22 mm),
+  // beides zusammen passt wieder in die Spaltenbreite von 58 mm.
+  const SICHT_LABEL_X = [23, 81, 139];   // Textbeginn je Spalte
+  const SICHT_CB_X    = [48, 106, 164];  // "i.O."-Kaestchen
+  const SICHT_LABEL_W = 22;
 
   // Ein Pruefpunkt mit den drei Zustaenden i.O. / n.i.O. / n.a.
   const drawPruefpunkt = (label, xLabel, xBox, yy, wert) => {
@@ -736,8 +1039,8 @@ function generatePDF(isBlank = false) {
     drawFittedText(doc, label + ':', xLabel, yy, SICHT_LABEL_W, 7, 5.2);
     doc.setFontSize(6.4);
     drawCheckbox(doc, xBox, yy, "i.O.", !isBlank && wert === "i.O.");
-    drawCheckbox(doc, xBox + 10.5, yy, "n.i.O.", !isBlank && wert === "n.i.O.", true);
-    drawCheckbox(doc, xBox + 23, yy, "n.a.", !isBlank && wert === "n.a.");
+    drawCheckbox(doc, xBox + 11, yy, "n.i.O.", !isBlank && wert === "n.i.O.", true);
+    drawCheckbox(doc, xBox + 22, yy, "n.a.", !isBlank && wert === "n.a.");
     doc.setFontSize(7);
   };
 
@@ -748,18 +1051,18 @@ function generatePDF(isBlank = false) {
   });
 
   // Anschlusskabel: im Leerformular als durchgehende Linie ueber die volle Breite
-  const kabelAnschluss = [feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
-    .filter(p => p).join(' ');
+  const kabelAnschluss = kommaZahl([feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
+    .filter(p => p).join(' '));
   doc.setFontSize(7);
   const yKabel = y + 9 + 4 * SICHT_ZA + 0.6;
   drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
                              : "Anschlusskabel (Typ / Adern / Querschnitt):",
-                kabelAnschluss, 13, yKabel, 184, isBlank);
+                kabelAnschluss, PDF_MARGIN_LEFT + 3, yKabel, 177, isBlank);
 
   const yErp = yKabel + SICHT_ZA + 1.4;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.text("Erproben:", 13, yErp);
+  doc.text("Erproben:", PDF_MARGIN_LEFT + 3, yErp);
   doc.setFont("helvetica", "normal");
 
   const erpEls = document.querySelectorAll('.erp-item');
@@ -781,7 +1084,11 @@ function generatePDF(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.", 10, y + 3.4);
+  // Der Hinweis auf rot hinterlegte Werte ergibt im Leerformular keinen Sinn -
+  // dort wird nichts ausgefuellt und es kann nichts rot markiert sein.
+  doc.text(isBlank ? "Grenzwerte je Spalte im Tabellenkopf."
+                   : "Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.",
+           PDF_MARGIN_LEFT, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -804,16 +1111,33 @@ function generatePDF(isBlank = false) {
   } else {
     const cards = document.querySelectorAll('.circuit-card');
     cards.forEach((card, idx) => {
+      /* TOTGELEGTER STROMKREIS: keine Messwerte vorhanden (er wird nicht
+       * betrieben) - statt der normalen Messwertspalten erscheint eine
+       * durchgaengige, rot hinterlegte Kennzeichnung mit dem dokumentierten
+       * Fehlergrund. Fliesst NICHT in anyMeasurementOut ein: eine bewusste
+       * Freischaltung ist kein ausserhalb der Norm liegender Messwert - die
+       * uebrige Anlage bleibt dadurch als "keine Maengel" bewertbar. */
+      if (istTotgelegt(card.querySelector('.c-totgelegt'))) {
+        const grund = cleanStr(card.querySelector('.c-totlegung-grund')?.value || '');
+        tableRows.push([
+          idx + 1,
+          cleanStr(card.querySelector('.c-bez').value || '-'),
+          { content: 'TOTGELEGT / FREIGESCHALTET – Mangel festgestellt, nicht in Betrieb\n' + grund,
+            colSpan: 7, styles: { halign: 'left', fontStyle: 'bold', textColor: [153, 27, 27], fillColor: [254, 226, 226] } }
+        ]);
+        return;
+      }
+
       const kTyp = card.querySelector('.c-kabel-typ').value;
       const kLei = card.querySelector('.c-leiter').value;
       const kQs = card.querySelector('.c-querschnitt').value;
-      let kabel = [kTyp, kLei, kQs].filter(p => p && p.trim()).join(' ');
+      let kabel = kommaZahl([kTyp, kLei, kQs].filter(p => p && p.trim()).join(' '));
       if (!kabel) kabel = '-';
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseFloat(rpeVal.replace(',', '.'));
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${rpeVal} Ω` : '-';
+      const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoModeVal = card.querySelector('.c-riso-mode')?.value || '';
@@ -823,7 +1147,7 @@ function generatePDF(isBlank = false) {
       const isRisoOut = !risoVal.trim().startsWith('>') && !isNaN(risoNum) && risoNum < risoMinPdf;
       // Die Pruefspannung gehoert nach DIN VDE 0100-600 mit ins Protokoll,
       // weil der Grenzwert von ihr abhaengt.
-      const risoText = risoVal ? `${risoVal} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
+      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
 
@@ -842,9 +1166,20 @@ function generatePDF(isBlank = false) {
       const zsNumPdf = parseFloat(zs.replace(',', '.'));
       const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
       let zsik = '-';
-      if (zs || ik) zsik = `${zs || '-'} Ω / ${ik || '-'} A`;
+      if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
       // Netzimpedanz nur drucken, wenn sie tatsaechlich gemessen wurde.
-      if (zln || ik2) zsik += `\nL-N: ${zln || '-'} Ω / ${ik2 || '-'} A`;
+      if (zln || ik2) zsik += `\nL-N: ${kommaZahl(zln) || '-'} Ω / ${kommaZahl(ik2) || '-'} A`;
+      // [Befund N3] Absicherung angegeben, aber weder als B/C/D-Charakteristik
+      // noch als Schmelzsicherung erkannt: Z_S/I_K wurden in diesem
+      // Stromkreis NICHT bewertet. Das muss im gedruckten Protokoll selbst
+      // stehen, nicht nur als Hinweis auf dem Bildschirm - sonst gibt das PDF
+      // die Anlage frei, ohne die Schutzabschaltung geprueft zu haben, ohne
+      // dass ein Leser des Dokuments das erkennen kann.
+      const absicherungUnbekannt = istAbsicherungUnbekannt(sich);
+      if (absicherungUnbekannt) {
+        zsik += '\nAbsicherung nicht erkannt – Z_S/I_K nicht bewertet';
+        anyDokumentationsmangel = true;
+      }
 
       const rcdTyp = card.querySelector('.c-rcd-typ').value;
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
@@ -898,7 +1233,7 @@ function generatePDF(isBlank = false) {
         makeCell(cleanStr(rpeText), isRpeOut),
         makeCell(cleanStr(risoText), isRisoOut),
         cleanStr(sich),
-        makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch),
+        makeCell(cleanStr(zsik), isIkOut || isZsOut || zsIkWiderspruch || absicherungUnbekannt),
         makeCell(cleanStr(rcdText), isRcdOut),
         makeCell(cleanStr(uText), isUOut)
       ]);
@@ -917,10 +1252,11 @@ function generatePDF(isBlank = false) {
     'U_{mess} (V)\nU_{L} 50/25 V AC\n120/60 V DC'
   ]];
 
+  // 4.7.0: Summe = 180 mm statt vorher 190 mm (siehe LEER_SPALTEN_VDE oben).
   const SPALTEN_AUSGEFUELLT = {
-    0: { cellWidth: 7 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 26 },
-    3: { cellWidth: 16 }, 4: { cellWidth: 20 }, 5: { cellWidth: 18 },
-    6: { cellWidth: 25 }, 7: { cellWidth: 26 }, 8: { cellWidth: 18 }
+    0: { cellWidth: 6 }, 1: { cellWidth: 32, halign: 'left' }, 2: { cellWidth: 25 },
+    3: { cellWidth: 15 }, 4: { cellWidth: 19 }, 5: { cellWidth: 17 },
+    6: { cellWidth: 24 }, 7: { cellWidth: 25 }, 8: { cellWidth: 17 }
   };
 
   // Gemeinsame Optionen, damit Blatt 1 und die Fortsetzungsblaetter identisch
@@ -935,7 +1271,7 @@ function generatePDF(isBlank = false) {
     },
     bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
               minCellHeight: isBlank ? LEER_ZEILENHOEHE : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
   };
@@ -969,20 +1305,30 @@ function generatePDF(isBlank = false) {
    * Zeile fehlten im fertigen PDF. Deshalb erst Schrift setzen, dann messen. */
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
-  const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
+  const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
-  const OFF_R = 10;
+  const OFF_R = 9;
   const OFF_PUNKT = OFF_R + ZA;
-  const offErgebnis   = OFF_PUNKT + ZA + 2;
+  // [Befund N5] DIN VDE 0105-100 verlangt bei Wiederholungspruefungen die
+  // Angabe, was tatsaechlich geprueft wurde (Vollpruefung oder Stichprobe,
+  // und in welchem Umfang) - ohne dieses Feld dokumentiert das Protokoll nur,
+  // was gemessen wurde, nicht, was bewusst ungeprueft blieb.
+  const OFF_UMFANG = OFF_PUNKT + ZA;
+  const offErgebnis   = OFF_UMFANG + ZA;
   const offTermin     = offErgebnis + 5.5;
   const offBemLabel   = offTermin + 5.5;
   const offBemStart   = offBemLabel + 4.2;
-  const boxHeight     = offBemStart + bemZeilen * 4.2 + 2.5;
+  const boxHeight     = offBemStart + bemZeilen * 4.2 + 1.5;
 
-  // Passt der Block nicht mehr komplett auf die Seite -> sauber umbrechen
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight);
+  /* 4.5.0 (C1): Kasten 4 und der Abschlussblock (Freigabe, Konformitaetstext,
+   * Unterschriften) werden GEMEINSAM auf Platz geprueft. Vorher wurden beide
+   * getrennt geprueft; dadurch passte der Kasten noch auf die Seite, der
+   * Unterschriftenblock aber nicht mehr - und ein "1 Blatt"-Leerformular
+   * ergab zwei PDF-Seiten, die zweite mit nichts als zwei Linien darauf. */
+  const ABSCHLUSS_H_SCHAETZUNG = 32;   // Freigabezeile + Hinweistext + Unterschriften
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + ABSCHLUSS_H_SCHAETZUNG);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
 
@@ -991,23 +1337,16 @@ function generatePDF(isBlank = false) {
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
-  if (isErdungOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
+  // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_R, 90, isBlank);
-  if (isErdungOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
-
-  /* R_PA gegen den Grenzwert pruefen, der ohnehin auf dem Blatt steht.
-   * Bisher wurde der Wert nur gedruckt - ein Protokoll mit R_PA 5 Ohm gab die
-   * Anlage frei und widersprach damit seiner eigenen gedruckten Grenze. */
-  const isPaOut = !isBlank && paWiderstandUeberschritten(document.getElementById('pa_widerstand')?.value);
-  if (isPaOut) { doc.setTextColor(...redCellText); doc.setFont("helvetica", "bold"); }
-  drawFeldZeile(doc, `Durchgängigkeit PE/PA R_{PA} (≤ ${PA_WIDERSTAND_GRENZWERT.toFixed(1).replace('.', ',')} Ω):`,
-                feldWert('pa_widerstand') ? withUnit(feldWert('pa_widerstand'), 'Ω') : '', 107, finalY + OFF_R, 90, isBlank);
-  if (isPaOut) { doc.setTextColor(...textColor); doc.setFont("helvetica", "normal"); }
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
 
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
-  drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
-                feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
+  drawFeldZeile(doc, "Messpunkt / Bezugspunkt:",
+                feldWert('erdung_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
+
+  // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + OFF_UMFANG, 177, isBlank);
 
   /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
    * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
@@ -1024,20 +1363,20 @@ function generatePDF(isBlank = false) {
   // "n.a." ist kein Befund und darf die Gesamtbewertung nicht kippen -
   // gezaehlt wird nur ein ausdrueckliches n.i.O.
   const anyErpNiO = Array.from(document.querySelectorAll('.erp-item')).some(el => el?.value === 'n.i.O.');
-  /* R_PA und die N-PE-Spannung gehen jetzt ebenfalls in die Gesamtbewertung
-   * ein. Die N-PE-Spannung ist der einzige Wert der Netzmessung, der
-   * eigenstaendig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung) -
-   * am Buehnenverteiler ist das lebensgefaehrlich. */
+  /* Die N-PE-Spannung geht ebenfalls in die Gesamtbewertung ein - sie ist der
+   * einzige Wert der Netzmessung, der eigenstaendig einen Fehler findet
+   * (hochohmiger PEN, Fremdeinspeisung) - am Buehnenverteiler ist das
+   * lebensgefaehrlich. */
   const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO ||
-                             anyMeasurementOut || isErdungOut || isPaOut || isNpeOut);
+                             anyMeasurementOut || isErdungOut || isNpeOut);
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
-  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -1047,7 +1386,7 @@ function generatePDF(isBlank = false) {
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, 13, finalY + offTermin, 90, isBlank);
+  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, PDF_MARGIN_LEFT + 3, finalY + offTermin, 90, isBlank);
 
   // Die Prüfplakette steht jetzt in dieser Zeile: die Ergebniszeile darueber
   // braucht die volle Breite fuer das dritte Ankreuzfeld ("Mängel behoben").
@@ -1059,13 +1398,13 @@ function generatePDF(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
+  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
+    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 13, finalY + offBemStart);
+    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
   }
 
   // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
@@ -1082,6 +1421,14 @@ function generatePDF(isBlank = false) {
     return;
   }
 
+  // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
+  // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
+  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
+    alert(plaketteWiderspruchHinweis());
+    document.getElementById('res_plakette')?.focus();
+    return;
+  }
+
   const complianceText = isBlank
     // Im Leerformular waere die Konformitaetsaussage eine unbelegte Behauptung -
     // dort steht nur der Hinweis, dass sie nach der Pruefung anzukreuzen ist.
@@ -1094,8 +1441,7 @@ function generatePDF(isBlank = false) {
 
   // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
   const complianceGesamt = complianceText +
-    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '') +
-    (isKalAbgelaufen ? KALIBRIERUNG_HINWEIS_PDF : '');
+    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
 
   /* Derselbe Grund wie oben, hier aber mit groesserer Wirkung: der Warntext
    * bei Maengeln wird FETT gesetzt und ist damit rund 7 % breiter als in
@@ -1105,25 +1451,40 @@ function generatePDF(isBlank = false) {
    * Nichtfreigabe ausspricht. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
 
   // Bedarf fuer Bestaetigungszeile + Hinweistext + Unterschriftenblock exakt
   // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
   const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
   finalY += boxHeight + 5;
-  finalY = pdfPlatzPruefen(doc, finalY, abschlussHoehe);
+  /* 4.6.0: Im Leerformular darf der Abschlussblock nicht nur bis
+   * PDF_CONTENT_BOTTOM reichen, sondern muss VOR der Fussnotenzeile enden -
+   * sonst ueberschreiben sich Unterschriftenzeile und Fussnoten (siehe
+   * leerFussOben() in pdf-utils.js). Ohne diese Pruefung passte der Block
+   * nach dem Vergroessern der Stammdaten-Zeilen (Sektion 1) rechnerisch noch
+   * auf Blatt 1, kollidierte dort aber mit der Legende. */
+  if (isBlank) {
+    const fussGrenze = leerFussOben(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]) - 2;
+    if (finalY + abschlussHoehe > fussGrenze) {
+      doc.addPage();
+      finalY = PDF_CONTENT_TOP;
+    }
+  } else {
+    finalY = pdfPlatzPruefen(doc, finalY, abschlussHoehe);
+  }
 
   // GEWÄHRLEISTUNG & UNTERSCHRIFTEN
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
-  drawCheckbox(doc, 58, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 115, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  drawCheckbox(doc, 68, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
+  drawCheckbox(doc, 125, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  doc.text(complianceLines, 10, finalY + 4);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 2;
@@ -1135,15 +1496,16 @@ function generatePDF(isBlank = false) {
     : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padPruefer.isEmpty()) {
-    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
+    // 4.7.0: x=10 -> PDF_MARGIN_LEFT (20 mm, Locherrand).
+    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', PDF_MARGIN_LEFT, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.2);
-  doc.line(10, finalY + 12, 90, finalY + 12);
+  doc.line(PDF_MARGIN_LEFT, finalY + 12, PDF_MARGIN_LEFT + 80, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
@@ -1151,20 +1513,12 @@ function generatePDF(isBlank = false) {
   doc.line(115, finalY + 12, 200, finalY + 12);
   doc.text(`${ortDatum} - Unterschrift Auftraggeber/Betreiber`, 115, finalY + 15);
 
-  /* Musterangabe und Sollwerte stehen im Leerformular als zwei graue Zeilen
-   * im Fussbereich von Blatt 1. Frueher belegte die Musterangabe eine eigene
-   * Tabellenzeile - und zwar auf jedem ausgedruckten Blatt. */
+  /* Fussbereich von Blatt 1: Musterangabe, Sollwerte der Netzmessung und
+   * Legende. 4.5.0 (C4): 6 pt statt 4,6 pt, von unten nach oben gesetzt.
+   * Die Legende steht jetzt zusaetzlich auf jedem Fortsetzungsblatt. */
   if (isBlank) {
     doc.setPage(1);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(5.2);
-    doc.setTextColor(...PDF_MUTED);
-    // Die Musterangabe enthaelt Formelzeichen (R_{PE}, I_{Δmess}, ...) und wird
-    // deshalb ueber den Formelsatz ausgegeben statt ueber doc.text().
-    drawFormel(doc, LEER_BEISPIEL_TEXT_VDE, PDF_MARGIN_LEFT, 284.5);
-    doc.text(LEER_SOLLWERTE_VDE, PDF_MARGIN_LEFT, 287.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...PDF_TEXT);
+    drawLeerFuss(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]);
   }
 
   /* --- FORTSETZUNGSBLAETTER DES LEERFORMULARS ----------------------------
@@ -1198,6 +1552,11 @@ function generatePDF(isBlank = false) {
         columnStyles: LEER_SPALTEN_VDE,
         ...tabellenStil
       }));
+
+      /* 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt. Es traegt denselben
+       * Tabellenkopf mit denselben Formelzeichen - ohne Erklaerung war es fuer
+       * Auszubildende im ersten Lehrjahr nicht ausfuellbar. */
+      drawLeerFuss(doc, [LEER_LEGENDE_VDE]);
     }
   }
 
@@ -1216,8 +1575,16 @@ function generatePDF(isBlank = false) {
   Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
+    // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
+    // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
+    // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
+    // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
+    // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
+    // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
     verbraucheProtokollNummer(nummerRoh, 'PR');
-    nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave);
+    nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
+      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+    });
   });
 }
 
@@ -1233,15 +1600,24 @@ function initSignaturePads() {
 // Einheitliches Praefix 'vde_' fuer ALLE Autosave-Schluessel, damit die
 // Datensicherung sie zuverlaessig erfasst (migriereAutosaveSchluessel in
 // storage.js benennt vorhandene Staende beim Start um).
-const AUTOSAVE_KEY = 'vde_autosave_pr';
+//
+// 4.7.0: Statt EINES festen Schluessels ('vde_autosave_pr') fuehrt jeder
+// EntwurF (siehe entwuerfe.js) seinen eigenen Autosave-Stand. AUTOSAVE_KEY
+// ist damit keine Konstante mehr, sondern zeigt immer auf den Autosave-Key
+// des gerade AKTIVEN Entwurfs - dadurch koennen mehrere Pruefungen parallel
+// offen sein (z. B. zwei Anschlussstellen), ohne sich gegenseitig zu
+// ueberschreiben.
+entwurfAusUrlUebernehmen('PR');
+let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('PR', 'vde_autosave_pr');
+function AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('PR', AKTUELLER_ENTWURF_ID); }
 
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
   'netzspannung', 'netzfrequenz', 'einspeisung', 'hausanschluss', 'vnb', 'messgeraet', 'seriennummer',
-  'kalibriert_bis',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
-  'erdung_re', 'pa_widerstand', 'erdung_messpunkt',
+  'erdung_re', 'erdung_messpunkt',
+  'pruefumfang',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
   'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -1281,7 +1657,9 @@ function collectProtocolState() {
     rcd_pruefstrom: card.querySelector('.c-rcd-pruefstrom').value,
     art: card.querySelector('.c-spannung-art').value,
     gefaehrdung: card.querySelector('.c-gefaehrdung').value,
-    umess: card.querySelector('.c-umess').value
+    umess: card.querySelector('.c-umess').value,
+    totgelegt: istTotgelegt(card.querySelector('.c-totgelegt')),
+    totlegung_grund: card.querySelector('.c-totlegung-grund')?.value || ''
   }));
 
   return state;
@@ -1303,6 +1681,15 @@ function restoreProtocolState(state) {
      * sonst entstuende ein fertiges Protokoll ohne Pruefdatum. */
     if ((id === 'datum' || id === 'unterschrift_datum' || id === 'res_termin_date') &&
         !String(val || '').trim()) return;
+    /* BUGFIX: Ein leerer Wert in einem Stammdatenfeld (Hausanschluss,
+     * Seriennummer, ...) darf nicht den Wert ueberschreiben, den
+     * applyMasterDataToForm() gerade eben aus den zentralen Stammdaten
+     * gesetzt hat - sonst verschwindet z. B. der Hausanschluss wieder,
+     * sobald ein aelterer Autosave-Stand restauriert wird, der dieses Feld
+     * noch leer hatte. Ein tatsaechlich GEFUELLTER Autosave-Wert setzt sich
+     * weiterhin durch (das aktuelle Formular hat Vorrang vor den
+     * Stammdaten). */
+    if (MASTERDATA_FIELD_IDS.includes(id) && !String(val || '').trim()) return;
     el.value = val;
   });
 
@@ -1321,8 +1708,6 @@ function restoreProtocolState(state) {
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
   validateErdung();
-  validatePaWiderstand();
-  validateKalibrierung();
 
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });
@@ -1344,18 +1729,28 @@ function restoreProtocolState(state) {
 }
 
 function autosaveProtocol() {
-  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(collectProtocolState())); } catch (e) {}
+  try {
+    localStorage.setItem(AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectProtocolState()));
+    entwurfMerken('PR', AKTUELLER_ENTWURF_ID, {
+      protokollnummer: document.getElementById('protokollnummer')?.value || '',
+      bezeichnung: entwurfBezeichnung('PR', () => ({
+        anlage: document.getElementById('anlage_bez')?.value,
+        gebaeude: document.getElementById('gebaeude_custom')?.value
+      }))
+    });
+  } catch (e) {}
 }
 
 function loadAutosave() {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    const raw = localStorage.getItem(AUTOSAVE_KEY_AKTUELL());
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
 function clearAutosave() {
-  localStorage.removeItem(AUTOSAVE_KEY);
+  localStorage.removeItem(AUTOSAVE_KEY_AKTUELL());
+  entwurfEntfernen(AKTUELLER_ENTWURF_ID);
 }
 
 // SETZT DAS GESAMTE FORMULAR AUF DEN AUSGANGSZUSTAND ZURÜCK (FÜR "NEUES FORMULAR")

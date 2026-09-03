@@ -61,3 +61,22 @@ Kurzfassung:
 - NACHTRAG: Messtabelle (Abschnitt 3) war nach der Randvergrößerung
   bis an den rechten Papierrand gequetscht – jetzt wieder mit
   demselben rechten Rand wie die übrigen Abschnitte ausgerichtet
+- 2. NACHTRAG (Anlagenprüfung, vde0100.html):
+  - Im PDF unter "4. Erdung" steht beim Messpunkt/Bezugspunkt nicht
+    mehr die Beispielaufzählung "(z. B. HES, PA-Schiene, UV,
+    Fundamenterder)" – die Auswahl trifft man ja bereits per
+    Schnellwahl-Button in der App
+  - Ist an einem Stromkreis ein Mangel festgestellt (n.i.O.), klappen
+    die zugehörigen Messprüfungen automatisch ein, da sie dann nicht
+    mehr relevant sind – über die Kopfzeile "Messprüfungen" jederzeit
+    wieder aufklappbar
+  - Das Ankreuzfeld "Mangel festgestellt" steht jetzt als
+    i.O./n.i.O.-Auswahl (gleiches Muster wie bei Sichtprüfung/
+    Erprobung) am ENDE jeder Stromkreisprüfung statt am Anfang; bei
+    n.i.O. öffnet sich automatisch das Bemerkungsfeld für den
+    festgestellten Fehler
+  - Pflichtfelder je Stromkreis (Z_S, Ergebnis-Auswahl) werden wie
+    die übrigen Pflichtfelder leicht gelb hinterlegt, solange sie
+    leer sind, und grün, sobald ein Wert eingetragen ist – ein
+    tatsächlich normwidriger Wert bleibt weiterhin rot markiert und
+    hat Vorrang vor der grünen Markierung
