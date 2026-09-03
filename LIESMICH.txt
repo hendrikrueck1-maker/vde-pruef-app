@@ -1,5 +1,25 @@
-VDE-Prüfprotokoll-App – Version 4.7.0
+VDE-Prüfprotokoll-App – Version 4.7.1
 Alle geänderten/neuen Dateien dieses Updates
+
+============================================================
+WICHTIG: WARUM JETZT 4.7.1 STATT 4.7.0?
+============================================================
+
+Die Änderungen an der Anlagenprüfung (Erdung-Text, Messprüfungen
+einklappen, i.O./n.i.O.-Auswahl, Pflichtfeld-Farben) wurden zwar
+korrekt in die App-Dateien eingebaut und in den Ordner hochgeladen
+- SW_VERSION in sw.js und APP_VERSION in js/app-config.js standen
+dabei aber versehentlich weiterhin auf 4.7.0. Ein Service Worker
+installiert eine neue Version aber NUR, wenn sich die Versions-
+nummer tatsächlich ändert - blieb sie gleich, lieferte die App
+weiterhin die alten, im Browser zwischengespeicherten Dateien aus,
+obwohl auf der Festplatte längst die neuen lagen. Genau das ist
+hier passiert: die Änderungen waren "unsichtbar", obwohl sie
+korrekt vorhanden waren.
+
+Jetzt auf 4.7.1 hochgezählt - das erzwingt beim nächsten Laden
+zuverlässig eine komplette Neuinstallation des Service Workers und
+des Offline-Caches.
 
 ============================================================
 WIE EINPFLEGEN
@@ -14,9 +34,9 @@ lassen. Die Ordnerstruktur ist bereits identisch:
   vde0100.html
   anschlusspruefung.html
   geraetepruefung.html
-  sw.js
+  sw.js                   <- Version 4.7.1
   css/style.css
-  js/app-config.js
+  js/app-config.js        <- Version 4.7.1
   js/storage.js
   js/pdf-generator.js
   js/anschluss-generator.js
@@ -30,9 +50,15 @@ Alle übrigen Dateien deines App-Ordners (icons/, vendor/,
 archiv.html, archiv.js, manifest.json, docs/ usw.) sind von
 diesem Update NICHT betroffen und bleiben unverändert stehen.
 
-Nach dem Hochladen/Kopieren: Seite im Browser einmal neu laden
-(ggf. Cache leeren) – der Service Worker erkennt automatisch die
-neue Version (4.7.0) und lädt alles frisch.
+Nach dem Hochladen/Kopieren: Seite im Browser einmal komplett neu
+laden. Da SW_VERSION jetzt auf 4.7.1 steht, erkennt der Service
+Worker die neue Version zuverlässig automatisch und lädt alles
+frisch - du solltest unten rechts den Hinweis "Neue Version
+verfügbar" sehen. Falls die Änderungen trotzdem nicht sichtbar
+werden: auf der Startseite gibt es einen Button/Funktion zum
+Zurücksetzen der App (löscht nur den Offline-Cache, keine
+Formulardaten/Zwischenstände) - oder Browser-Cache für diese Seite
+einmal manuell leeren (Strg+F5 bzw. Cmd+Shift+R).
 
 ============================================================
 WAS IST NEU

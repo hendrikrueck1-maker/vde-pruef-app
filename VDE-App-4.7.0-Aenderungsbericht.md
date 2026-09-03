@@ -1,4 +1,4 @@
-# VDE-Prüfprotokoll-App 4.7.0 – Änderungsbericht
+# VDE-Prüfprotokoll-App 4.7.0 / 4.7.1 – Änderungsbericht
 
 **Vorgängerversion:** 4.6.1
 **Umgesetzt:** alle 14 von dir gemeldeten Punkte – Stammdaten (Hausanschluss,
@@ -397,6 +397,49 @@ Regression durch diese Änderungen.
 
 ---
 
+## 3. Nachtrag · Änderungen aus dem 2. Nachtrag waren in der App unsichtbar (Service-Worker-Cache) – jetzt Version 4.7.1
+
+Du hast zurecht gemeldet, dass von den vier Anpassungen aus dem „2. Nachtrag"
+(Erdung-Hinweistext, einklappbare Messprüfungen, i.O./n.i.O.-Auswahl am
+Kartenende, Pflichtfeld-Farben je Stromkreis) in der App nichts zu sehen war.
+
+**Kontrolle:** Direkte Prüfung deines verbundenen Ordners `ZUM-HOCHLADEN` hat
+bestätigt, dass alle betroffenen Dateien (`js/pdf-generator.js`, `vde0100.html`,
+`css/style.css`, `js/pflichtfelder.js`) dort bereits korrekt in der neuen
+Fassung lagen – Größe und Inhalt stimmen byteweise mit der zuletzt gesendeten
+Version überein. Die Änderungen waren also technisch vorhanden, aber nicht
+sichtbar.
+
+**Ursache:** `sw.js` (Service Worker) enthält den ausdrücklichen Hinweis:
+„Ein Browser installiert einen neuen Service Worker NUR, wenn sich der Inhalt
+DIESER Datei (sw.js) byteweise geändert hat." Beim 2. Nachtrag wurden zwar
+alle App-Dateien aktualisiert, aber `SW_VERSION` in `sw.js` sowie
+`APP_VERSION` in `js/app-config.js` blieben versehentlich unverändert auf
+4.7.0 stehen. Der bereits im Browser installierte Service Worker erkannte
+dadurch keine neue Version und lieferte weiterhin die alten, zwischen­
+gespeicherten Dateien aus dem Offline-Cache aus – unabhängig davon, was
+tatsächlich im Ordner lag. Sogar das eingebaute Sicherheitsnetz in
+`js/pwa.js` (vergleicht `APP_VERSION` direkt über das Netz) schlug nicht an,
+weil auf beiden Seiten – im Browser und in der neu hochgeladenen Datei –
+derselbe Wert „4.7.0" stand.
+
+**Jetzt:** `SW_VERSION` (`sw.js`) und `APP_VERSION` (`js/app-config.js`)
+wurden auf **4.7.1** hochgezählt. Das erzwingt beim nächsten Laden der Seite
+zuverlässig eine komplette Neuinstallation des Service Workers und des
+Offline-Caches; der Hinweis „Neue Version verfügbar" erscheint automatisch.
+
+Betroffen: `sw.js`, `js/app-config.js`.
+
+**Geprüft:** Direkt in deinem verbundenen `ZUM-HOCHLADEN`-Ordner ausgelesen
+und bestätigt: `SW_VERSION` und `APP_VERSION` stehen dort jetzt beide auf
+4.7.1. Falls die vier Änderungen aus dem 2. Nachtrag nach einem normalen
+Neuladen der Seite wider Erwarten trotzdem noch nicht sichtbar sein sollten,
+hilft ein hartes Neuladen (Strg+F5 bzw. Cmd+Shift+R) oder die in der App
+eingebaute "App zurücksetzen"-Funktion (löscht nur den Offline-Cache, keine
+Formulardaten/Zwischenstände).
+
+---
+
 ## Prüfung dieser Version
 
 Ausgeführt in Chromium (Playwright):
@@ -435,5 +478,5 @@ Ausgeführt in Chromium (Playwright):
     Entwurf mit Protokollnummer, Bezeichnung und Zeitstempel korrekt auf.
 
 **Nach dem Hochladen:** `APP_VERSION` und `SW_VERSION` stehen beide auf
-4.7.0, der Offline-Cache lädt also alles neu und die Nutzer bekommen den
-Hinweis „Neue Version verfügbar".
+4.7.1 (siehe 3. Nachtrag), der Offline-Cache lädt also alles neu und die
+Nutzer bekommen den Hinweis „Neue Version verfügbar".
