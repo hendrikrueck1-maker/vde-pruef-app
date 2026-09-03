@@ -187,6 +187,19 @@ input::placeholder, textarea::placeholder { color: #94a3b8; font-style: italic; 
   background-color: #f0fdf4 !important;
   border-color: #86efac !important;
 }
+/* Ein tatsaechlich falscher Wert (rot) hat immer Vorrang vor der gruenen
+   "ausgefuellt"-Markierung - ein Feld ist nicht "ok", nur weil etwas
+   darinsteht. Selektor-Kombination statt Reihenfolge im Stylesheet, damit
+   das unabhaengig von spaeteren Ergaenzungen zuverlaessig bleibt. */
+.pflichtfeld-ok.out-of-norm, .pflichtfeld-leer.out-of-norm {
+  background-color: var(--danger-bg) !important;
+  border-color: var(--danger-border) !important;
+  color: var(--danger-text) !important;
+}
+.pflichtfeld-ok.missing-value, .pflichtfeld-leer.missing-value {
+  background-color: #fef9c3 !important;
+  border-color: #ca8a04 !important;
+}
 
 /* Feld-Badge (4.7.0): kleine Markierung direkt im Label, z. B. bei ZS/ZL-N,
    damit "Pflicht" und "Optional" auf den ersten Blick gleich aussehen statt
@@ -222,17 +235,37 @@ label .limit-hint { display: inline; margin-top: 0; }
 .circuit-header, .feed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; font-weight: bold; color: var(--primary); }
 
 /* Totlegung eines einzelnen Stromkreises (4.7.0) - siehe toggleTotlegung() */
-.circuit-totlegung { margin: -4px 0 10px; }
-.totlegung-checkbox {
-  display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; font-weight: bold;
-  color: #991b1b; cursor: pointer; line-height: 1.35;
-}
-.totlegung-checkbox input[type="checkbox"] { width: auto; margin-top: 2px; flex-shrink: 0; }
-.totlegung-grund { margin-top: 8px; }
 .totlegung-grund textarea { border-color: #f87171; background: #fef2f2; }
 .circuit-card.circuit-totgelegt, .feed-card.circuit-totgelegt {
   border-color: #f87171; background: #fff8f8;
 }
+
+/* Einklappbarer Messpruefungs-Block (4.7.0) - siehe toggleTotlegung() /
+   toggleMessSections() in pdf-generator.js. Bei "n.i.O." automatisch
+   eingeklappt (die Messwerte sind dann nicht mehr relevant), aber jederzeit
+   ueber die Kopfzeile wieder aufklappbar. */
+.mess-sections-header {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 6px 4px; margin-bottom: 4px; border-radius: 4px;
+  user-select: none;
+}
+.mess-sections-header:hover { background: #f1f5f9; }
+.mess-sections-titel { font-weight: bold; color: var(--primary); font-size: 0.85rem; }
+.mess-sections-hinweis { font-size: 0.72rem; color: var(--secondary); flex: 1; }
+.mess-sections-chevron { transition: transform 0.15s; color: var(--secondary); }
+.c-mess-sections.mess-sections-collapsed .mess-sections-chevron { transform: rotate(-90deg); }
+.c-mess-sections.mess-sections-collapsed .sub-section { display: none; }
+.c-mess-sections:not(.mess-sections-collapsed) .mess-sections-hinweis { display: none; }
+
+/* Ergebnis-Auswahlfeld je Stromkreis (4.7.0) - steht am Ende der Karte. */
+.circuit-totlegung { margin: 10px 0 -4px; }
+.circuit-totlegung select.c-totgelegt { font-weight: bold; }
+.circuit-totlegung select.c-totgelegt.pflichtfeld-ok.circuit-niko {
+  background-color: var(--danger-bg) !important;
+  border-color: var(--danger-border) !important;
+  color: var(--danger-text) !important;
+}
+.circuit-totlegung .totlegung-grund { margin-top: 8px; }
 .circuit-card.circuit-totgelegt .circuit-header,
 .feed-card.circuit-totgelegt .feed-header { border-bottom-color: #fecaca; }
 

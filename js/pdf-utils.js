@@ -1011,7 +1011,12 @@ function istLeerWert(v) {
 function prueflingeOhneMessung(karten, messSelektoren, totgelegtSelektor) {
   const leer = [];
   Array.from(karten).forEach((card, i) => {
-    if (totgelegtSelektor && card.querySelector(totgelegtSelektor)?.checked) return;
+    const totEl = totgelegtSelektor ? card.querySelector(totgelegtSelektor) : null;
+    // Unterstuetzt sowohl die alte Checkbox (.checked) als auch das aktuelle
+    // i.O./n.i.O.-Auswahlfeld (siehe istTotgelegt() in pdf-generator.js) -
+    // ohne harte Abhaengigkeit von pdf-generator.js an dieser Stelle.
+    const istTot = totEl && (totEl.type === 'checkbox' ? totEl.checked : String(totEl.value || '').trim() === 'n.i.O.');
+    if (istTot) return;
     const hatEinen = messSelektoren.some(sel => !istLeerWert(card.querySelector(sel)?.value));
     if (!hatEinen) leer.push(i + 1);
   });

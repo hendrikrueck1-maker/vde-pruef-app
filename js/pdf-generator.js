@@ -23,17 +23,47 @@ function pruefstromSel(wert, optionWert) {
  *  mindestens einen Messwert" ausgenommen (siehe prueflingeOhneMessung-Aufruf
  *  weiter unten) und im PDF eindeutig als totgelegt gekennzeichnet, statt als
  *  gemessen und i.O. zu erscheinen. */
-function toggleTotlegung(checkbox) {
-  const card = checkbox.closest('.circuit-card, .feed-card');
+function istTotgelegt(el) {
+  // el ist entweder das Auswahlfeld selbst (.c-totgelegt, <select>) oder ein
+  // Nachfahre davon (z. B. beim Auslesen einer Karte per querySelector).
+  return !!el && String(el.value || '').trim() === 'n.i.O.';
+}
+
+/* Reine Anzeige-Synchronisation (Grund-Feld ein-/ausblenden, rote Markierung,
+ * Messpruefungen ein-/ausklappen) - OHNE Seiteneffekte wie Fokus oder
+ * Autosave. Wird sowohl beim Anlegen/Wiederherstellen einer Karte als auch
+ * beim manuellen Umschalten (toggleTotlegung) verwendet. */
+function syncTotlegungAnzeige(select) {
+  const card = select.closest('.circuit-card, .feed-card');
   if (!card) return;
+  const niO = istTotgelegt(select);
   const grundBox = card.querySelector('.totlegung-grund');
-  if (grundBox) grundBox.style.display = checkbox.checked ? '' : 'none';
-  card.classList.toggle('circuit-totgelegt', checkbox.checked);
-  if (checkbox.checked) {
-    const ta = card.querySelector('.c-totlegung-grund');
+  if (grundBox) grundBox.style.display = niO ? '' : 'none';
+  card.classList.toggle('circuit-totgelegt', niO);
+  select.classList.toggle('circuit-niko', niO);
+
+  /* Bei "n.i.O." sind die Messpruefungen oben nicht mehr relevant (der Kreis
+   * wird ja gerade nicht betrieben) - automatisch einklappen, aber ueber die
+   * Ueberschrift jederzeit wieder aufklappbar lassen (siehe
+   * toggleMessSections). Bei Rueckwechsel auf "i.O." wieder aufklappen. */
+  const messSections = card.querySelector('.c-mess-sections');
+  if (messSections) messSections.classList.toggle('mess-sections-collapsed', niO);
+  return niO;
+}
+
+function toggleTotlegung(select) {
+  const niO = syncTotlegungAnzeige(select);
+  if (niO) {
+    const card = select.closest('.circuit-card, .feed-card');
+    const ta = card && card.querySelector('.c-totlegung-grund');
     if (ta) ta.focus();
   }
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+function toggleMessSections(header) {
+  const wrapper = header.closest('.c-mess-sections');
+  if (wrapper) wrapper.classList.toggle('mess-sections-collapsed');
 }
 
 function addCircuitCard(data = {}) {
@@ -50,17 +80,6 @@ function addCircuitCard(data = {}) {
         <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
         <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
       </span>
-    </div>
-
-    <div class="circuit-totlegung">
-      <label class="totlegung-checkbox">
-        <input type="checkbox" class="c-totgelegt" ${data.totgelegt ? 'checked' : ''} onchange="toggleTotlegung(this)">
-        Mangel festgestellt – Stromkreis freigeschaltet/totgelegt (fließt nicht in die Gesamtbewertung ein)
-      </label>
-      <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
-        <label>Festgestellter Fehler / Grund der Totlegung:</label>
-        <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
-      </div>
     </div>
 
     <div class="grid">
@@ -98,6 +117,19 @@ function addCircuitCard(data = {}) {
       </div>
     </div>
 
+    <!-- MESSPRUEFUNGEN (4.7.0): ein gemeinsam einklappbarer Block. Wird der
+         Stromkreis weiter unten als "Mangel festgestellt / totgelegt"
+         markiert, sind diese Messwerte per Definition nicht mehr relevant
+         (der Kreis ist ja gerade nicht in Betrieb) - toggleTotlegung() klappt
+         den Block dann automatisch ein, laesst ihn aber jederzeit per Klick
+         auf die Ueberschrift wieder aufklappbar (z. B. falls doch noch
+         Werte nachgetragen werden muessen). -->
+    <div class="c-mess-sections">
+    <div class="mess-sections-header" onclick="toggleMessSections(this)">
+      <span class="mess-sections-titel">Messprüfungen</span>
+      <span class="mess-sections-hinweis">Bei „n.i.O." unten eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
+      <span class="mess-sections-chevron">▾</span>
+    </div>
     <!-- MESSWERTE: R_PE & R_ISO
          Zwei klar getrennte Gruppen: sonst wirkte am Desktop die Prüfspannung
          wie eine Angabe zu R_PE, obwohl sie zum Isolationswiderstand gehört. -->
@@ -242,8 +274,34 @@ function addCircuitCard(data = {}) {
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- ERGEBNIS DIESER STROMKREISPRUEFUNG (4.7.0): steht bewusst am ENDE der
+         Karte - erst werden alle Messwerte erfasst, dann das Ergebnis
+         bewertet. Gleiches i.O./n.i.O.-Muster wie bei Sichtpruefung/Erprobung
+         (siehe .sicht-item/.erp-item). Ein Mangel (n.i.O.) klappt automatisch
+         die Messpruefungen oben ein (nicht mehr relevant, da der Kreis
+         freigeschaltet/totgelegt wird) und oeffnet/fokussiert das Feld fuer
+         den festgestellten Fehler. */-->
+    <div class="circuit-totlegung">
+      <div class="form-group">
+        <label>Ergebnis Stromkreisprüfung:</label>
+        <select class="c-totgelegt" onchange="toggleTotlegung(this)">
+          <option value="i.O."${data.totgelegt ? '' : ' selected'}>i.O.</option>
+          <option value="n.i.O."${data.totgelegt ? ' selected' : ''}>n.i.O. – Mangel festgestellt (Stromkreis freigeschaltet/totgelegt, fließt nicht in die Gesamtbewertung ein)</option>
+        </select>
+      </div>
+      <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
+        <label>Festgestellter Fehler / Grund der Totlegung:</label>
+        <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
+      </div>
+    </div>
   `;
   container.appendChild(card);
+  // Anzeige (collapse/rote Markierung/Grund-Feld) einmalig synchronisieren -
+  // ohne Fokus/Autosave-Seiteneffekt (siehe syncTotlegungAnzeige).
+  const totSelect = card.querySelector('.c-totgelegt');
+  if (totSelect) syncTotlegungAnzeige(totSelect);
   nummeriereKartenNeu('#circuitsContainer', '.circuit-card', 'Stromkreis');
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
@@ -725,7 +783,7 @@ function generatePDF(isBlank = false) {
     // dokumentiert das Protokoll eine Freischaltung ohne erkennbaren Grund.
     const totOhneGrund = [];
     document.querySelectorAll('.circuit-card').forEach((card, i) => {
-      if (card.querySelector('.c-totgelegt')?.checked && istLeerWert(card.querySelector('.c-totlegung-grund')?.value)) {
+      if (istTotgelegt(card.querySelector('.c-totgelegt')) && istLeerWert(card.querySelector('.c-totlegung-grund')?.value)) {
         totOhneGrund.push(i + 1);
       }
     });
@@ -1059,7 +1117,7 @@ function generatePDF(isBlank = false) {
        * Fehlergrund. Fliesst NICHT in anyMeasurementOut ein: eine bewusste
        * Freischaltung ist kein ausserhalb der Norm liegender Messwert - die
        * uebrige Anlage bleibt dadurch als "keine Maengel" bewertbar. */
-      if (card.querySelector('.c-totgelegt')?.checked) {
+      if (istTotgelegt(card.querySelector('.c-totgelegt'))) {
         const grund = cleanStr(card.querySelector('.c-totlegung-grund')?.value || '');
         tableRows.push([
           idx + 1,
@@ -1284,7 +1342,7 @@ function generatePDF(isBlank = false) {
                 feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
 
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
-  drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
+  drawFeldZeile(doc, "Messpunkt / Bezugspunkt:",
                 feldWert('erdung_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
 
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
@@ -1600,7 +1658,7 @@ function collectProtocolState() {
     art: card.querySelector('.c-spannung-art').value,
     gefaehrdung: card.querySelector('.c-gefaehrdung').value,
     umess: card.querySelector('.c-umess').value,
-    totgelegt: card.querySelector('.c-totgelegt')?.checked || false,
+    totgelegt: istTotgelegt(card.querySelector('.c-totgelegt')),
     totlegung_grund: card.querySelector('.c-totlegung-grund')?.value || ''
   }));
 

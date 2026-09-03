@@ -25,6 +25,13 @@
  *                  BEDINGUNGEN pflichtige Feld-IDs liefert (z. B. Frequenz
  *                  nur bei Netzersatzanlage) - wird bei jeder Aktualisierung
  *                  neu ausgewertet.
+ *    cfg.karten    optional (4.7.0): Array von { selektor, felder } fuer
+ *                  Pflichtfelder INNERHALB dynamisch angelegter Karten (z. B.
+ *                  ein Stromkreis) - selektor waehlt die Karte (z. B.
+ *                  '.circuit-card'), felder ist ein Array von CSS-Selektoren
+ *                  fuer die darin liegenden Pflichtfelder (z. B. '.c-zs').
+ *                  Wird bei jeder Aktualisierung UND bei jeder Kartenaenderung
+ *                  neu ausgewertet (derselbe MutationObserver wie unten).
  * ========================================================================== */
 function initPflichtfelder(cfg) {
   function markiereFeld(el) {
@@ -41,6 +48,13 @@ function initPflichtfelder(cfg) {
     }
     (cfg.auswahl || []).forEach(sel => {
       document.querySelectorAll(sel).forEach(el => markiereFeld(el));
+    });
+    (cfg.karten || []).forEach(({ selektor, felder }) => {
+      document.querySelectorAll(selektor).forEach(karte => {
+        (felder || []).forEach(feldSel => {
+          karte.querySelectorAll(feldSel).forEach(el => markiereFeld(el));
+        });
+      });
     });
   }
 
