@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '4.7.2';
+var APP_VERSION = '5.0.0';
 
 /* ---------------------------------------------------------------------------
  * 2. PROTOKOLLE
@@ -96,6 +96,16 @@ var PROTOKOLLE = [
  * Nur anfassen, wenn du eine NEUE gemeinsame Datei ergaenzt
  * (z.B. eine weitere Bibliothek in js/vendor/).
  */
+/* 5.0.0: entwuerfe.js, statusleiste.js und pflichtfelder.js ergaenzt - diese
+ * drei Dateien werden auf JEDER Formularseite geladen (siehe <script>-Tags
+ * in vde0100.html/anschlusspruefung.html/geraetepruefung.html), fehlten hier
+ * aber bislang komplett. Ohne Eintrag hier werden sie nicht in den
+ * Offline-Cache aufgenommen - eine Formularseite, die offline (ohne
+ * Netzverbindung) zum ersten Mal geoeffnet wird, waere dadurch nicht
+ * funktionsfaehig (Offene-Pruefungen-Verwaltung, Statusleiste und
+ * Pflichtfeld-Kennzeichnung wuerden fehlen). Kein aus dem 4.7.2-Bug-Report
+ * uebernommener Punkt, sondern beim Durcharbeiten dieser Datei zusaetzlich
+ * aufgefallen. */
 var CORE_ASSETS = [
   './',
   'index.html',
@@ -104,6 +114,9 @@ var CORE_ASSETS = [
   'css/style.css',
   'js/app-config.js',
   'js/storage.js',
+  'js/entwuerfe.js',
+  'js/statusleiste.js',
+  'js/pflichtfelder.js',
   'js/archiv.js',
   'js/pdf-utils.js',
   'js/pwa.js',

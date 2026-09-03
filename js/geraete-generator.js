@@ -266,7 +266,7 @@ function validateDeviceNorms(cardId) {
     rpeElem.disabled = false;
     rpeElem.placeholder = 'z. B. 0,20';
     if (rpeElem.value.trim() !== '') {
-      const num = parseFloat(rpeElem.value.replace(',', '.'));
+      const num = parseMesswert(rpeElem.value);
       if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
     } else rpeElem.classList.remove('out-of-norm');
   }
@@ -281,7 +281,7 @@ function validateDeviceNorms(cardId) {
     const txt = risoElem.value.trim();
     if (txt.startsWith('>')) risoElem.classList.remove('out-of-norm');
     else {
-      const num = parseFloat(txt.replace(',', '.'));
+      const num = parseMesswert(txt);
       if (!isNaN(num) && risoMin !== null && num < risoMin) risoElem.classList.add('out-of-norm'); else risoElem.classList.remove('out-of-norm');
     }
   } else risoElem.classList.remove('out-of-norm');
@@ -294,7 +294,7 @@ function validateDeviceNorms(cardId) {
       ? `[${getAbleitstromBezeichnung(schutzklasse)}, max. ${ableitMax} mA]` : '';
   }
   if (ableitElem.value.trim() !== '') {
-    const num = parseFloat(ableitElem.value.replace(',', '.'));
+    const num = parseMesswert(ableitElem.value);
     if (!isNaN(num) && ableitMax !== null && num > ableitMax) ableitElem.classList.add('out-of-norm'); else ableitElem.classList.remove('out-of-norm');
   } else ableitElem.classList.remove('out-of-norm');
 }
@@ -391,7 +391,27 @@ function leerBlattzahlGeraete() {
   return Math.min(Math.max(roh, 1), 4);
 }
 
+/* 5.0.0 (BUG #8 aus der 4.7.2-Prüfung): try/catch-Wrapper um den PDF-Aufbau,
+ * analog zu generatePDF()/generatePDFInner() in pdf-generator.js - siehe dort
+ * für die ausführliche Begründung. */
 function generatePDFGeraete(isBlank = false) {
+  try {
+    generatePDFGeraeteInner(isBlank);
+  } catch (err) {
+    console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
+    alert(
+      'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
+      'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
+      'bleiben erhalten (Autosave läuft weiter).\n\n' +
+      'Bitte versuche es erneut. Falls der Fehler wiederholt auftritt, hilft oft ' +
+      'ein Blick auf sehr lange Freitextfelder (Bemerkungen o.Ä.) - oder melde den ' +
+      'Fehler mit einer Beschreibung, was gerade im Formular stand.\n\n' +
+      'Technische Details: ' + (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+function generatePDFGeraeteInner(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
@@ -633,7 +653,7 @@ function generatePDFGeraete(isBlank = false) {
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeMax = getRpeMaxDevice(laengeVal);
-      const rpeNum = parseFloat(rpeVal.replace(',', '.'));
+      const rpeNum = parseMesswert(rpeVal);
       // SK II/III haben keinen Schutzleiter -> R_PE ist nicht anwendbar.
       // "n.a." sagt das ausdruecklich; ein blosser Strich liesse offen, ob nur
       // die Messung fehlt.
@@ -646,13 +666,13 @@ function generatePDFGeraete(isBlank = false) {
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
-      const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseFloat(risoVal.replace(',', '.'))) && parseFloat(risoVal.replace(',', '.')) < risoMin;
+      const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseMesswert(risoVal)) && parseMesswert(risoVal) < risoMin;
       const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(min. ${kommaZahl(risoMin)})` : '-';
 
       const ableitVal = card.querySelector('.c-ableitstrom').value;
       const heizleistung = card.querySelector('.c-heizleistung')?.value;
       const ableitMax = getAbleitstromMax(sk, heizleistung);
-      const isAbleitOut = ableitMax !== null && !isNaN(parseFloat(ableitVal.replace(',', '.'))) && parseFloat(ableitVal.replace(',', '.')) > ableitMax;
+      const isAbleitOut = ableitMax !== null && !isNaN(parseMesswert(ableitVal)) && parseMesswert(ableitVal) > ableitMax;
       // Messverfahren gehoert ins Protokoll - die Grenzwerte gelten verfahrensabhaengig
       const methode = card.querySelector('.c-ableit-methode').value || '';
       const methodeKurz = methode.replace('Direktmessung Berührungsstrom', 'Direktmessung').replace('Differenzstrommessung', 'Differenzstrom');

@@ -1,5 +1,49 @@
 // STAMMDATEN LOGIK (LOCALSTORAGE)
 
+/* ---------------------------------------------------------------------------
+ *  5.0.0: ZENTRALE, ABGESICHERTE localStorage.setItem()-HÜLLE
+ * ----------------------------------------------------------------------------
+ *  VORHER: Jede Stelle im Code rief localStorage.setItem() entweder ganz
+ *  ungeschützt auf (z. B. saveMasterData() - ein voller Speicher warf hier
+ *  eine unbehandelte Exception) oder fing Fehler mit "catch (e) {}" ohne
+ *  jede Meldung ab. Beides führte dazu, dass ein voller localStorage
+ *  (Browser-Limit typischerweise 5-10 MB pro Domain) STILL zu Datenverlust
+ *  führte: der Autosave schlug fehl, ohne dass die Nutzerin es bemerkte.
+ *
+ *  JETZT: sicherSetItem() ist die einzige Stelle, die tatsächlich
+ *  localStorage.setItem() aufruft. Bei einem QuotaExceededError (oder jedem
+ *  anderen Fehler) wird EINMAL pro Sitzung eine deutliche Warnung angezeigt
+ *  ("Speicher voll - Änderungen werden nicht mehr gespeichert!") und der
+ *  Fehler zusätzlich in der Konsole protokolliert, statt ihn stillschweigend
+ *  zu verschlucken. Rückgabewert: true bei Erfolg, false bei Fehler - Aufrufer
+ *  können das optional auswerten, müssen es aber nicht (die Warnung erscheint
+ *  in jedem Fall automatisch). */
+let SPEICHER_VOLL_GEMELDET = false;
+
+function sicherSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.error('[VDE-App] localStorage.setItem fehlgeschlagen für Schlüssel "' + key + '":', e);
+    if (!SPEICHER_VOLL_GEMELDET) {
+      SPEICHER_VOLL_GEMELDET = true;
+      const hinweis = 'ACHTUNG: Der Speicher dieses Browsers ist voll (oder blockiert). ' +
+        'Neue Änderungen an diesem Protokoll oder den Stammdaten werden NICHT mehr ' +
+        'gespeichert, bis Speicherplatz frei wird!\n\n' +
+        'Empfehlung: Fertige Prüfungen jetzt als PDF exportieren, danach unter ' +
+        '"Offene Prüfungen" bzw. im Archiv nicht mehr benötigte alte Entwürfe löschen.';
+      if (typeof showNotification === 'function') {
+        showNotification(hinweis, 'error');
+      }
+      // Zusätzlich als Alert, da eine verpasste Statusleisten-Meldung hier
+      // besonders teuer wäre (stiller Datenverlust) - bewusst redundant.
+      try { alert(hinweis); } catch (e2) {}
+    }
+    return false;
+  }
+}
+
 /* Felder, die applyMasterDataToForm() aus den zentralen Stammdaten setzt.
  * WICHTIG: Ein wiederhergestellter Autosave-/Archiv-Zwischenstand darf einen
  * LEEREN Wert in diesen Feldern nicht ueber den gerade frisch aus den
@@ -27,7 +71,11 @@ function getMasterData() {
   };
 }
 
-function saveMasterData(showNotification = false) {
+/* 5.0.0: Parameter umbenannt (vorher "showNotification") - der alte Name
+ * verdeckte innerhalb dieser Funktion die gleichnamige globale Funktion
+ * showNotification() aus pdf-utils.js, wodurch sicherSetItem() bei einem
+ * vollen Speicher hier keine Warnung hätte anzeigen können. */
+function saveMasterData(erfolgMelden = false) {
   const data = {
     auftraggeber: document.getElementById('m_auftraggeber').value,
     gebaeude: document.getElementById('m_gebaeude').value,
@@ -38,8 +86,11 @@ function saveMasterData(showNotification = false) {
     seriennummer: document.getElementById('m_seriennummer').value,
     ort: document.getElementById('m_ort').value
   };
-  localStorage.setItem('vde_master_data', JSON.stringify(data));
-  if (showNotification) alert("Zentrale Stammdaten erfolgreich gespeichert!");
+  // 5.0.0: sicherSetItem() statt direktem localStorage.setItem() - siehe
+  // Erläuterung am Dateianfang. Vorher konnte ein voller Speicher hier eine
+  // unbehandelte Exception werfen (BUG #1 aus der 4.7.2-Prüfung).
+  const ok = sicherSetItem('vde_master_data', JSON.stringify(data));
+  if (erfolgMelden && ok) alert("Zentrale Stammdaten erfolgreich gespeichert!");
 }
 
 function loadMasterDataToDashboard() {
@@ -166,7 +217,7 @@ function merkeVergebeneNummer(nummer) {
   liste.push(nummer);
   // aelteste Eintraege verwerfen, damit der Speicher nicht unbegrenzt waechst
   while (liste.length > VERGEBENE_NUMMERN_MAX) liste.shift();
-  try { localStorage.setItem(VERGEBENE_NUMMERN_KEY, JSON.stringify(liste)); } catch (e) {}
+  sicherSetItem(VERGEBENE_NUMMERN_KEY, JSON.stringify(liste));
 }
 
 /* Vor dem Erzeugen eines ausgefuellten PDF aufrufen. Liefert false, wenn die
@@ -198,10 +249,10 @@ function verbraucheProtokollNummer(nummer, praefix = 'PR') {
   const aktuell = parseInt(localStorage.getItem(k.cntKey) || '0', 10);
 
   if (lastDate !== datum) {
-    localStorage.setItem(k.dateKey, datum);
-    localStorage.setItem(k.cntKey, String(nr));
+    sicherSetItem(k.dateKey, datum);
+    sicherSetItem(k.cntKey, String(nr));
   } else if (nr > aktuell) {
-    localStorage.setItem(k.cntKey, String(nr));
+    sicherSetItem(k.cntKey, String(nr));
   }
 }
 
@@ -283,8 +334,16 @@ function neuesProtokoll() {
   if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('PR');
-  verbraucheProtokollNummer(nr, 'PR');
+  /* 5.0.0 (BUG #2 aus der 4.7.2-Prüfung): Reihenfolge getauscht - der Entwurf
+   * wird jetzt ZUERST angelegt, die Nummer erst DANACH verbraucht. Vorher
+   * konnte ein Absturz/Browser-Crash zwischen den beiden Aufrufen die Nummer
+   * verbrauchen, ohne dass ein Entwurf entstand ("Nummerierungslücke"). In
+   * dieser Reihenfolge existiert der Entwurf bereits, bevor die Nummer als
+   * vergeben gilt - im ungünstigsten Fall bleibt ein leerer Entwurf ohne
+   * verbrauchte Nummer zurück, was harmlos ist (kann gelöscht werden),
+   * statt einer nicht mehr nachvollziehbaren Lücke in der Nummerierung. */
   AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+  verbraucheProtokollNummer(nr, 'PR');
   resetVdeForm();
   document.getElementById('protokollnummer').value = nr;
   autosaveProtocol();
@@ -349,7 +408,7 @@ function migriereAutosaveSchluessel() {
       const neu = AUTOSAVE_UMBENENNUNGEN[i][1];
       const wert = localStorage.getItem(alt);
       if (wert === null) continue;
-      if (localStorage.getItem(neu) === null) localStorage.setItem(neu, wert);
+      if (localStorage.getItem(neu) === null) sicherSetItem(neu, wert);
       localStorage.removeItem(alt);
     }
   } catch (e) { /* Speicher nicht verfuegbar - Autosave ist ohnehin best effort */ }
@@ -427,7 +486,7 @@ function importAppData(file) {
       if (!confirm('Sicherung vom ' + String(obj.erstellt).slice(0, 10) +
                    ' (App-Version ' + obj.version + ') einspielen?\n\n' + bericht +
                    '\nVorhandene Daten auf diesem Gerät werden überschrieben.')) return;
-      Object.keys(obj.daten).forEach(function (k) { localStorage.setItem(k, obj.daten[k]); });
+      Object.keys(obj.daten).forEach(function (k) { sicherSetItem(k, obj.daten[k]); });
       // Sicherungen aelterer Versionen bringen die alten Autosave-Schluessel mit
       migriereAutosaveSchluessel();
       alert('Sicherung eingespielt:\n\n' + bericht + '\nDie Seite wird neu geladen.');

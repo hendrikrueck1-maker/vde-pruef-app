@@ -393,7 +393,7 @@ function validateCardNorms(cardId) {
   if (!card) return;
   const rpeElem = card.querySelector('.c-rpe');
   if (rpeElem && rpeElem.value.trim() !== '') {
-    const num = parseFloat(rpeElem.value.replace(',', '.'));
+    const num = parseMesswert(rpeElem.value);
     if (!isNaN(num) && num > 0.30) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
   } else if (rpeElem) rpeElem.classList.remove('out-of-norm');
 
@@ -406,7 +406,7 @@ function validateCardNorms(cardId) {
     const txt = risoElem.value.trim();
     if (txt.startsWith('>')) risoElem.classList.remove('out-of-norm');
     else {
-      const num = parseFloat(txt.replace(',', '.'));
+      const num = parseMesswert(txt);
       if (!isNaN(num) && num < risoMin) risoElem.classList.add('out-of-norm'); else risoElem.classList.remove('out-of-norm');
     }
   } else if (risoElem) risoElem.classList.remove('out-of-norm');
@@ -426,7 +426,7 @@ function validateCardNorms(cardId) {
 
   const taElem = card.querySelector('.c-rcd-ta');
   if (taElem && taMax !== null && taElem.value.trim() !== '' && taElem.value.trim() !== '-') {
-    const num = parseFloat(taElem.value.replace(',', '.'));
+    const num = parseMesswert(taElem.value);
     if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
     /* Der haeufigste Fehler ist nicht der defekte RCD, sondern der falsch
      * angegebene Pruefstrom: 210 ms bei "5x" ist ein typischer Wert fuer eine
@@ -463,7 +463,7 @@ function validateCardNorms(cardId) {
   const ulLimit = getUlGrenzwert(artVal, gefVal);
   if (ulFeld) ulFeld.value = `\u2264 ${ulLimit} V ${artVal === 'DC' ? 'DC' : 'AC'}`;
   if (umessElem && umessElem.value.trim() !== '') {
-    const num = parseFloat(umessElem.value.replace(',', '.'));
+    const num = parseMesswert(umessElem.value);
     if (!isNaN(num) && num > ulLimit) umessElem.classList.add('out-of-norm'); else umessElem.classList.remove('out-of-norm');
   } else if (umessElem) umessElem.classList.remove('out-of-norm');
 
@@ -510,7 +510,7 @@ function validateCardNorms(cardId) {
       sichElem ? zsOhneReserve(zsElem.value, sichElem.value) : false);
   }
   if (zsElem) {
-    const zsNum = parseFloat(zsElem.value.replace(',', '.'));
+    const zsNum = parseMesswert(zsElem.value);
     if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && zsNum > maxZs) zsElem.classList.add('out-of-norm');
     else zsElem.classList.remove('out-of-norm');
   }
@@ -527,7 +527,7 @@ function validateCardNorms(cardId) {
   if (ikElem) {
     ikElem.placeholder = minIk !== null ? `z. B. ${Math.round(minIk * 1.2)} (min. ${minIk} A erforderlich)` : 'z. B. 605';
     if (ikElem.value.trim() !== '' && minIk !== null) {
-      const num = parseFloat(ikElem.value.replace(',', '.'));
+      const num = parseMesswert(ikElem.value);
       if (!isNaN(num) && num < minIk) ikElem.classList.add('out-of-norm'); else ikElem.classList.remove('out-of-norm');
     } else {
       ikElem.classList.remove('out-of-norm');
@@ -538,7 +538,7 @@ function validateCardNorms(cardId) {
   const imessElem = card.querySelector('.c-rcd-imess');
   if (imessElem && imessElem.value.trim() !== '') {
     const range = idnElem ? getRcdIdnRangeMa(idnElem.value) : null;
-    const num = parseFloat(imessElem.value.replace(',', '.'));
+    const num = parseMesswert(imessElem.value);
     if (range && !isNaN(num) && (num < range.min || num > range.max)) imessElem.classList.add('out-of-norm'); else imessElem.classList.remove('out-of-norm');
   } else if (imessElem) imessElem.classList.remove('out-of-norm');
 }
@@ -769,7 +769,35 @@ function leerBlattzahl() {
 }
 
 // GENERATOR FÜR DAS PDF-DOKUMENT
+/* 5.0.0 (BUG #8 aus der 4.7.2-Prüfung): generatePDF() ruft jetzt intern
+ * generatePDFInner() in einem try/catch auf. VORHER: Der komplette
+ * PDF-Aufbau (jsPDF-Konstruktion, Text-/Tabellenrendering ueber gut 700
+ * Zeilen) lief ohne jede Fehlerbehandlung. Ein Absturz mitten im Aufbau
+ * (z. B. durch extrem lange Freitexte, die die Tabellen-Bibliothek nicht
+ * verarbeiten kann) haette eine unbehandelte Exception geworfen - fuer die
+ * Nutzerin ohne jede Rueckmeldung, nur ein scheinbar wirkungsloser
+ * Knopfdruck. Der Kern der Funktion (Validierung + PDF-Aufbau) ist
+ * unveraendert, nur um try/catch UND eine sichtbare Fehlermeldung ergaenzt -
+ * damit bleibt das Risiko eines fehlerhaften Merge minimal, waehrend ein
+ * Absturz jetzt wenigstens gemeldet wird statt spurlos zu verpuffen. */
 function generatePDF(isBlank = false) {
+  try {
+    generatePDFInner(isBlank);
+  } catch (err) {
+    console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
+    alert(
+      'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
+      'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
+      'bleiben erhalten (Autosave läuft weiter).\n\n' +
+      'Bitte versuche es erneut. Falls der Fehler wiederholt auftritt, hilft oft ' +
+      'ein Blick auf sehr lange Freitextfelder (Bemerkungen o.Ä.) - oder melde den ' +
+      'Fehler mit einer Beschreibung, was gerade im Formular stand.\n\n' +
+      'Technische Details: ' + (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+function generatePDFInner(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung. Deshalb Abbruch VOR dem Aufbau des PDF.
@@ -1167,7 +1195,7 @@ function generatePDF(isBlank = false) {
       if (!kabel) kabel = '-';
 
       const rpeVal = card.querySelector('.c-rpe').value;
-      const rpeNum = parseFloat(rpeVal.replace(',', '.'));
+      const rpeNum = parseMesswert(rpeVal);
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
       const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
 
@@ -1175,7 +1203,7 @@ function generatePDF(isBlank = false) {
       const risoModeVal = card.querySelector('.c-riso-mode')?.value || '';
       // Mindestwert je Pruefspannung (SELV/PELV 0,5 MOhm, sonst 1,0 MOhm)
       const risoMinPdf = risoModeVal.includes('SELV') ? 0.5 : 1.0;
-      const risoNum = parseFloat(risoVal.replace(',', '.'));
+      const risoNum = parseMesswert(risoVal);
       const isRisoOut = !risoVal.trim().startsWith('>') && !isNaN(risoNum) && risoNum < risoMinPdf;
       // Die Pruefspannung gehoert nach DIN VDE 0100-600 mit ins Protokoll,
       // weil der Grenzwert von ihr abhaengt.
@@ -1188,14 +1216,14 @@ function generatePDF(isBlank = false) {
       const zln = card.querySelector('.c-zln')?.value || '';
       const ik2 = card.querySelector('.c-ik2')?.value || '';
       const minIk = getMinIk(sich);
-      const ikNum = parseFloat(ik.replace(',', '.'));
+      const ikNum = parseMesswert(ik);
       const isIkOut = minIk !== null && !isNaN(ikNum) && ikNum < minIk;
       // Z_S wird jetzt ebenfalls bewertet (Zs_max = 230 V / I_a) - bisher war das
       // Feld reine Dokumentation und ein Widerspruch zu I_K fiel nicht auf.
       const zsIkWiderspruch = !zIkPlausibel(zs, ik) || !zIkPlausibel(zln, ik2);
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       const maxZsPdf = getMaxZs(sich);
-      const zsNumPdf = parseFloat(zs.replace(',', '.'));
+      const zsNumPdf = parseMesswert(zs);
       const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
       let zsik = '-';
       if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
@@ -1229,10 +1257,10 @@ function generatePDF(isBlank = false) {
 
       // Ausloesezeit nur bewerten, wenn der Pruefstrom bekannt ist - sonst gibt
       // es keinen definierten Grenzwert (DIN EN 61008-1/61009-1).
-      const taNum = parseFloat(rcdTa.replace(',', '.'));
+      const taNum = parseMesswert(rcdTa);
       const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
       const idnRange = getRcdIdnRangeMa(rcdIdn);
-      const imessNum = parseFloat(rcdImess.replace(',', '.'));
+      const imessNum = parseMesswert(rcdImess);
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
 
       // Zelle rot: sowohl bei fehlender Angabe als auch bei echter Beanstandung.
@@ -1245,7 +1273,7 @@ function generatePDF(isBlank = false) {
       const rcdText = rcdZelle.text;
 
       const uMessVal = card.querySelector('.c-umess').value;
-      const uNum = parseFloat(uMessVal.replace(',', '.'));
+      const uNum = parseMesswert(uMessVal);
       const artPdf = card.querySelector('.c-spannung-art')?.value || 'AC';
       const gefPdf = card.querySelector('.c-gefaehrdung')?.value || 'normal';
       const limitU = getUlGrenzwert(artPdf, gefPdf);
@@ -1367,7 +1395,7 @@ function generatePDF(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
 
-  const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
+  const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,

@@ -44,11 +44,28 @@ function ladeEntwuerfeIndex() {
 }
 
 function speichereEntwuerfeIndex(liste) {
-  try { localStorage.setItem(DRAFTS_INDEX_KEY, JSON.stringify(liste)); } catch (e) {}
+  // 5.0.0: sicherSetItem() (storage.js) statt direktem try/catch ohne
+  // Meldung - ein voller Speicher wird jetzt sichtbar gemeldet statt still
+  // zu scheitern (BUG #1 aus der 4.7.2-Prüfung).
+  if (typeof sicherSetItem === 'function') {
+    sicherSetItem(DRAFTS_INDEX_KEY, JSON.stringify(liste));
+  } else {
+    try { localStorage.setItem(DRAFTS_INDEX_KEY, JSON.stringify(liste)); } catch (e) {}
+  }
 }
 
+/* 5.0.0 (BUG #7 aus der 4.7.2-Prüfung): ein monoton steigender Zaehler kommt
+ * zum Zeitstempel+Zufallsteil hinzu. Vorher war eine Kollision zweier IDs
+ * theoretisch moeglich, wenn zwei Entwuerfe in derselben Millisekunde UND
+ * mit gleichem Zufallsteil angelegt wuerden - dann haette der zweite den
+ * ersten im Index ueberschrieben. Der Zaehler macht das unabhaengig von
+ * Zeitstempel und Zufall ausgeschlossen, ohne eine externe UUID-Bibliothek
+ * zu benoetigen. */
+let ENTWURF_ID_ZAEHLER = 0;
+
 function neueEntwurfId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  ENTWURF_ID_ZAEHLER = (ENTWURF_ID_ZAEHLER + 1) % 1679616; // 36^4, bleibt kurz
+  return Date.now().toString(36) + '-' + ENTWURF_ID_ZAEHLER.toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
 
 /* Traegt einen Entwurf im Index ein oder aktualisiert seine Metadaten
@@ -99,23 +116,28 @@ function aktivenEntwurfSicherstellen(praefix, altAutosaveKey) {
   if (id) return id;
 
   id = neueEntwurfId();
-  try { localStorage.setItem(key, id); } catch (e) {}
+  try { sicherSetItem(key, id); } catch (e) {}
 
   // Migration: ein alter, formularweiter Autosave-Stand wird zum ersten Entwurf.
+  // 5.0.0 (BUG #5 aus der 4.7.2-Prüfung): removeItem() steht jetzt in einem
+  // eigenen try/catch NACH dem setItem, statt in derselben try-Klammer - so
+  // wird der Alt-Key auch dann entfernt, wenn setItem am Ende doch fehlschlug
+  // (z. B. Speicher wird erst zwischen den zwei Aufrufen voll). Vorher konnte
+  // ein Fehler beim setItem verhindern, dass removeItem ueberhaupt erreicht
+  // wird, wodurch der alte Key liegen blieb.
   if (altAutosaveKey) {
-    try {
-      const alt = localStorage.getItem(altAutosaveKey);
-      if (alt !== null) {
-        localStorage.setItem(autosaveKeyFuerEntwurf(praefix, id), alt);
-        localStorage.removeItem(altAutosaveKey);
-      }
-    } catch (e) {}
+    let alt = null;
+    try { alt = localStorage.getItem(altAutosaveKey); } catch (e) {}
+    if (alt !== null) {
+      sicherSetItem(autosaveKeyFuerEntwurf(praefix, id), alt);
+      try { localStorage.removeItem(altAutosaveKey); } catch (e) {}
+    }
   }
   return id;
 }
 
 function entwurfWechseln(praefix, entwurfId) {
-  try { localStorage.setItem(aktiverEntwurfKey(praefix), entwurfId); } catch (e) {}
+  sicherSetItem(aktiverEntwurfKey(praefix), entwurfId);
 }
 
 /* Beim Aufruf einer Formularseite mit ?entwurf=<id> (Link aus der Liste
@@ -183,8 +205,20 @@ function renderOffenePruefungen(containerId) {
   }).join('');
 }
 
+/* 5.0.0 (BUG #9 aus der 4.7.2-Prüfung): escapt jetzt auch " und ' - vorher
+ * fehlte das, obwohl esc() auch innerhalb von HTML-Attributen verwendet wird
+ * (z. B. onclick="offenePruefungLoeschen('...')" oben in renderOffenePruefungen).
+ * In der Praxis bestehen Entwurf-IDs und Präfixe nur aus Base36-Zeichen bzw.
+ * PR/AP/GP, ein Anführungszeichen konnte dort also nicht auftreten - aber
+ * esc() wird auch auf freien Text (Bezeichnung) angewendet, und ein
+ * ungeschütztes " in einem HTML-Attribut ist grundsätzlich unsicher designt. */
 function esc(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function offenePruefungLoeschen(entwurfId, praefix) {

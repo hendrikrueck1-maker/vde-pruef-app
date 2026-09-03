@@ -26,14 +26,50 @@
  *
  *  Deshalb steht die Version hier ein zweites Mal. Sie muss identisch zu
  *  APP_VERSION in js/app-config.js sein.
- * ========================================================================== */
-const SW_VERSION = '4.7.2';
+ *
+ *  5.0.0 (BUG #6 aus der 4.7.2-Prüfung): SW_VERSION bleibt bewusst ein
+ *  eigenes Literal (siehe Absatz oben - genau DAS aendert bei jedem Release
+ *  den Byteinhalt dieser Datei und loest damit ueberhaupt erst die
+ *  Update-Erkennung des Browsers aus; wuerde SW_VERSION stattdessen zur
+ *  Laufzeit aus app-config.js abgeleitet, bliebe sw.js selbst zwischen
+ *  Releases byteidentisch und KEIN Update wuerde mehr erkannt - das waere
+ *  eine Verschlimmerung, kein Fix). Stattdessen kommt hier eine
+ *  RUNTIME-KONSISTENZPRUEFUNG dazu: stimmen SW_VERSION und das gerade
+ *  frisch geladene APP_VERSION nicht ueberein, wird das laut in der
+ *  Service-Worker-Konsole protokolliert UND an alle offenen Tabs gemeldet
+ *  (siehe versionsKonsistenzPruefen() unten) - so faellt ein vergessenes
+ *  Hochzaehlen jetzt sofort auf, statt erst wenn eine Nutzerin sich
+ *  wundert, warum eine gemeldete Aenderung nicht ankommt (wie beim
+ *  4.7.0-Vorfall, siehe "3. Nachtrag" im Änderungsbericht). */
+const SW_VERSION = '5.0.0';
 
 /* Konfiguration + Dateiliste laden (relativ zum Speicherort dieser Datei).
  * Der Parameter ?v= erzwingt eine frische Kopie: importScripts wird sonst aus
  * dem HTTP-Cache bedient (Standard updateViaCache: 'imports') und APP_VERSION
  * waere weiterhin der alte Wert. */
 importScripts('js/app-config.js?v=' + SW_VERSION);
+
+/* 5.0.0: Konsistenzpruefung SW_VERSION <-> APP_VERSION. Ein Mismatch bedeutet
+ * fast immer: beim Release wurde nur eine der beiden Stellen hochgezaehlt.
+ * Wird ueber postMessage an alle Clients gemeldet, sobald einer aktiv wird -
+ * js/pwa.js kann das optional auswerten (siehe dortige GET_VERSION-Antwort,
+ * die versionsMismatch jetzt mitschickt). */
+function versionsKonsistenzPruefen() {
+  if (typeof APP_VERSION === 'undefined') {
+    console.error('[SW] APP_VERSION konnte nicht geladen werden (app-config.js) - Cache-Name basiert auf SW_VERSION allein.');
+    return false;
+  }
+  if (APP_VERSION !== SW_VERSION) {
+    console.error(
+      '[SW] VERSIONS-MISMATCH: SW_VERSION="' + SW_VERSION + '" aber APP_VERSION="' + APP_VERSION +
+      '" - beim letzten Release wurde vermutlich nur eine der beiden Stellen ' +
+      '(sw.js / js/app-config.js) hochgezaehlt. Bitte beide auf denselben Wert bringen.'
+    );
+    return false;
+  }
+  return true;
+}
+const VERSIONEN_KONSISTENT = versionsKonsistenzPruefen();
 
 const BASE       = self.registration.scope;            // z.B. .../vde-pruef-app/
 const CACHE_NAME = 'vde-pruefprotokoll-' + SW_VERSION;
@@ -153,7 +189,8 @@ self.addEventListener('message', (event) => {
   }
   if (data && data.type === 'GET_VERSION') {
     event.source && event.source.postMessage({
-      type: 'VERSION', version: APP_VERSION, swVersion: SW_VERSION, cache: CACHE_NAME
+      type: 'VERSION', version: APP_VERSION, swVersion: SW_VERSION, cache: CACHE_NAME,
+      versionsMismatch: !VERSIONEN_KONSISTENT
     });
   }
   // Notfall-Reset: alle Caches leeren (z. B. ueber den Knopf auf der Startseite)

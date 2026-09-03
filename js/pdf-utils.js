@@ -1,6 +1,31 @@
 // GEMEINSAME HILFSFUNKTIONEN FÜR ALLE PROTOKOLLTYPEN (PDF-ERZEUGUNG, FORMULAR-HELPER)
 
 /* ---------------------------------------------------------------------------
+ *  5.0.0 (BUG #4 aus der 4.7.2-Prüfung): MESSWERTE MIT KOMMA SICHER PARSEN
+ * ----------------------------------------------------------------------------
+ *  VORHER: An ueber 40 Stellen im Code stand parseFloat(wert.replace(',', '.')).
+ *  String.prototype.replace() ohne /g-Flag ersetzt nur das ERSTE Komma. Eine
+ *  Fehleingabe wie "1,2,3" wurde damit zu "1.2.3" - parseFloat() liest davon
+ *  nur "1.2" und ignoriert den Rest kommentarlos, !isNaN() schlaegt NICHT an.
+ *  Ein Tippfehler in einem Messwert (Isolationswiderstand, Erdungswiderstand,
+ *  Fehlerstrom usw.) konnte so unbemerkt als falscher, aber gueltig wirkender
+ *  Wert ins PDF gelangen.
+ *
+ *  JETZT: parseMesswert() ist die einzige Stelle, die Nutzereingaben in
+ *  Messwerte umwandelt. Eingaben mit MEHR als einem Komma (oder einer sonst
+ *  ungueltigen Zahl) liefern NaN statt eines geschnittenen Teilergebnisses -
+ *  die bestehenden !isNaN()-Pruefungen an den Aufrufstellen greifen dadurch
+ *  jetzt tatsaechlich. Ein einzelnes Komma als Dezimaltrennzeichen (deutsche
+ *  Schreibweise) bleibt weiterhin gueltig. */
+function parseMesswert(wert) {
+  const s = String(wert == null ? '' : wert).trim();
+  if (s === '') return NaN;
+  const kommas = (s.match(/,/g) || []).length;
+  if (kommas > 1) return NaN; // z.B. "1,2,3" - eindeutig eine Fehleingabe
+  return parseFloat(s.replace(',', '.'));
+}
+
+/* ---------------------------------------------------------------------------
  *  ZEICHEN AUF DEN SICHER DARSTELLBAREN VORRAT ABBILDEN
  * ---------------------------------------------------------------------------
  *  FRUEHER: Das PDF benutzte die nicht eingebettete Standardschrift. Die kennt
@@ -596,7 +621,7 @@ function sicherungCharakteristik(sicherungText) {
     match = text.match(/\b([BCD])\b\s*[,:]\s*([\d]+(?:[.,]\d+)?)\s*A\b/i);
   }
   if (!match) return null;
-  const rating = parseFloat(match[2].replace(',', '.'));
+  const rating = parseMesswert(match[2]);
   if (isNaN(rating) || rating <= 0) return null;
   return { buchstabe: match[1].toUpperCase(), rating: rating };
 }
@@ -629,7 +654,7 @@ function zsOhneReserve(zsText, sicherungText) {
   const grenze = getZsHinweisgrenze(sicherungText);
   const maxZs = getMaxZs(sicherungText);
   if (grenze === null || maxZs === null) return false;
-  const z = parseFloat(String(zsText || '').replace(',', '.'));
+  const z = parseMesswert(String(zsText || ''));
   return !isNaN(z) && z > grenze && z <= maxZs;
 }
 
@@ -641,7 +666,7 @@ function zsOhneReserve(zsText, sicherungText) {
  * "zu hoch" zu melden, wird darauf hingewiesen.
  * Rueckgabe: der Pruefstrom, zu dem der Wert besser passt - oder null. */
 function passenderPruefstromFuerTa(taText, pruefstrom, istSelektiv) {
-  const ta = parseFloat(String(taText || '').replace(',', '.'));
+  const ta = parseMesswert(String(taText || ''));
   if (isNaN(ta) || ta <= 0) return null;
   const gemeldet = String(pruefstrom || '').replace(/[^\d]/g, '');
   if (!gemeldet) return null;
@@ -657,7 +682,7 @@ function passenderPruefstromFuerTa(taText, pruefstrom, istSelektiv) {
  * das Geraet misst Z aus dem Spannungseinbruch unter Prueflast und rechnet I = U/Z. */
 function ikAusImpedanz(impedanzText, uNenn = U_NULL) {
   if (impedanzText === undefined || impedanzText === null) return null;
-  const z = parseFloat(String(impedanzText).replace(',', '.'));
+  const z = parseMesswert(String(impedanzText));
   if (isNaN(z) || z <= 0) return null;
   return Math.round(uNenn / z);
 }
@@ -673,7 +698,7 @@ const Z_IK_TOLERANZ = 0.25;
 function zIkPlausibel(impedanzText, stromText, uNenn = U_NULL) {
   const erwartet = ikAusImpedanz(impedanzText, uNenn);
   if (erwartet === null) return true;
-  const ist = parseFloat(String(stromText || '').replace(',', '.'));
+  const ist = parseMesswert(String(stromText || ''));
   if (isNaN(ist) || ist <= 0) return true;
   return Math.abs(ist - erwartet) / erwartet <= Z_IK_TOLERANZ;
 }
@@ -751,7 +776,7 @@ function getIsoMin(schutzklasse, hatHeizelement) {
 // SK II -> Beruehrungsstrom, Grenzwert 0,5 mA.
 function getAbleitstromMax(schutzklasse, heizleistungKw) {
   if (schutzklasse === 'I') {
-    const kw = parseFloat(String(heizleistungKw).replace(',', '.'));
+    const kw = parseMesswert(String(heizleistungKw));
     if (!isNaN(kw) && kw > 3.5) return Math.min(kw, 10);
     return 3.5;
   }
@@ -1082,7 +1107,7 @@ const MAENGEL_BEHOBEN_HINWEIS =
 // diesen Deckel sonst Werte weit über der Norm freigeben.
 const RPE_DEVICE_DECKEL = 1.0;
 function getRpeMaxDevice(lengthM) {
-  const len = parseFloat(String(lengthM).replace(',', '.'));
+  const len = parseMesswert(String(lengthM));
   if (isNaN(len) || len <= 5) return 0.3;
   return Math.min(RPE_DEVICE_DECKEL, 0.3 + Math.ceil((len - 5) / 7.5) * 0.1);
 }
@@ -1228,7 +1253,7 @@ function drawLeerFuss(doc, bloecke) {
 const U_NPE_SCHWELLE = 1.0;
 
 function npeUeberschritten(wert) {
-  const num = parseFloat(String(wert === undefined || wert === null ? '' : wert).replace(',', '.'));
+  const num = parseMesswert(String(wert === undefined || wert === null ? '' : wert));
   return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
 }
 
@@ -1595,7 +1620,7 @@ function validateErdung() {
   // Leeres Feld muss die Markierung wieder entfernen - fehlte zuvor,
   // dadurch blieb eine einmal gesetzte Warnung nach dem Loeschen stehen.
   if (val === '') { elem.classList.remove('out-of-norm'); return; }
-  const num = parseFloat(val.replace(',', '.'));
+  const num = parseMesswert(val);
   if (!isNaN(num) && num > ERDUNG_RE_RICHTWERT) elem.classList.add('out-of-norm');
   else elem.classList.remove('out-of-norm');
 }

@@ -26,6 +26,14 @@
           // Bereits ein Update wartend?
           if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg.waiting);
 
+          // 5.0.0 (BUG #6 aus der 4.7.2-Prüfung): Beim aktiven SW nachfragen,
+          // ob SW_VERSION und APP_VERSION uebereinstimmen (siehe
+          // versionsKonsistenzPruefen() in sw.js). Ein Mismatch bedeutet fast
+          // immer, dass beim letzten Release nur eine der beiden Versions-
+          // Stellen hochgezaehlt wurde - das faellt damit sofort auf, statt
+          // erst wenn eine gemeldete Aenderung unerklaert nicht ankommt.
+          if (navigator.serviceWorker.controller) pruefeVersionsKonsistenzMitSW();
+
           reg.addEventListener('updatefound', function () {
             const nw = reg.installing;
             if (!nw) return;
@@ -82,6 +90,48 @@
         if (m && m[1] !== APP_VERSION) showServerUpdateBanner(m[1]);
       })
       .catch(function () { /* offline -> nichts tun */ });
+  }
+
+  /* 5.0.0 (BUG #6 aus der 4.7.2-Prüfung): fragt den aktiven Service Worker
+   * per postMessage nach seiner Version und vergleicht sie mit SW_VERSION
+   * intern gegen APP_VERSION (Antwort enthaelt bereits versionsMismatch,
+   * siehe sw.js). Bei Mismatch: deutlicher Banner mit direktem Reset-Knopf,
+   * statt dass der Fehler unbemerkt bleibt.
+   *
+   * WICHTIG: sw.js beantwortet GET_VERSION ueber event.source.postMessage(),
+   * NICHT ueber einen mitgeschickten MessageChannel-Port - die Antwort kommt
+   * also auf navigator.serviceWorker (dem regulaeren "message"-Event) an,
+   * nicht auf einem eigenen Port. Der Listener ist deshalb global registriert
+   * (einmalig) statt pro Anfrage einen MessageChannel aufzubauen. */
+  navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function (event) {
+    const data = event.data;
+    if (data && data.type === 'VERSION' && data.versionsMismatch) {
+      showVersionsMismatchBanner(data.swVersion, data.version);
+    }
+  });
+
+  function pruefeVersionsKonsistenzMitSW() {
+    if (!navigator.serviceWorker.controller) return;
+    try {
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' });
+    } catch (e) { /* Nachricht nicht kritisch - naechster Zyklus versucht es erneut */ }
+  }
+
+  function showVersionsMismatchBanner(swVersion, appVersion) {
+    if (document.querySelector('.pwa-banner[data-typ="mismatch"]')) return;
+    const el = makeBanner(
+      '<span class="pwa-text">⚠️ Interner Versions-Konflikt: Service Worker meldet <b>' +
+      swVersion + '</b>, App-Code meldet <b>' + appVersion + '</b>. Manche Änderungen sind ' +
+      'möglicherweise noch nicht sichtbar.</span>' +
+      '<button class="pwa-primary" data-act="hard">App zurücksetzen</button>' +
+      '<button class="pwa-ghost" data-act="later">Später</button>'
+    );
+    el.dataset.typ = 'mismatch';
+    el.querySelector('[data-act="hard"]').onclick = function () {
+      el.remove();
+      appZuruecksetzen();
+    };
+    el.querySelector('[data-act="later"]').onclick = function () { el.remove(); };
   }
 
   function showServerUpdateBanner(serverVersion) {

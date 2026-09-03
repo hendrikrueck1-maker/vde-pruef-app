@@ -186,7 +186,7 @@ function validateFeedNorms(cardId) {
 
   const rpeElem = card.querySelector('.c-rpe');
   if (rpeElem && rpeElem.value.trim() !== '') {
-    const num = parseFloat(rpeElem.value.replace(',', '.'));
+    const num = parseMesswert(rpeElem.value);
     if (!isNaN(num) && num > 0.30) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
   } else if (rpeElem) rpeElem.classList.remove('out-of-norm');
 
@@ -217,7 +217,7 @@ function validateFeedNorms(cardId) {
       : 'Absicherung eintragen, dann erscheint der zulässige Höchstwert.';
   }
   if (zsElem) {
-    const zsNum = parseFloat(zsElem.value.replace(',', '.'));
+    const zsNum = parseMesswert(zsElem.value);
     if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && zsNum > maxZs) zsElem.classList.add('out-of-norm');
     else zsElem.classList.remove('out-of-norm');
   }
@@ -229,7 +229,7 @@ function validateFeedNorms(cardId) {
   if (ikElem) {
     ikElem.placeholder = minIk !== null ? `z. B. ${Math.round(minIk * 1.2)} (min. ${minIk} A erforderlich)` : 'z. B. 605';
     if (ikElem.value.trim() !== '' && minIk !== null) {
-      const num = parseFloat(ikElem.value.replace(',', '.'));
+      const num = parseMesswert(ikElem.value);
       if (!isNaN(num) && num < minIk) ikElem.classList.add('out-of-norm'); else ikElem.classList.remove('out-of-norm');
     } else {
       ikElem.classList.remove('out-of-norm');
@@ -240,7 +240,7 @@ function validateFeedNorms(cardId) {
   const imessElem = card.querySelector('.c-rcd-imess');
   if (imessElem && imessElem.value.trim() !== '') {
     const range = idnElem ? getRcdIdnRangeMa(idnElem.value) : null;
-    const num = parseFloat(imessElem.value.replace(',', '.'));
+    const num = parseMesswert(imessElem.value);
     if (range && !isNaN(num) && (num < range.min || num > range.max)) imessElem.classList.add('out-of-norm'); else imessElem.classList.remove('out-of-norm');
   } else if (imessElem) imessElem.classList.remove('out-of-norm');
 
@@ -257,7 +257,7 @@ function validateFeedNorms(cardId) {
 
   const taElem = card.querySelector('.c-rcd-ta');
   if (taElem && taMax !== null && taElem.value.trim() !== '') {
-    const num = parseFloat(taElem.value.replace(',', '.'));
+    const num = parseMesswert(taElem.value);
     if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
   } else if (taElem) taElem.classList.remove('out-of-norm');
 
@@ -405,7 +405,27 @@ function leerBlattzahlAnschluss() {
   return Math.min(Math.max(roh, 1), 4);
 }
 
+/* 5.0.0 (BUG #8 aus der 4.7.2-Prüfung): try/catch-Wrapper um den PDF-Aufbau,
+ * analog zu generatePDF()/generatePDFInner() in pdf-generator.js - siehe dort
+ * für die ausführliche Begründung. */
 function generatePDFAnschluss(isBlank = false) {
+  try {
+    generatePDFAnschlussInner(isBlank);
+  } catch (err) {
+    console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
+    alert(
+      'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
+      'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
+      'bleiben erhalten (Autosave läuft weiter).\n\n' +
+      'Bitte versuche es erneut. Falls der Fehler wiederholt auftritt, hilft oft ' +
+      'ein Blick auf sehr lange Freitextfelder (Bemerkungen o.Ä.) - oder melde den ' +
+      'Fehler mit einer Beschreibung, was gerade im Formular stand.\n\n' +
+      'Technische Details: ' + (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+function generatePDFAnschlussInner(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
@@ -713,7 +733,7 @@ function generatePDFAnschluss(isBlank = false) {
       const isDrehfeldOut = drehfeld === 'n.i.O.';
 
       const rpeVal = card.querySelector('.c-rpe').value;
-      const rpeNum = parseFloat(rpeVal.replace(',', '.'));
+      const rpeNum = parseMesswert(rpeVal);
       const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
       const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
 
@@ -726,12 +746,12 @@ function generatePDFAnschluss(isBlank = false) {
       const zs = card.querySelector('.c-zs').value;
       const ik = card.querySelector('.c-ik').value;
       const minIk = getMinIk(sich);
-      const ikNum = parseFloat(ik.replace(',', '.'));
+      const ikNum = parseMesswert(ik);
       const isIkOut = minIk !== null && !isNaN(ikNum) && ikNum < minIk;
       // Z_S wird jetzt auch hier bewertet (Zs_max = 230 V / I_a), inklusive
       // Plausibilitaet gegen I_K - bisher war das Feld reine Dokumentation.
       const maxZsPdf = getMaxZs(sich);
-      const zsNumPdf = parseFloat(zs.replace(',', '.'));
+      const zsNumPdf = parseMesswert(zs);
       const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
       const zsIkWiderspruch = !zIkPlausibel(zs, ik);
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
@@ -754,10 +774,10 @@ function generatePDFAnschluss(isBlank = false) {
         typ: rcdTyp, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
       });
 
-      const taNum = parseFloat(rcdTa.replace(',', '.'));
+      const taNum = parseMesswert(rcdTa);
       const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
       const idnRange = getRcdIdnRangeMa(rcdIdn);
-      const imessNum = parseFloat(rcdImess.replace(',', '.'));
+      const imessNum = parseMesswert(rcdImess);
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
       // Zelle rot: sowohl bei fehlender Angabe als auch bei echter Beanstandung.
       const isRcdOut = isTaOut || isImessOut || rcdZelle.isOut;
@@ -868,7 +888,7 @@ function generatePDFAnschluss(isBlank = false) {
   drawCheckbox(doc, 80, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
   drawCheckbox(doc, 95, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
 
-  const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
+  const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
 
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
