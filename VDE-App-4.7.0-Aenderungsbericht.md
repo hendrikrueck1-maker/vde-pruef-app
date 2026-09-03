@@ -168,6 +168,10 @@ ausgedruckt, statt mit leeren Messwerten in der normalen Tabelle zu
 erscheinen. Die Gesamtbewertung des restlichen Verteilers bleibt davon
 unberührt.
 
+*(Siehe „2. Nachtrag" unten: Dieses Feld wurde später von einer Checkbox auf
+eine i.O./n.i.O.-Auswahl umgestellt und ans Ende der Stromkreisprüfung
+verschoben.)*
+
 Betroffen: `js/pdf-generator.js` (`toggleTotlegung()`, Kartenvorlage,
 `generatePDF()`), `js/pdf-utils.js` (`prueflingeOhneMessung()` mit
 Totlegung-Ausnahme), `css/style.css`.
@@ -226,6 +230,9 @@ verbindliche Prüfung beim Export bleibt unverändert bestehen. Eingebunden in
 alle drei Formulare mit ihren jeweils tatsächlich pflichtigen Feldern
 (inklusive der bedingten Pflicht von „Frequenz" bei Netzersatzanlage).
 
+*(Siehe „2. Nachtrag" unten: diese Kennzeichnung wurde in der Anlagenprüfung
+um die Pflichtfelder je Stromkreis erweitert.)*
+
 Zusätzlich: Z_S und Z_L-N/Netzimpedanz sind jetzt einheitlich mit einer
 kleinen Badge „Pflicht" bzw. „Optional" direkt im Label gekennzeichnet
 (vorher: Z_S ganz ohne Kennzeichnung, Z_L-N mit unauffälligem
@@ -276,6 +283,120 @@ Betroffen: `js/pdf-utils.js` (`PDF_MARGIN_LEFT`, `PDF_CONTENT_WIDTH`,
 
 ---
 
+## Nachtrag · Messtabelle war bis an den rechten Rand gequetscht
+
+Nach dem Hochladen von 4.7.0 gemeldet: Die Messwerttabelle (Abschnitt 3 in
+allen drei Protokolltypen) reichte nahtlos bis an den rechten Papierrand,
+während die Boxen darüber und darunter (Abschnitt 1/2/4) weiterhin den
+normalen 10-mm-Rand einhielten – optisch wirkte die Tabelle „gequetscht".
+
+**Ursache:** Die festen Spaltenbreiten aller vier Messtabellen (Leerformular
+und ausgefülltes Formular je Anlagen-, Anschluss- und Geräteprüfung) waren
+auf eine Gesamtbreite von 190 mm ausgelegt – korrekt bei den alten 10 mm
+Rand links/rechts (210 − 2×10 = 190), aber seit der linke Rand oben auf
+20 mm vergrößert wurde, beträgt die tatsächlich verfügbare Breite nur noch
+180 mm (210 − 20 − 10). Die Tabelle selbst wurde zwar an der richtigen
+Startposition (20 mm) gezeichnet, ihre Spalten summierten sich aber weiterhin
+auf 190 mm und liefen dadurch 10 mm über den neuen Satzspiegel hinaus in den
+rechten Rand.
+
+**Jetzt:** Alle vier Spaltenbreiten-Definitionen (`LEER_SPALTEN_VDE`,
+`SPALTEN_AUSGEFUELLT` in `js/pdf-generator.js`; `LEER_SPALTEN_AP` und die
+Spalten der ausgefüllten Anschlussprüfung in `js/anschluss-generator.js`;
+`GERAETE_SPALTEN` in `js/geraete-generator.js`) wurden proportional auf
+180 mm Gesamtbreite verkleinert (Faktor 180/190), sodass die Tabelle jetzt
+exakt denselben rechten Rand einhält wie die übrigen Abschnitte. Zusätzlich
+wurden dabei zwei kleinere, unabhängige Randfehler in den
+Unterschriftenzeilen der Anschlussprüfung sowie in den linken
+Unterschriftsblöcken aller drei Formulare behoben (teils noch fest auf den
+alten 10-mm-Rand verdrahtet, ein Label lief bei langen Texten leicht über
+den rechten Rand hinaus).
+
+Betroffen: `js/pdf-generator.js`, `js/anschluss-generator.js`,
+`js/geraete-generator.js`.
+
+**Geprüft:** Alle sechs PDF-Varianten (leer/ausgefüllt × 3 Formulare) sowie
+ein Mehrseiten-Test mit 17 Stromkreisen erneut per `pdftotext -bbox`
+ausgewertet – kein Textelement mehr links von 20 mm oder rechts von 200 mm,
+auf keiner Seite. Visuell (150 dpi) verglichen: Messtabelle bündig mit den
+Boxen der übrigen Abschnitte, auf allen sechs PDFs sowie der
+Fortsetzungsseite des Mehrseiten-Tests.
+
+---
+
+## 2. Nachtrag · Anlagenprüfung (vde0100.html): Erdung-Hinweistext, Stromkreis-Ergebnis, Pflichtfeld-Farben
+
+Vier kleinere, von dir gemeldete Anpassungen an der Anlagenprüfung:
+
+**a) Redundanter Beispieltext bei „4. Erdung" entfernt.** Im PDF stand beim
+Messpunkt/Bezugspunkt bisher zusätzlich die Aufzählung „(z. B. HES,
+PA-Schiene, UV, Fundamenterder)" – überflüssig, da die Auswahl in der App
+bereits über eigene Schnellwahl-Buttons (HES, PA-Schiene, UV, Fundamenterder
+u. a.) getroffen wird. Die Zeile heißt im PDF jetzt schlicht „Messpunkt /
+Bezugspunkt:", gefolgt vom tatsächlich eingetragenen Wert.
+Betroffen: `js/pdf-generator.js` (Abschnitt „4. Erdung" in `generatePDF()`).
+
+**b) Messprüfungen eines totgelegten Stromkreises klappen automatisch ein.**
+Die vier Messprüfungs-Abschnitte einer Stromkreis-Karte (Schutzleiter/
+Isolationswiderstand, Absicherung, RCD, Berührungsspannung) sind jetzt zu
+einem gemeinsamen, einklappbaren Block zusammengefasst. Wird der Stromkreis
+als „n.i.O." markiert (siehe c), klappt dieser Block automatisch ein, da die
+Messwerte für einen freigeschalteten/totgelegten Kreis nicht mehr relevant
+sind. Über die Kopfzeile „Messprüfungen" lässt er sich jederzeit wieder von
+Hand aufklappen (z. B. falls doch noch etwas nachgetragen werden muss), und
+klappt beim Zurückwechseln auf „i.O." automatisch wieder auf.
+Betroffen: `js/pdf-generator.js` (`toggleMessSections()`,
+`syncTotlegungAnzeige()`), `css/style.css`.
+
+**c) „Mangel festgestellt" jetzt als i.O./n.i.O.-Auswahl am Ende der
+Stromkreisprüfung.** Die bisherige Checkbox „Mangel festgestellt –
+Stromkreis freigeschaltet/totgelegt" am ANFANG jeder Stromkreis-Karte wurde
+ersetzt durch ein Auswahlfeld „Ergebnis Stromkreisprüfung" mit den Optionen
+i.O. / n.i.O. – nach demselben Muster wie bei Sichtprüfung und Erprobung –
+und steht jetzt konsequent am ENDE der Karte, nach allen Messwerten. Wird
+n.i.O. ausgewählt, öffnet sich automatisch das Bemerkungsfeld für den
+festgestellten Fehler und bekommt sofort den Fokus, exakt wie zuvor bei der
+Checkbox. Die bestehende Prüfung beim PDF-Export (ein als n.i.O. markierter
+Stromkreis muss einen Fehlertext haben, sonst wird kein PDF erzeugt) sowie
+die Kennzeichnung im PDF als eigene rote „TOTGELEGT"-Zeile bleiben
+unverändert erhalten.
+Betroffen: `js/pdf-generator.js` (Kartenvorlage, `toggleTotlegung()`,
+`istTotgelegt()`, `syncTotlegungAnzeige()`), `js/pdf-utils.js`
+(`prueflingeOhneMessung()` an die neue Auswahl statt Checkbox angepasst),
+`css/style.css`.
+
+**d) Pflichtfelder je Stromkreis farblich markiert.** Die bestehende
+Gelb/Grün-Kennzeichnung für Pflichtfelder (siehe Punkt 13) wurde um Felder
+INNERHALB jeder Stromkreis-Karte erweitert: Z<sub>S</sub> (das einzige
+Messfeld, das für jeden Stromkreis unbedingt verlangt wird) und das neue
+Ergebnis-Auswahlfeld sind jetzt ebenfalls gelb hinterlegt, solange leer, und
+wechseln auf Grün, sobald ausgefüllt. Ein tatsächlich normwidriger Wert
+(z. B. Z<sub>S</sub> über dem zulässigen Höchstwert) bleibt weiterhin klar
+rot markiert und hat dabei ausdrücklich Vorrang vor der grünen
+„ausgefüllt"-Markierung – ein falscher Wert erscheint nie versehentlich
+grün.
+Betroffen: `js/pflichtfelder.js` (neue Option `cfg.karten` für Pflichtfelder
+in dynamisch angelegten Karten), `vde0100.html` (`initPflichtfelder()`-
+Aufruf), `css/style.css` (Vorrangregel Rot vor Grün).
+
+**Geprüft:** Per Playwright in Chromium: Auswahlfeld erscheint korrekt am
+Kartenende mit den erwarteten Optionen; Wechsel auf n.i.O. klappt die
+Messprüfungen ein, öffnet und fokussiert das Bemerkungsfeld, färbt das
+Auswahlfeld rot; Wechsel zurück auf i.O. klappt wieder auf; manuelles
+Auf-/Zuklappen über die Kopfzeile funktioniert unabhängig vom i.O./n.i.O.-
+Status; Speichern und Neuladen der Seite (Autosave/Wiederherstellung) erhält
+n.i.O.-Status, eingeklappten Zustand und Begründungstext korrekt. PDF-Export
+in allen drei Konstellationen geprüft: Leerformular (kein Beispieltext mehr
+bei „4. Erdung"), ausgefülltes Formular mit i.O.-Stromkreisen, sowie ein
+n.i.O.-markierter Stromkreis mit Begründung (erscheint weiterhin korrekt als
+rote „TOTGELEGT"-Zeile in der Tabelle) – auch die Abbruch-Prüfung „n.i.O.
+ohne Begründungstext" wurde erneut bestätigt. Die Randprüfung aus dem
+vorigen Nachtrag (kein Textelement links von 20 mm oder rechts von 200 mm)
+wurde für das ausgefüllte Anlagenprüfungs-PDF erneut bestätigt – keine
+Regression durch diese Änderungen.
+
+---
+
 ## Prüfung dieser Version
 
 Ausgeführt in Chromium (Playwright):
@@ -288,14 +409,14 @@ Ausgeführt in Chromium (Playwright):
   * `pdfinfo`: alle sechs PDFs **1 Seite**, DIN A4, keine Seitenzahl-
     Überraschungen durch den größeren Rand.
   * `pdftotext -bbox`-Auswertung: **kein** Textelement beginnt in allen
-    sechs PDFs mehr links von 20 mm (vorher u. a. Feldbeschriftungen,
-    Sichtprüfungs-Raster und die Kopfzeile bei 10–16 mm).
+    sechs PDFs mehr links von 20 mm oder endet rechts von 200 mm (siehe
+    auch Nachtrag oben zur Messtabelle).
   * Zusätzlich ein Mehrseiten-Test mit 17 Stromkreisen (erzwingt einen
     Seitenumbruch, 2 Seiten): auch auf der Folgeseite hält der 20-mm-Rand,
     Kopfzeile und Tabellenraster wiederholen sich korrekt.
   * Gerastert (150 dpi) und visuell verglichen: keine Überlappungen mehr in
     Stammdaten-Zeile „Netzmessung", 3-spaltigem Sichtprüfungs-Raster,
-    Ergebnis-/Freigabe-/Plaketten-Ankreuzfeldern.
+    Ergebnis-/Freigabe-/Plaketten-Ankreuzfeldern, Messtabelle.
 * Gezielte Funktionsprüfung:
   * Hausanschluss/Speisepunkt und Seriennummer werden nach Übernahme der
     Stammdaten zuverlässig im Formular gehalten und im PDF gedruckt.
@@ -305,8 +426,9 @@ Ausgeführt in Chromium (Playwright):
     Prüfungen" erreichbar und editierbar.
   * Pflichtfeld-Kennzeichnung: Feld wird beim Leeren gelb
     (`pflichtfeld-leer`), beim Ausfüllen grün (`pflichtfeld-ok`).
-  * Totlegung: Checkbox blendet Begründungsfeld ein; totgelegter Stromkreis
-    erscheint im PDF als eigene rote Zeile statt mit leeren Messwerten.
+  * Totlegung: Auswahlfeld i.O./n.i.O. blendet Begründungsfeld ein;
+    totgelegter Stromkreis erscheint im PDF als eigene rote Zeile statt mit
+    leeren Messwerten (siehe „2. Nachtrag" für die aktuelle Umsetzung).
   * Stromkreis-Löschung: verbleibende Karten werden lückenlos neu
     nummeriert (z. B. 1/2/3/4 → nach Löschen von #2 → 1/2/3).
   * „Offene Prüfungen" auf der Startseite listet den zuletzt angelegten
