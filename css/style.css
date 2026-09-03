@@ -3,7 +3,9 @@
   --secondary: #475569;
   --bg: #f8fafc;
   --card: #ffffff;
-  --border: #cbd5e1;
+  /* 4.7.0: dunkler als zuvor (#cbd5e1) - Rahmen und Tabellenlinien waren
+   * auf dem Bildschirm zu blass ablesbar. */
+  --border: #94a3b8;
   --accent: #2563eb;
   --success: #16a34a;
   --danger-bg: #fef2f2;
@@ -44,6 +46,45 @@ body {
 }
 
 h1 { color: var(--primary); font-size: 1.4rem; margin: 0; line-height: 1.25; }
+
+/* ============================================================================
+ *  STATUS-KOPFLEISTE (4.7.0)
+ * ----------------------------------------------------------------------------
+ *  Bleibt beim Scrollen sichtbar (sticky) und zeigt jederzeit, in welchem
+ *  Protokoll man sich befindet UND - falls der Fokus gerade in einer
+ *  Stromkreis-/Geraete-/Zuleitungskarte steht - in welcher Karte. Aktualisiert
+ *  sich per "focusin"-Event, siehe statusleiste.js.
+ * ========================================================================== */
+.status-leiste {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--primary);
+  color: #ffffff;
+  padding: 7px 14px;
+  border-radius: 6px;
+  margin: -8px -8px 16px;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.status-leiste .sl-nummer { font-weight: bold; }
+.status-leiste .sl-trenner { opacity: 0.55; }
+.status-leiste .sl-kreis {
+  margin-left: auto;
+  background: rgba(255,255,255,0.18);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.status-leiste .sl-kreis:empty { display: none; }
+@media (max-width: 560px) {
+  .status-leiste { font-size: 0.72rem; }
+}
 h2 { color: var(--primary); font-size: 0.95rem; margin-top: 20px; margin-bottom: 10px; background: #f1f5f9; padding: 6px 10px; border-left: 4px solid var(--primary); border-radius: 2px; }
 
 /* ============================================================================
@@ -129,6 +170,41 @@ input::placeholder, textarea::placeholder { color: #94a3b8; font-style: italic; 
   border-color: #ca8a04 !important;
 }
 
+/* ============================================================================
+ *  PFLICHTFELD-KENNZEICHNUNG (4.7.0)
+ * ----------------------------------------------------------------------------
+ *  Jedes Feld, das fuer den PDF-Export tatsaechlich verpflichtend ist (siehe
+ *  pflichtfelderMarkieren() in pflichtfelder.js), ist auffaellig gelblich
+ *  hinterlegt, solange es leer ist - und wechselt automatisch auf einen
+ *  dezenten, leicht gruenen Ton, sobald es ausgefuellt wurde. So ist auf
+ *  einen Blick erkennbar, was noch fehlt, ohne erst beim Exportversuch eine
+ *  Fehlermeldung zu bekommen. */
+.pflichtfeld-leer {
+  background-color: #fef9c3 !important;
+  border-color: #ca8a04 !important;
+}
+.pflichtfeld-ok {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+/* Feld-Badge (4.7.0): kleine Markierung direkt im Label, z. B. bei ZS/ZL-N,
+   damit "Pflicht" und "Optional" auf den ersten Blick gleich aussehen statt
+   wie zuvor (ein Feld ohne jede Kennzeichnung, das andere mit einem
+   unauffaelligen Fliesstext-Hinweis "optional"). */
+.feld-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+.feld-badge-pflicht { background: #fef2f2; color: #991b1b; }
+.feld-badge-optional { background: #f1f5f9; color: #64748b; }
+
 /* Grenzwert-/Normhinweis unter einem Eingabefeld.
    Wurde im JS bereits verwendet, war im Stylesheet aber nicht definiert -
    die Hinweise erschienen dadurch in voller Textgroesse. */
@@ -144,6 +220,21 @@ label .limit-hint { display: inline; margin-top: 0; }
 
 .circuit-card, .feed-card { background: #ffffff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .circuit-header, .feed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; font-weight: bold; color: var(--primary); }
+
+/* Totlegung eines einzelnen Stromkreises (4.7.0) - siehe toggleTotlegung() */
+.circuit-totlegung { margin: -4px 0 10px; }
+.totlegung-checkbox {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; font-weight: bold;
+  color: #991b1b; cursor: pointer; line-height: 1.35;
+}
+.totlegung-checkbox input[type="checkbox"] { width: auto; margin-top: 2px; flex-shrink: 0; }
+.totlegung-grund { margin-top: 8px; }
+.totlegung-grund textarea { border-color: #f87171; background: #fef2f2; }
+.circuit-card.circuit-totgelegt, .feed-card.circuit-totgelegt {
+  border-color: #f87171; background: #fff8f8;
+}
+.circuit-card.circuit-totgelegt .circuit-header,
+.feed-card.circuit-totgelegt .feed-header { border-bottom-color: #fecaca; }
 
 .sub-section { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px 10px; margin-top: 8px; }
 .sub-title { font-size: 0.75rem; font-weight: bold; color: var(--primary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -305,6 +396,22 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
 .start-archiv-zahl { font-size: 1.6rem; font-weight: bold; color: var(--primary); line-height: 1; }
 .start-archiv-text { flex: 1; min-width: 180px; font-size: 0.8rem; color: var(--secondary); line-height: 1.45; }
 .start-archiv .btn { text-decoration: none; }
+
+/* Startseite: "Offene Prüfungen" (mehrere parallele Entwürfe, 4.7.0) */
+.offene-pruefung-zeile {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 8px;
+}
+.offene-pruefung-info { display: flex; flex-direction: column; gap: 2px; }
+.offene-pruefung-typ {
+  font-size: 0.68rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--primary);
+}
+.offene-pruefung-info strong { font-size: 0.92rem; }
+.offene-pruefung-zeit { font-size: 0.72rem; color: var(--secondary); }
+.offene-pruefung-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
+.offene-pruefung-aktionen .btn, .offene-pruefung-aktionen .btn-danger { text-decoration: none; }
 
 /* Formular wurde aus einer Archiv-Vorlage angelegt */
 .vorlage-hinweis {

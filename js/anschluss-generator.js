@@ -8,6 +8,15 @@
 
 let cardCounter = 0;
 
+/* Siehe pdf-generator.js pruefstromSel(): bei einer NEUEN Karte ist "5x In
+ * (max. 40 ms)" der in der Praxis fast immer verwendete Pruefstrom und wird
+ * vorbelegt; ein wiederhergestellter (auch bewusst leerer) Zwischenstand
+ * behaelt seinen eigenen Wert. */
+function pruefstromSel(wert, optionWert) {
+  const eff = wert === undefined ? '5' : wert;
+  return eff === optionWert ? ' selected' : '';
+}
+
 function addFeedCard(data = {}) {
   cardCounter++;
   const container = document.getElementById('feedsContainer');
@@ -84,7 +93,7 @@ function addFeedCard(data = {}) {
           </div>
         </div>
         <div class="form-group">
-          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE:</label>
+          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
           <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0.28" oninput="onFeedZsInput(${cardCounter})">
           <div class="limit-hint" id="fzs_limit_${cardCounter}"></div>
         </div>
@@ -124,10 +133,10 @@ function addFeedCard(data = {}) {
         <div class="form-group">
           <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
           <select class="c-rcd-pruefstrom" onchange="validateFeedNorms(${cardCounter})">
-            <option value="" selected>&ndash; bitte wählen &ndash;</option>
-            <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
-            <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-            <option value="5">5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
+            <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
+            <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
+            <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
+            <option value="5"${pruefstromSel(data.rcd_pruefstrom, '5')}>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
           </select>
         </div>
         <div class="form-group">
@@ -137,10 +146,13 @@ function addFeedCard(data = {}) {
       </div>
     </div>
   `;
-  // Kein Vorgabewert: der Prüfstrom bestimmt den zulaessigen Grenzwert der
-  // Ausloesezeit und muss deshalb bewusst gewaehlt werden.
-  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || '';
+  // Pruefstrom: bei einer neuen Karte ist "5" bereits per <option selected>
+  // vorbelegt (siehe pruefstromSel oben) - das darf hier nicht ueberschrieben
+  // werden. Ein wiederhergestellter, auch bewusst leerer Wert wird weiterhin
+  // exakt uebernommen.
+  if (data.rcd_pruefstrom !== undefined) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
   container.appendChild(card);
+  nummeriereKartenNeu('#feedsContainer', '.feed-card', 'Übergabepunkt');
   validateFeedNorms(cardCounter);
 }
 
@@ -333,7 +345,7 @@ const ANSCHLUSS_KOPF = {
   titel: "ANSCHLUSSPRÜFUNG ÜBERGABEPUNKT",
   normzeile: "Übergabe der Stromversorgung nach DIN VDE 0100-704 / -711 / -718 / -740 i.V.m. DIN VDE 0100-600"
 };
-const ANSCHLUSS_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
+const ANSCHLUSS_REVISION = "Formular Rev. 2026-09 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
 
 /* ===========================================================================
  *  LEERFORMULAR ZUM AUSFUELLEN VON HAND  (siehe Kommentar in pdf-generator.js)
@@ -360,12 +372,14 @@ const LEER_HEAD_AP = [[
   't_{A} (ms)\n@ ____ x I_{Δn}'
 ]];
 
-// Summe = 190 mm (4.5.0: Spalte U_N-PE ergaenzt, Breite aus 1, 2, 7 und 10 genommen)
+// 4.7.0: Summe = 180 mm statt vorher 190 mm - seit PDF_MARGIN_LEFT auf
+// 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle sonst 10 mm
+// ueber den neuen Satzspiegel hinaus. Alle Spalten proportional verkleinert.
 const LEER_SPALTEN_AP = {
-  0: { cellWidth: 6 }, 1: { cellWidth: 30, halign: 'left' }, 2: { cellWidth: 25 },
-  3: { cellWidth: 12 }, 4: { cellWidth: 14 }, 5: { cellWidth: 13 },
-  6: { cellWidth: 15 }, 7: { cellWidth: 24 }, 8: { cellWidth: 19 },
-  9: { cellWidth: 13 }, 10: { cellWidth: 19 }
+  0: { cellWidth: 6 }, 1: { cellWidth: 29, halign: 'left' }, 2: { cellWidth: 24 },
+  3: { cellWidth: 11 }, 4: { cellWidth: 13 }, 5: { cellWidth: 12 },
+  6: { cellWidth: 14 }, 7: { cellWidth: 23 }, 8: { cellWidth: 18 },
+  9: { cellWidth: 12 }, 10: { cellWidth: 18 }
 };
 
 const LEER_LEGENDE_AP =
@@ -522,7 +536,10 @@ function generatePDFAnschluss(isBlank = false) {
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & BEREITSTELLER DER EINSPEISUNG", kat: 'stamm' });
 
   doc.setFontSize(7.2);
-  const spL = 13, spR = 107, spB = 90;
+  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
+  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
+  // vor spR (107) endet.
+  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;
 
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
@@ -566,9 +583,12 @@ function generatePDFAnschluss(isBlank = false) {
 
   if (isBlank || NETZMESS_FELDER_AP.some(id => netzWert(id))) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text('Netzmessung:', spL, z1(6));
+    // 4.7.0: seit spL auf 23 mm verschoben wurde (Locherrand), passte die fett
+    // gesetzte Beschriftung "Netzmessung:" bei 7 pt nicht mehr vor die bei
+    // x = 36 beginnende erste Kurzfeld-Spalte und ueberdeckte "U L1-N".
+    drawFittedText(doc, 'Netzmessung:', spL, z1(6), 36 - spL - 1, 7, 5.5);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
 
     const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
     const nmZelle = (label, id, spalte, zeile) => {
@@ -613,14 +633,16 @@ function generatePDFAnschluss(isBlank = false) {
     "4. Kennzeichnung", "5. Zugänglichkeit", "6. Not-Aus/Hauptschalter",
     "7. Witterungsschutz", "8. Berührungsschutz", "9. Prüfplakette"
   ];
-  const SICHT_LABEL_X = [13, 76, 139];
-  const SICHT_CB_X    = [42, 105, 165];
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm),
+  // dabei Spaltenbreite leicht gestaucht, damit Spalte 3 weiterhin vor dem
+  // rechten Rand endet (200 mm Satzspiegel-Ende, ehemals 10, jetzt 20 mm Rand).
+  const SICHT_LABEL_X = [23, 82, 141];
+  const SICHT_CB_X    = [50, 109, 167];
   // In der dritten Spalte stiess die Beschriftung bisher ohne Abstand an das
-  // i.O.-Kaestchen (139 + 27 = 166 gegen Kaestchen bei 165). Die verfuegbare
-  // Textbreite ist dort deshalb auf 23 mm begrenzt (Ende 162, also 3 mm Luft);
+  // i.O.-Kaestchen. Die verfuegbare Textbreite ist dort deshalb begrenzt;
   // die laengste Beschriftung wurde zusaetzlich gekuerzt. Das Kaestchen bleibt
-  // bei 165, damit die dritte Box ("n.a.") rechts nicht ueber den Satzspiegel
-  // hinauslaeuft.
+  // in Spalte 3, damit die dritte Box ("n.a.") rechts nicht ueber den
+  // Satzspiegel hinauslaeuft.
   const SICHT_LABEL_W = [27, 27, 23];
 
   sichtLabels.forEach((label, i) => {
@@ -649,7 +671,7 @@ function generatePDFAnschluss(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Schutzleiter, Schleifenimpedanz, RCD. Grenzwerte je Spalte im Tabellenkopf; unzulässige Werte werden rot hinterlegt.", 10, y + 3.4);
+  doc.text("Schutzleiter, Schleifenimpedanz, RCD. Grenzwerte je Spalte im Tabellenkopf; unzulässige Werte werden rot hinterlegt.", PDF_MARGIN_LEFT, y + 3.4);
   doc.setTextColor(...textColor);
 
   const makeCell = (text, isOut = false) => {
@@ -790,16 +812,18 @@ function generatePDFAnschluss(isBlank = false) {
       lineColor: katMessen.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
     },
     bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
-    // Summe = 190 mm (210 - 2 x 10 mm Rand). Vorher 188 -> autoTable meldete
-    // "content width could not fit page" und rechnete die Spalten selbst um.
-    // 4.5.0: Spalte U_N-PE ergaenzt, Summe bleibt 190 mm.
+    // 4.7.0: Summe = 180 mm (210 - 20 mm linker Rand - 10 mm rechter Rand).
+    // Vorher 190 mm (bei 10 mm Rand beidseitig) - seit PDF_MARGIN_LEFT auf
+    // 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle sonst
+    // 10 mm ueber den neuen Satzspiegel hinaus. Alle Spalten proportional
+    // verkleinert (Faktor 180/190).
     columnStyles: isBlank ? LEER_SPALTEN_AP : {
-      0: { cellWidth: 7 }, 1: { cellWidth: 31, halign: 'left' }, 2: { cellWidth: 28 },
-      3: { cellWidth: 12 }, 4: { cellWidth: 17 }, 5: { cellWidth: 15 },
-      6: { cellWidth: 18 }, 7: { cellWidth: 24 }, 8: { cellWidth: 38 }
+      0: { cellWidth: 7 }, 1: { cellWidth: 29, halign: 'left' }, 2: { cellWidth: 27 },
+      3: { cellWidth: 11 }, 4: { cellWidth: 16 }, 5: { cellWidth: 14 },
+      6: { cellWidth: 17 }, 7: { cellWidth: 23 }, 8: { cellWidth: 36 }
     },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
               minCellHeight: isBlank ? LEER_ZEILENHOEHE_AP : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
   }));
@@ -815,7 +839,7 @@ function generatePDFAnschluss(isBlank = false) {
    * die letzten Zeichen fehlten im PDF. */
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
   const OFF_PA = 10;
@@ -837,10 +861,12 @@ function generatePDFAnschluss(isBlank = false) {
   doc.setFontSize(7.2);
 
   const paVal = document.getElementById('pa_angeschlossen')?.value || '';
-  doc.text("Potenzialausgleich angeschlossen:", 13, finalY + OFF_PA);
-  drawCheckbox(doc, 58, finalY + OFF_PA, "Ja", !isBlank && paVal === "Ja");
-  drawCheckbox(doc, 70, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
-  drawCheckbox(doc, 85, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
+  doc.text("Potenzialausgleich angeschlossen:", PDF_MARGIN_LEFT + 3, finalY + OFF_PA);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, Label startet jetzt
+  // bei PDF_MARGIN_LEFT + 3 = 23 statt vorher 13).
+  drawCheckbox(doc, 68, finalY + OFF_PA, "Ja", !isBlank && paVal === "Ja");
+  drawCheckbox(doc, 80, finalY + OFF_PA, "Nein", !isBlank && paVal === "Nein", true);
+  drawCheckbox(doc, 95, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
 
   const erdungReNum = parseFloat((document.getElementById('erdung_re')?.value || '').replace(',', '.'));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
@@ -849,7 +875,7 @@ function generatePDFAnschluss(isBlank = false) {
                 feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 107, finalY + OFF_PA, 90, isBlank, { rot: isErdungOut });
 
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, Erdspieß, Fundamenterder):",
-                feldWert('pa_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
+                feldWert('pa_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
 
   /* --- DREI ZUSTAENDE STATT ZWEI (identisch zum Anlagenprotokoll) --------- */
   const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
@@ -872,14 +898,15 @@ function generatePDFAnschluss(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
-  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
-  doc.text("Freigabe zur Nutzung:", 13, finalY + offFreigabe);
-  drawCheckbox(doc, 45, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja");
-  drawCheckbox(doc, 56, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", true);
+  doc.text("Freigabe zur Nutzung:", PDF_MARGIN_LEFT + 3, finalY + offFreigabe);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
+  drawCheckbox(doc, 55, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja");
+  drawCheckbox(doc, 66, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", true);
 
   // "Leistung ausreichend" steht jetzt in dieser Zeile: die Ergebniszeile
   // darueber braucht die volle Breite fuer das dritte Ankreuzfeld.
@@ -891,13 +918,13 @@ function generatePDFAnschluss(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
+  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
+    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 13, finalY + offBemStart);
+    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
   }
 
   finalY += boxHeight + 5;
@@ -930,12 +957,12 @@ function generatePDFAnschluss(isBlank = false) {
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
   // Umbruch nur, wenn Hinweistext + Unterschriftenblock wirklich nicht mehr passen
   finalY = pdfPlatzPruefen(doc, finalY, complianceLines.length * 3.2 + 6 + 16);
 
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  doc.text(complianceLines, 10, finalY);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY);
   doc.setTextColor(...textColor);
 
   finalY += complianceLines.length * 3.2 + 6;
@@ -945,21 +972,29 @@ function generatePDFAnschluss(isBlank = false) {
     : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padUebergeber.isEmpty()) {
-    doc.addImage(padUebergeber.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
+    // 4.7.0: x=10 -> PDF_MARGIN_LEFT (20 mm, Locherrand).
+    doc.addImage(padUebergeber.toDataURL('image/png'), 'PNG', PDF_MARGIN_LEFT, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.2);
-  doc.line(10, finalY + 12, 90, finalY + 12);
+  doc.line(PDF_MARGIN_LEFT, finalY + 12, PDF_MARGIN_LEFT + 80, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Übergebende/-r (Netzbetreiber/Bereitsteller)`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Übergebende/-r (Netzbetreiber/Bereitsteller)`, PDF_MARGIN_LEFT, finalY + 15);
 
+  // 4.7.0: rechte Unterschriftsspalte beginnt jetzt bei 125 statt 115, damit
+  // die laengere Beschriftung "- Übernehmende/-r (Veranstalter/Elektrofachkraft)"
+  // vor dem rechten Rand (200 mm Satzspiegel-Ende) endet, statt darueber
+  // hinauszulaufen.
+  const SIG_R_X = 125;
   if (!isBlank && !padUebernehmer.isEmpty()) {
-    doc.addImage(padUebernehmer.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
+    doc.addImage(padUebernehmer.toDataURL('image/png'), 'PNG', SIG_R_X, finalY, 38, 12);
   }
-  doc.line(115, finalY + 12, 200, finalY + 12);
-  doc.text(`${ortDatum} - Übernehmende/-r (Veranstalter/Elektrofachkraft)`, 115, finalY + 15);
+  doc.line(SIG_R_X, finalY + 12, 200, finalY + 12);
+  drawFittedText(doc, `${ortDatum} - Übernehmende/-r (Veranstalter/Elektrofachkraft)`,
+                 SIG_R_X, finalY + 15, 200 - SIG_R_X, 6.5, 5.2);
+  doc.setFontSize(6.5);
 
   /* Fussbereich von Blatt 1: Musterangabe und Legende.
    * 4.5.0 (C4): 6 pt statt 4,6 pt, von unten nach oben gesetzt, mit Abstand
@@ -1001,7 +1036,7 @@ function generatePDFAnschluss(isBlank = false) {
         bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
         columnStyles: LEER_SPALTEN_AP,
         margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-        styles: { lineColor: [203, 213, 225], lineWidth: 0.1, minCellHeight: LEER_ZEILENHOEHE_AP,
+        styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18, minCellHeight: LEER_ZEILENHOEHE_AP,
                   overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
       }));
 
@@ -1025,14 +1060,20 @@ function generatePDFAnschluss(isBlank = false) {
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'AP');
-    nachPdfNeuesFormularAnbieten('AP', nummerRoh, resetAnschlussForm, clearAnschlussAutosave);
+    nachPdfNeuesFormularAnbieten('AP', nummerRoh, resetAnschlussForm, clearAnschlussAutosave, function () {
+      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('AP');
+    });
   });
 }
 
 // AUTOSAVE
 // Einheitliches Praefix 'vde_': der alte Schluessel 'anschluss_protocol_autosave'
 // wurde von der Datensicherung nicht erfasst (siehe storage.js).
-const ANSCHLUSS_AUTOSAVE_KEY = 'vde_autosave_ap';
+// 4.7.0: siehe pdf-generator.js AUTOSAVE_KEY_AKTUELL() - mehrere parallele
+// Entwuerfe statt eines einzigen festen Schluessels.
+entwurfAusUrlUebernehmen('AP');
+let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('AP', 'vde_autosave_ap');
+function ANSCHLUSS_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('AP', AKTUELLER_ENTWURF_ID); }
 
 const ANSCHLUSS_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
@@ -1096,6 +1137,10 @@ function restoreAnschlussState(state) {
     /* Leere Datumsangaben aus einer Archiv-Vorlage duerfen die Vorbelegung
      * (heutiges Datum) nicht ueberschreiben. */
     if ((id === 'datum' || id === 'unterschrift_datum') && !String(val || '').trim()) return;
+    /* BUGFIX: siehe pdf-generator.js restoreProtocolState() - ein leerer
+     * Wert in einem Stammdatenfeld darf den frisch aus den zentralen
+     * Stammdaten uebernommenen Wert nicht ueberschreiben. */
+    if (MASTERDATA_FIELD_IDS.includes(id) && !String(val || '').trim()) return;
     el.value = val;
   });
 
@@ -1136,18 +1181,28 @@ function restoreAnschlussState(state) {
 }
 
 function autosaveProtocol() {
-  try { localStorage.setItem(ANSCHLUSS_AUTOSAVE_KEY, JSON.stringify(collectAnschlussState())); } catch (e) {}
+  try {
+    localStorage.setItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectAnschlussState()));
+    entwurfMerken('AP', AKTUELLER_ENTWURF_ID, {
+      protokollnummer: document.getElementById('protokollnummer')?.value || '',
+      bezeichnung: entwurfBezeichnung('AP', () => ({
+        anlage: document.getElementById('uebergabe_standort')?.value,
+        gebaeude: document.getElementById('gebaeude_custom')?.value
+      }))
+    });
+  } catch (e) {}
 }
 
 function loadAnschlussAutosave() {
   try {
-    const raw = localStorage.getItem(ANSCHLUSS_AUTOSAVE_KEY);
+    const raw = localStorage.getItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL());
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
 function clearAnschlussAutosave() {
-  localStorage.removeItem(ANSCHLUSS_AUTOSAVE_KEY);
+  localStorage.removeItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL());
+  entwurfEntfernen(AKTUELLER_ENTWURF_ID);
 }
 
 function resetAnschlussForm() {
@@ -1171,11 +1226,13 @@ function resetAnschlussForm() {
 }
 
 function neuesAnschlussProtokoll() {
-  if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular werden zurückgesetzt.')) return;
+  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('AP');
+  verbraucheProtokollNummer(nr, 'AP');
+  AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('AP');
   resetAnschlussForm();
   document.getElementById('protokollnummer').value = nr;
-  clearAnschlussAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
+  autosaveProtocol();
+  alert(`Neues Protokoll angelegt: ${nr}`);
 }

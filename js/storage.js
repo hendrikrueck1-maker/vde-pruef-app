@@ -1,4 +1,15 @@
 // STAMMDATEN LOGIK (LOCALSTORAGE)
+
+/* Felder, die applyMasterDataToForm() aus den zentralen Stammdaten setzt.
+ * WICHTIG: Ein wiederhergestellter Autosave-/Archiv-Zwischenstand darf einen
+ * LEEREN Wert in diesen Feldern nicht ueber den gerade frisch aus den
+ * zentralen Stammdaten uebernommenen Wert schreiben - sonst verschwindet
+ * z. B. der Hausanschluss/die Seriennummer wieder, sobald ein aelterer
+ * Autosave-Stand (der diese Angabe noch nicht enthielt) restauriert wird.
+ * Diese Liste wird von allen drei restore*State()-Funktionen genutzt, um
+ * genau das zu verhindern - siehe dort. */
+const MASTERDATA_FIELD_IDS = ['auftraggeber', 'vnb', 'hausanschluss', 'pruefer', 'messgeraet', 'seriennummer', 'unterschrift_ort'];
+
 function getMasterData() {
   const saved = localStorage.getItem('vde_master_data');
   if (saved) {
@@ -219,16 +230,27 @@ function protokollNummerNachPdf(praefix = 'PR') {
  *  drueckte, dokumentierte die naechste Verteilung mit den Werten der
  *  vorherigen.
  * ------------------------------------------------------------------------ */
-function nachPdfNeuesFormularAnbieten(praefix, nummerAlt, resetFn, clearFn) {
+/* 4.7.0: Das fertige PDF SCHLIESST die Pruefung nicht mehr ab - das
+ * Formular bleibt bearbeitbar (siehe pdf-utils.js savePdfCompatible: ein
+ * erneuter Export ersetzt einfach die zuvor heruntergeladene Datei). Wer
+ * hier "OK" waehlt, legt bewusst einen NEUEN Entwurf fuer die naechste
+ * Anlage an - der gerade abgeschlossene Entwurf bleibt unter "Offene
+ * Prüfungen" bestehen und ist weiterhin aufrufbar (z. B. um doch noch eine
+ * Korrektur zu drucken). setzeAktivenEntwurf ist eine der drei
+ * formular-spezifischen Funktionen (siehe pdf-generator.js,
+ * anschluss-generator.js, geraete-generator.js), die AKTUELLER_ENTWURF_ID
+ * neu setzen. */
+function nachPdfNeuesFormularAnbieten(praefix, nummerAlt, resetFn, clearFn, setzeAktivenEntwurf) {
   var naechste = naechsteProtokollNummer(praefix);
   var neu = confirm(
     'Protokoll ' + (nummerAlt || '') + ' wurde erstellt.\n\n' +
     'Neues Formular für die nächste Anlage anlegen?\n\n' +
-    'OK: Formular zurücksetzen, alle Messwerte werden gelöscht. Die nächste Nummer ist ' +
-    naechste + '.\n' +
-    'Abbrechen: im aktuellen Formular weiterarbeiten - die Messwerte dieser Prüfung bleiben stehen.');
+    'OK: Neuer, leerer Entwurf für die nächste Anlage. Die nächste Nummer ist ' +
+    naechste + '. Das gerade erstellte Protokoll bleibt unter "Offene Prüfungen" erhalten.\n' +
+    'Abbrechen: im aktuellen Formular weiterarbeiten - ein erneutes PDF ersetzt einfach das gerade erstellte.');
   if (!neu) { protokollNummerNachPdf(praefix); return false; }
-  if (typeof clearFn === 'function') clearFn();
+  verbraucheProtokollNummer(naechste, praefix);
+  if (typeof setzeAktivenEntwurf === 'function') setzeAktivenEntwurf();
   if (typeof resetFn === 'function') resetFn();
   var el = document.getElementById('protokollnummer');
   if (el) el.value = naechste;
@@ -247,14 +269,26 @@ function initProtokollNummer(praefix = 'PR') {
   if (elem) elem.value = naechsteProtokollNummer(praefix);
 }
 
+/* 4.7.0: "Neues Formular" LEGT EINEN NEUEN ENTWURF AN, statt den aktuellen
+ * zu ueberschreiben - der bisherige Entwurf bleibt unter "Offene Prüfungen"
+ * bestehen und ist jederzeit wieder aufrufbar (siehe entwuerfe.js). Das
+ * Formular auf dem Bildschirm wird trotzdem sofort zurueckgesetzt, damit
+ * direkt an der naechsten Anlage weitergearbeitet werden kann.
+ *
+ * 4.7.0: Der Protokollzaehler wird jetzt HIER verbraucht (nicht mehr erst
+ * beim fertigen PDF) - ein Klick auf "Neues Formular" ist der Moment, in dem
+ * die Nutzerin bewusst zur naechsten Anlage wechselt, und genau dann soll
+ * die Nummer weiterzaehlen. */
 function neuesProtokoll() {
-  if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular (Stromkreise, Prüfergebnisse, Unterschriften) werden zurückgesetzt.')) return;
+  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('PR');
+  verbraucheProtokollNummer(nr, 'PR');
+  AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
   resetVdeForm();
   document.getElementById('protokollnummer').value = nr;
-  clearAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
+  autosaveProtocol();
+  alert(`Neues Protokoll angelegt: ${nr}`);
 }
 
 /* ============================================================================

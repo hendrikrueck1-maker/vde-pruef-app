@@ -1,0 +1,63 @@
+VDE-Prüfprotokoll-App – Version 4.7.0
+Alle geänderten/neuen Dateien dieses Updates
+
+============================================================
+WIE EINPFLEGEN
+============================================================
+
+Diesen Ordnerinhalt einfach in deinen App-Ordner
+(dort, wo index.html, css/, js/ usw. liegen – z. B.
+ZUM-HOCHLADEN) kopieren und vorhandene Dateien überschreiben
+lassen. Die Ordnerstruktur ist bereits identisch:
+
+  index.html
+  vde0100.html
+  anschlusspruefung.html
+  geraetepruefung.html
+  sw.js
+  css/style.css
+  js/app-config.js
+  js/storage.js
+  js/pdf-generator.js
+  js/anschluss-generator.js
+  js/geraete-generator.js
+  js/pdf-utils.js
+  js/entwuerfe.js         <- NEU
+  js/statusleiste.js      <- NEU
+  js/pflichtfelder.js     <- NEU
+
+Alle übrigen Dateien deines App-Ordners (icons/, vendor/,
+archiv.html, archiv.js, manifest.json, docs/ usw.) sind von
+diesem Update NICHT betroffen und bleiben unverändert stehen.
+
+Nach dem Hochladen/Kopieren: Seite im Browser einmal neu laden
+(ggf. Cache leeren) – der Service Worker erkennt automatisch die
+neue Version (4.7.0) und lädt alles frisch.
+
+============================================================
+WAS IST NEU
+============================================================
+
+Ausführliche Beschreibung aller Änderungen siehe:
+VDE-App-4.7.0-Aenderungsbericht.md (liegt in diesem Ordner
+und im Claude-Projekt "vde").
+
+Kurzfassung:
+- Hausanschluss/Speisepunkt & Seriennummer werden zuverlässig
+  gespeichert
+- Prüfstrom für Auslösestrom/-zeit immer 5×I_n
+- Frequenz jetzt Teil der Netzmessung
+- Formulare bleiben nach PDF-Export weiter bearbeitbar, mehrere
+  Baustellen parallel möglich ("Offene Prüfungen")
+- Protokollnummer zählt automatisch hoch
+- Feste Statusleiste zeigt das aktuelle Protokoll
+- Einzelne Stromkreise als "totgelegt" markierbar (mit
+  Begründung, ohne die Gesamtbewertung zu verfälschen)
+- Rahmen-/Tabellenlinien kontrastreicher
+- Stromkreisnummerierung bleibt nach dem Löschen lückenlos
+- Pflichtfelder farblich markiert bis sie ausgefüllt sind
+- Z_S / Z_L-N einheitlich mit Pflicht/Optional-Kennzeichnung
+- Linker PDF-Rand von 10 mm auf 20 mm vergrößert (Lochung)
+- NACHTRAG: Messtabelle (Abschnitt 3) war nach der Randvergrößerung
+  bis an den rechten Papierrand gequetscht – jetzt wieder mit
+  demselben rechten Rand wie die übrigen Abschnitte ausgerichtet

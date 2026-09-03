@@ -28,6 +28,9 @@
   <script src="js/vendor/liberation-sans-font.js"></script>
   <script src="js/vendor/signature_pad.umd.min.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/entwuerfe.js"></script>
+  <script src="js/statusleiste.js"></script>
+  <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/geraete-generator.js"></script>
@@ -211,6 +214,19 @@
   addDeviceCard();
 
   restoreGeraeteState(loadGeraeteAutosave());
+
+  initStatusleiste({
+    typLabel: 'Geräteprüfung',
+    nummerFeldId: 'protokollnummer',
+    bezFeldIds: ['auftraggeber', 'gebaeude_custom'],
+    kartenSelector: '.feed-card',
+    kartenLabelSelector: '.feed-header span',
+    kartenContainerSelector: '#devicesContainer'
+  });
+
+  initPflichtfelder({
+    ids: ['datum', 'pruefer', 'auftraggeber']
+  });
 
   const pads = initSignaturePads();
   padPruefer = pads.pruefer;

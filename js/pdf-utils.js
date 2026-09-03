@@ -421,7 +421,51 @@ function setValue(fieldId, val) {
   }
 }
 
-function removeCard(id) { const el = document.getElementById(id); if (el) el.remove(); }
+/* ---------------------------------------------------------------------------
+ *  KARTEN NACH LOESCHEN LUECKENLOS NEU DURCHNUMMERIEREN
+ * ---------------------------------------------------------------------------
+ *  FRUEHER zeigte jede Karte im Header "Stromkreis #N" mit N = cardCounter
+ *  ZUM ZEITPUNKT DER ERSTELLUNG. cardCounter wird beim Loeschen nie wieder
+ *  heruntergezaehlt (das darf er auch nicht - er liefert die eindeutige DOM-
+ *  ID 'circuit_N' fuer onclick-Handler). Wurde z. B. Stromkreis 2 geloescht,
+ *  blieben die sichtbaren Nummern 1, 3, 4, ... stehen - keine fortlaufende
+ *  Reihenfolge mehr, obwohl im Protokoll (PDF-Spalte "Nr.") ohnehin lueckenlos
+ *  1, 2, 3 gezaehlt wird.
+ *
+ *  JETZT: nummeriereKartenNeu() aendert NUR den sichtbaren Text im Header
+ *  (z. B. "Stromkreis #2"), NICHT die interne DOM-ID/den cardCounter - die
+ *  bleiben fuer onclick="removeCard('circuit_7')" etc. unveraendert gueltig.
+ *  Wird nach jedem Hinzufuegen/Entfernen/Wiederherstellen aufgerufen. */
+/* Konfiguration je Formulartyp - Container-ID -> {kartenSelector, praefix}.
+ * removeCard() schlaegt hier nach, WELCHE Nummerierung fuer den Container
+ * gilt, aus dem gerade eine Karte entfernt wurde. */
+const KARTEN_NUMMERIERUNG = {
+  '#circuitsContainer': { kartenSelector: '.circuit-card', praefix: 'Stromkreis' },
+  '#feedsContainer': { kartenSelector: '.feed-card', praefix: 'Übergabepunkt' },
+  '#devicesContainer': { kartenSelector: '.feed-card', praefix: 'Gerät' }
+};
+
+function nummeriereKartenNeu(containerSelector, kartenSelector, praefix) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  const karten = container.querySelectorAll(kartenSelector);
+  karten.forEach((karte, i) => {
+    const label = karte.querySelector('.circuit-header span, .feed-header span');
+    if (label) label.textContent = praefix + ' #' + (i + 1);
+  });
+}
+
+function removeCard(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const container = el.parentElement;
+  el.remove();
+  if (container && typeof KARTEN_NUMMERIERUNG !== 'undefined') {
+    const cfg = KARTEN_NUMMERIERUNG['#' + container.id];
+    if (cfg) nummeriereKartenNeu('#' + container.id, cfg.kartenSelector, cfg.praefix);
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
 
 /* ---------------------------------------------------------------------------
  *  AUTOSAVE ENTPRELLEN
@@ -956,10 +1000,18 @@ function istLeerWert(v) {
 }
 
 /* Liefert die 1-basierten Nummern aller Karten, in denen KEIN einziges der
- * angegebenen Messfelder gefuellt ist. */
-function prueflingeOhneMessung(karten, messSelektoren) {
+ * angegebenen Messfelder gefuellt ist.
+ *
+ * totgelegtSelektor (optional): eine Karte, die als "totgelegt/Mangel
+ * festgestellt" markiert ist (siehe toggleTotlegung() in pdf-generator.js),
+ * wird von dieser Pruefung ausgenommen. Ein freigeschalteter, nicht in
+ * Betrieb befindlicher Stromkreis hat DEFINITIONSGEMAESS keine Messwerte -
+ * das darf den PDF-Export nicht blockieren, sonst waere eine dokumentierte
+ * Totlegung technisch gar nicht moeglich. */
+function prueflingeOhneMessung(karten, messSelektoren, totgelegtSelektor) {
   const leer = [];
   Array.from(karten).forEach((card, i) => {
+    if (totgelegtSelektor && card.querySelector(totgelegtSelektor)?.checked) return;
     const hatEinen = messSelektoren.some(sel => !istLeerWert(card.querySelector(sel)?.value));
     if (!hatEinen) leer.push(i + 1);
   });
@@ -1034,19 +1086,25 @@ function getRpeMaxDevice(lengthM) {
 // GEMEINSAMER PDF-KOPF UND -FUSS FUER ALLE DREI PROTOKOLLTYPEN
 // ---------------------------------------------------------------------------
 // Die Infobox oben rechts beginnt bei x = 125 mm, ihr Text bei x = 128 mm.
-// Der Titel startet bei x = 10 mm -> nutzbar sind 112 mm. Frueher waren Titel
+// Der Titel startet bei x = PDF_MARGIN_LEFT (20 mm, 4.7.0) -> nutzbar sind 102 mm. Frueher waren Titel
 // und Normzeile mit fester Schriftgroesse gesetzt; bei den laengeren Titeln der
 // Anschluss- und Geraetepruefung lief der Text in die Box und ueberdruckte sie
 // zeichenweise. drawFittedText verkleinert stattdessen so weit noetig.
 
 const PDF_HEADER_BOX_X = 125;      // linke Kante der Infobox
-const PDF_TITLE_MAX_WIDTH = 112;   // 10 mm Rand bis 3 mm vor der Box
+const PDF_TITLE_MAX_WIDTH = 102;   // 4.7.0: linker Rand jetzt 20 mm (vorher 10) bis 3 mm vor der Box - Breite entsprechend um 10 mm reduziert
 const PDF_PRIMARY = [0, 51, 102];
 const PDF_TEXT = [15, 23, 42];
 const PDF_MUTED = [71, 85, 105];
-const PDF_BOX_BORDER = [203, 213, 225];
+/* 4.7.0: Kontrast von Umrandungen, Tabellenlinien und Eintragelinien erhöht -
+ * die vorherigen hellen Grautöne ([203,213,225] / [148,163,184]) waren auf
+ * Papier (v. a. bei einfachen Laserdruckern/Kopien) zu blass ablesbar.
+ * PDF_TABLE_LINE ersetzt die frueher an mehreren Stellen wiederholte
+ * Literalfarbe [203, 213, 225] in den lineColor-Angaben der Tabellen. */
+const PDF_BOX_BORDER = [100, 116, 139];
 const PDF_RED_TEXT = [153, 27, 27];
-const PDF_LINE = [148, 163, 184];  // Farbe der Eintragelinien im Leerformular
+const PDF_LINE = [71, 85, 105];    // Farbe der Eintragelinien im Leerformular
+const PDF_TABLE_LINE = [100, 116, 139];
 
 /* ---------------------------------------------------------------------------
  *  SEITENGEOMETRIE - EINE ZENTRALE STELLE FUER ALLE PROTOKOLLE
@@ -1056,9 +1114,14 @@ const PDF_LINE = [148, 163, 184];  // Farbe der Eintragelinien im Leerformular
  *  PDF_CONTENT_TOP beginnen - fruehere Umbrueche setzten y = 15 und liefen
  *  dadurch in Titel und Trennlinie hinein.
  * ------------------------------------------------------------------------ */
-const PDF_MARGIN_LEFT = 10;
+/* 4.7.0: linker Rand auf 20 mm vergroessert (vorher 10 mm) - die Protokolle
+ * werden von Hendrik gelocht und abgeheftet; ein Standard-Locher setzt seine
+ * Loecher mit Mittelpunkt bei ca. 12-15 mm vom Blattrand (Lochdurchmesser
+ * ca. 8 mm), sodass bei 10 mm Rand Text/Rahmenlinien angeschnitten worden
+ * waeren. Der rechte Rand bleibt bei 10 mm (dort wird nicht gelocht). */
+const PDF_MARGIN_LEFT = 20;
 const PDF_MARGIN_RIGHT = 10;
-const PDF_CONTENT_WIDTH = 190;     // 210 mm - 2 x 10 mm
+const PDF_CONTENT_WIDTH = 180;     // 210 mm - 20 mm (links) - 10 mm (rechts)
 const PDF_CONTENT_TOP = 25;        // erste Zeile unter der Kopf-Trennlinie
 const PDF_CONTENT_BOTTOM = 283;    // letzte nutzbare Zeile ueber der Fusszeile
 const PDF_FOOTER_Y = 291;
@@ -1317,16 +1380,16 @@ function drawFittedText(doc, text, x, y, maxWidth, startSize, minSize = 6) {
 function drawProtokollHeader(doc, { titel, normzeile }) {
   doc.setTextColor(...PDF_PRIMARY);
   doc.setFont("helvetica", "bold");
-  drawFittedText(doc, titel, 10, 11, PDF_TITLE_MAX_WIDTH, 13, 8);
+  drawFittedText(doc, titel, PDF_MARGIN_LEFT, 11, PDF_TITLE_MAX_WIDTH, 13, 8);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...PDF_MUTED);
   // Die Normzeile darf ebenfalls nicht unter die Box laufen (dort steht "Seite x von y").
-  drawFittedText(doc, normzeile, 10, 16, PDF_TITLE_MAX_WIDTH, 7.5, 5.5);
+  drawFittedText(doc, normzeile, PDF_MARGIN_LEFT, 16, PDF_TITLE_MAX_WIDTH, 7.5, 5.5);
 
   doc.setDrawColor(...PDF_PRIMARY);
   doc.setLineWidth(0.5);
-  doc.line(10, 20, 200, 20);
+  doc.line(PDF_MARGIN_LEFT, 20, 200, 20);
   doc.setTextColor(...PDF_TEXT);
 }
 

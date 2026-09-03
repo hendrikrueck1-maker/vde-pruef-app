@@ -124,6 +124,7 @@ function addDeviceCard(data = {}) {
     if (m) m.value = data.ableit_methode;
   }
   container.appendChild(card);
+  nummeriereKartenNeu('#devicesContainer', '.feed-card', 'Gerät');
   validateDeviceNorms(cardCounter);
   ableitMethodeGeaendert(cardCounter);
 }
@@ -329,7 +330,7 @@ const GERAETE_KOPF = {
   titel: "PRÜFUNG ELEKTRISCHER GERÄTE",
   normzeile: "Wiederholungsprüfung nach DIN EN 50699 (VDE 0702) / Prüfung nach Reparatur nach DIN EN 50678 (VDE 0701)"
 };
-const GERAETE_REVISION = "Formular Rev. 2026-08 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
+const GERAETE_REVISION = "Formular Rev. 2026-09 · Normstand: DIN EN 50678:2021-02 · DIN EN 50699:2021-06";
 
 /* ===========================================================================
  *  LEERFORMULAR ZUM AUSFUELLEN VON HAND
@@ -364,11 +365,14 @@ const GERAETE_HEAD = [[
   'Ableitstrom (mA)\nSK I ≤ 3,5 (>3,5 kW: 1/kW, max 10)\nSK II/III ≤ 0,5 · Messverfahren'
 ]];
 
+// 4.7.0: Summe = 180 mm statt vorher 190 mm - seit PDF_MARGIN_LEFT auf
+// 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle sonst 10 mm
+// ueber den neuen Satzspiegel hinaus. Alle Spalten proportional verkleinert.
 const GERAETE_SPALTEN = {
-  0: { cellWidth: 8 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 16 },
-  3: { cellWidth: 9 }, 4: { cellWidth: 10 }, 5: { cellWidth: 24 },
-  6: { cellWidth: 12 }, 7: { cellWidth: 19 }, 8: { cellWidth: 20 },
-  9: { cellWidth: 38 }
+  0: { cellWidth: 8 }, 1: { cellWidth: 32, halign: 'left' }, 2: { cellWidth: 15 },
+  3: { cellWidth: 9 }, 4: { cellWidth: 9 }, 5: { cellWidth: 23 },
+  6: { cellWidth: 11 }, 7: { cellWidth: 18 }, 8: { cellWidth: 19 },
+  9: { cellWidth: 36 }
 };
 
 /* Legende fuer das handschriftlich ausgefuellte Blatt. Ohne sie sind die
@@ -527,7 +531,10 @@ function generatePDFGeraete(isBlank = false) {
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
 
   doc.setFontSize(7.2);
-  const spL = 13, spR = 107, spB = 90;
+  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
+  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
+  // vor spR (107) endet.
+  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;
 
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
@@ -559,7 +566,7 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.6);
   doc.setTextColor(...PDF_MUTED);
-  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", 10, y + 3.4);
+  doc.text("Grenzwerte je Spalte im Tabellenkopf (DIN EN 50678 / 50699). Unzulässige Werte werden rot hinterlegt.", PDF_MARGIN_LEFT, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -693,7 +700,7 @@ function generatePDFGeraete(isBlank = false) {
     // Summe = 190 mm (Seitenbreite 210 abzueglich 2 x 10 mm Rand)
     columnStyles: GERAETE_SPALTEN,
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
               minCellHeight: isBlank ? LEER_ZEILENHOEHE_GP : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
     didParseCell: (data) => {
@@ -716,7 +723,7 @@ function generatePDFGeraete(isBlank = false) {
    * die letzten Zeichen fehlten im PDF. */
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
   // 4.5.0 (C1): 4 -> 3 Schreiblinien. Zusammen mit einer Geraetezeile weniger
   // passen Bewertung UND Unterschriften wieder auf Blatt 1.
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
@@ -743,7 +750,7 @@ function generatePDFGeraete(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
-  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), 13, finalY + offUmfang, 184, isBlank);
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + offUmfang, 177, isBlank);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
@@ -761,26 +768,27 @@ function generatePDFGeraete(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
-  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfplakette erteilt:", 13, finalY + offPlakette);
-  drawCheckbox(doc, 45, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 57, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  doc.text("Prüfplakette erteilt:", PDF_MARGIN_LEFT + 3, finalY + offPlakette);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
+  drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+  drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
+  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
+    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 13, finalY + offBemStart);
+    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
   }
 
   finalY += boxHeight + 5;
@@ -817,19 +825,20 @@ function generatePDFGeraete(isBlank = false) {
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText, 190);
+  const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
-  drawCheckbox(doc, 58, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 118, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  drawCheckbox(doc, 68, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
+  drawCheckbox(doc, 128, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  doc.text(complianceLines, 10, finalY + 4);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 4;
@@ -839,15 +848,16 @@ function generatePDFGeraete(isBlank = false) {
     : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padPruefer.isEmpty()) {
-    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
+    // 4.7.0: x=10 -> PDF_MARGIN_LEFT (20 mm, Locherrand).
+    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', PDF_MARGIN_LEFT, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.2);
-  doc.line(10, finalY + 12, 90, finalY + 12);
+  doc.line(PDF_MARGIN_LEFT, finalY + 12, PDF_MARGIN_LEFT + 80, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
@@ -904,7 +914,7 @@ function generatePDFGeraete(isBlank = false) {
         bodyStyles: { fontSize: 6, textColor: textColor, halign: 'center', valign: 'middle' },
         columnStyles: GERAETE_SPALTEN,
         margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-        styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+        styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
                   minCellHeight: LEER_ZEILENHOEHE_GP, overflow: 'linebreak',
                   cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
       }));
@@ -929,14 +939,20 @@ function generatePDFGeraete(isBlank = false) {
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'GP');
-    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave);
+    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave, function () {
+      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('GP');
+    });
   });
 }
 
 // AUTOSAVE
 // Einheitliches Praefix 'vde_': der alte Schluessel 'geraete_protocol_autosave'
 // wurde von der Datensicherung nicht erfasst (siehe storage.js).
-const GERAETE_AUTOSAVE_KEY = 'vde_autosave_gp';
+// 4.7.0: siehe pdf-generator.js AUTOSAVE_KEY_AKTUELL() - mehrere parallele
+// Entwuerfe statt eines einzigen festen Schluessels.
+entwurfAusUrlUebernehmen('GP');
+let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('GP', 'vde_autosave_gp');
+function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AKTUELLER_ENTWURF_ID); }
 
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
@@ -986,6 +1002,10 @@ function restoreGeraeteState(state) {
      * (heutiges Datum, Folgetermin) nicht ueberschreiben. */
     if ((id === 'datum' || id === 'unterschrift_datum' || id === 'res_termin_date') &&
         !String(val || '').trim()) return;
+    /* BUGFIX: siehe pdf-generator.js restoreProtocolState() - ein leerer
+     * Wert in einem Stammdatenfeld darf den frisch aus den zentralen
+     * Stammdaten uebernommenen Wert nicht ueberschreiben. */
+    if (MASTERDATA_FIELD_IDS.includes(id) && !String(val || '').trim()) return;
     el.value = val;
   });
 
@@ -1013,18 +1033,29 @@ function restoreGeraeteState(state) {
 }
 
 function autosaveProtocol() {
-  try { localStorage.setItem(GERAETE_AUTOSAVE_KEY, JSON.stringify(collectGeraeteState())); } catch (e) {}
+  try {
+    localStorage.setItem(GERAETE_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectGeraeteState()));
+    const anzahl = document.querySelectorAll('#devicesContainer .feed-card').length;
+    entwurfMerken('GP', AKTUELLER_ENTWURF_ID, {
+      protokollnummer: document.getElementById('protokollnummer')?.value || '',
+      bezeichnung: entwurfBezeichnung('GP', () => ({
+        anlage: document.getElementById('auftraggeber')?.value,
+        gebaeude: (document.getElementById('gebaeude_custom')?.value || '') + (anzahl ? ' · ' + anzahl + ' Geräte' : '')
+      }))
+    });
+  } catch (e) {}
 }
 
 function loadGeraeteAutosave() {
   try {
-    const raw = localStorage.getItem(GERAETE_AUTOSAVE_KEY);
+    const raw = localStorage.getItem(GERAETE_AUTOSAVE_KEY_AKTUELL());
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
 function clearGeraeteAutosave() {
-  localStorage.removeItem(GERAETE_AUTOSAVE_KEY);
+  localStorage.removeItem(GERAETE_AUTOSAVE_KEY_AKTUELL());
+  entwurfEntfernen(AKTUELLER_ENTWURF_ID);
 }
 
 function resetGeraeteForm() {
@@ -1047,11 +1078,13 @@ function resetGeraeteForm() {
 }
 
 function neuesGeraeteProtokoll() {
-  if (!confirm('Neues Formular anlegen? Alle aktuell eingetragenen Daten in diesem Formular werden zurückgesetzt.')) return;
+  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('GP');
+  verbraucheProtokollNummer(nr, 'GP');
+  AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('GP');
   resetGeraeteForm();
   document.getElementById('protokollnummer').value = nr;
-  clearGeraeteAutosave();
-  alert(`Neues Protokoll angelegt: ${nr}\n\nDie Nummer wird erst mit dem fertigen PDF verbraucht.`);
+  autosaveProtocol();
+  alert(`Neues Protokoll angelegt: ${nr}`);
 }

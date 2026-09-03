@@ -22,6 +22,7 @@
   <script src="js/pwa.js" defer></script>
 
   <script src="js/storage.js"></script>
+  <script src="js/entwuerfe.js"></script>
   <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
 </head>
@@ -36,8 +37,14 @@
   <h2 class="kat-messen">1. Protokoll starten</h2>
   <div class="protocol-grid" id="protocolGrid"></div>
 
+  <h2 class="kat-sicht" id="offene-pruefungen">2. Offene Prüfungen</h2>
+  <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
+    Eine Prüfung bleibt hier bearbeitbar, bis Sie ausdrücklich "Neues Formular" anfordern –
+    auch nach dem Speichern eines PDF. So können mehrere Prüfungen (z. B. zwei Anschlussstellen) parallel offen sein.
+  </p>
+  <div id="offenePruefungenListe"></div>
 
-  <h2 class="kat-ergebnis">2. Archiv – erstellte Protokolle</h2>
+  <h2 class="kat-ergebnis">3. Archiv – erstellte Protokolle</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Jedes fertige PDF wird zusätzlich hier im Gerät abgelegt – auch wenn der Download-Ordner
     später aufgeräumt wird. Leerformulare werden nicht archiviert.
@@ -48,7 +55,7 @@
     <a href="archiv.html" class="btn">Archiv öffnen</a>
   </div>
 
-  <h2 class="kat-stamm">3. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
+  <h2 class="kat-stamm">4. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
   </p>
@@ -70,7 +77,7 @@
     </div>
   </form>
 
-  <h2 class="kat-stamm">4. PDF-Speicherort</h2>
+  <h2 class="kat-stamm">5. PDF-Speicherort</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Legt fest, was beim Erzeugen eines PDF passiert. Standard ist der direkte Download –
     es öffnet sich dann kein Teilen-Fenster mehr.
@@ -91,7 +98,7 @@
     </div>
   </div>
 
-  <h2 class="kat-ergebnis">5. Datensicherung</h2>
+  <h2 class="kat-ergebnis">6. Datensicherung</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Stammdaten und Zähler als Datei sichern – empfohlen vor längerem Offline-Einsatz
     und auf iPad/iPhone, da iOS Browserdaten nach längerer Nichtnutzung löschen kann.
@@ -104,7 +111,7 @@
     <span id="appVersionHint" style="margin-left:auto; align-self:center; font-size:0.75rem; color:var(--secondary);"></span>
   </div>
 
-  <h2 class="kat-stamm">6. Version & Update</h2>
+  <h2 class="kat-stamm">7. Version & Update</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
     Die App aktualisiert sich normalerweise selbst. Kommt eine neue Version nicht an,
     hier manuell suchen oder den Offline-Speicher zurücksetzen
@@ -120,6 +127,7 @@
 <script>
   loadMasterDataToDashboard();
   renderProtokollKacheln();
+  renderOffenePruefungen('offenePruefungenListe');
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
   archivUebersichtLaden();
 

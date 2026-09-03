@@ -1,5 +1,41 @@
 let cardCounter = 0;
 
+/* Pruefstrom fuer Ausloesestrom/Ausloesezeit: bei einer NEUEN Karte (data.rcd_pruefstrom
+ * === undefined) ist "5x In (max. 40 ms)" der in der Praxis fast immer verwendete
+ * Pruefstrom und wird jetzt vorbelegt, damit er nicht bei jedem Stromkreis erneut
+ * ausgewaehlt werden muss. Ein WIEDERHERGESTELLTER Zwischenstand (auch ein bewusst
+ * leerer, z. B. aus einer Archiv-Vorlage) behaelt weiterhin genau seinen Wert -
+ * "attrEscOderVorgabe"-Prinzip: Vorgabewert nur, wenn im Zwischenspeicher gar nichts steht. */
+function pruefstromSel(wert, optionWert) {
+  const eff = wert === undefined ? '5' : wert;
+  return eff === optionWert ? ' selected' : '';
+}
+
+/* ---------------------------------------------------------------------------
+ *  STROMKREIS TOTLEGEN (MANGEL FESTGESTELLT)
+ * ---------------------------------------------------------------------------
+ *  Wird an einem einzelnen Stromkreis ein Mangel festgestellt (z. B. eine
+ *  einzeln abgesicherte Schukosteckdose mit Isolationsfehler), muss dieser
+ *  eine Kreis freigeschaltet/totgelegt werden koennen, OHNE dass die uebrige,
+ *  einwandfreie Anlage deswegen als nicht VDE-konform gilt. Ein totgelegter
+ *  Stromkreis hat DEFINITIONSGEMAESS keine Messwerte (er wird ja gerade NICHT
+ *  betrieben) - er wird deshalb von der Pflicht "jeder Stromkreis braucht
+ *  mindestens einen Messwert" ausgenommen (siehe prueflingeOhneMessung-Aufruf
+ *  weiter unten) und im PDF eindeutig als totgelegt gekennzeichnet, statt als
+ *  gemessen und i.O. zu erscheinen. */
+function toggleTotlegung(checkbox) {
+  const card = checkbox.closest('.circuit-card, .feed-card');
+  if (!card) return;
+  const grundBox = card.querySelector('.totlegung-grund');
+  if (grundBox) grundBox.style.display = checkbox.checked ? '' : 'none';
+  card.classList.toggle('circuit-totgelegt', checkbox.checked);
+  if (checkbox.checked) {
+    const ta = card.querySelector('.c-totlegung-grund');
+    if (ta) ta.focus();
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
 function addCircuitCard(data = {}) {
   cardCounter++;
   const container = document.getElementById('circuitsContainer');
@@ -14,6 +50,17 @@ function addCircuitCard(data = {}) {
         <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
         <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
       </span>
+    </div>
+
+    <div class="circuit-totlegung">
+      <label class="totlegung-checkbox">
+        <input type="checkbox" class="c-totgelegt" ${data.totgelegt ? 'checked' : ''} onchange="toggleTotlegung(this)">
+        Mangel festgestellt – Stromkreis freigeschaltet/totgelegt (fließt nicht in die Gesamtbewertung ein)
+      </label>
+      <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
+        <label>Festgestellter Fehler / Grund der Totlegung:</label>
+        <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
+      </div>
     </div>
 
     <div class="grid">
@@ -101,7 +148,7 @@ function addCircuitCard(data = {}) {
           </div>
         </div>
         <div class="form-group">
-          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE:</label>
+          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
           <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0,38" oninput="onZsInput(${cardCounter})">
           <div class="limit-hint" id="zs_limit_${cardCounter}"></div>
         </div>
@@ -111,7 +158,7 @@ function addCircuitCard(data = {}) {
           <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
         </div>
         <div class="form-group">
-          <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="limit-hint">optional</span>:</label>
+          <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="feld-badge feld-badge-optional">Optional</span>:</label>
           <input type="text" inputmode="decimal" class="c-zln" value="${attrEsc(data.zln)}" placeholder="nur wenn gemessen" oninput="onZlnInput(${cardCounter})">
           <div class="limit-hint">Fluke 1663: Zi &ndash; <b>LINE</b> (L&ndash;N). Findet einen hochohmigen N-Leiter, den die L&ndash;PE-Messung nicht sieht. Leer lassen, wenn nicht gemessen.</div>
         </div>
@@ -153,10 +200,10 @@ function addCircuitCard(data = {}) {
         <div class="form-group">
           <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
           <select class="c-rcd-pruefstrom" onchange="validateCardNorms(${cardCounter})">
-            <option value="" selected>&ndash; bitte wählen &ndash;</option>
-            <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
-            <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-            <option value="5">5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
+            <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
+            <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
+            <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
+            <option value="5"${pruefstromSel(data.rcd_pruefstrom, '5')}>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
           </select>
         </div>
         <div class="form-group">
@@ -197,11 +244,14 @@ function addCircuitCard(data = {}) {
     </div>
   `;
   container.appendChild(card);
+  nummeriereKartenNeu('#circuitsContainer', '.circuit-card', 'Stromkreis');
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
-  // Kein Vorgabewert: der Prüfstrom muss bewusst gewählt werden, weil davon
-  // der zulaessige Grenzwert der Ausloesezeit abhaengt.
-  card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom || '';
+  // Pruefstrom: bei einer neuen Karte (data.rcd_pruefstrom === undefined) ist
+  // "5" bereits per <option selected> vorbelegt (siehe pruefstromSel oben) -
+  // das darf hier NICHT ueberschrieben werden. Ein wiederhergestellter,
+  // auch bewusst leerer Wert wird weiterhin exakt uebernommen.
+  if (data.rcd_pruefstrom !== undefined) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
   if (data.art) card.querySelector('.c-spannung-art').value = data.art;
   if (data.gefaehrdung) card.querySelector('.c-gefaehrdung').value = data.gefaehrdung;
 
@@ -542,7 +592,7 @@ const VDE0100_KOPF = {
   titel: "PRÜFPROTOKOLL ELEKTRISCHER ANLAGEN",
   normzeile: "Erst- und Wiederholungsprüfung nach DIN VDE 0100-600 / DIN VDE 0105-100"
 };
-const FORMULAR_REVISION = "Formular Rev. 2026-08 · Normstand: VDE 0100-600:2017-06 · VDE 0105-100:2015-10";
+const FORMULAR_REVISION = "Formular Rev. 2026-09 · Normstand: VDE 0100-600:2017-06 · VDE 0105-100:2015-10";
 
 /* ===========================================================================
  *  LEERFORMULAR ZUM AUSFUELLEN VON HAND
@@ -585,12 +635,16 @@ const LEER_HEAD_VDE = [[
   'U_{mess} (V)\nU_{L} 50/25 AC\n120/60 DC'
 ]];
 
-// Summe = 190 mm (210 - 2 x 10 mm Rand)
+// 4.7.0: Summe = 180 mm (210 - 20 mm linker Rand - 10 mm rechter Rand).
+// Vorher 190 mm (bei 10 mm Rand beidseitig) - seit PDF_MARGIN_LEFT auf
+// 20 mm vergroessert wurde (Locherrand), quetschte die Tabelle 10 mm
+// ueber den neuen Satzspiegel hinaus in den rechten Rand. Alle Spalten
+// proportional verkleinert (Faktor 180/190).
 const LEER_SPALTEN_VDE = {
-  0: { cellWidth: 6 }, 1: { cellWidth: 30, halign: 'left' }, 2: { cellWidth: 22 },
-  3: { cellWidth: 13 }, 4: { cellWidth: 17 }, 5: { cellWidth: 14 },
-  6: { cellWidth: 24 }, 7: { cellWidth: 18 }, 8: { cellWidth: 13 },
-  9: { cellWidth: 15 }, 10: { cellWidth: 18 }
+  0: { cellWidth: 6 }, 1: { cellWidth: 29, halign: 'left' }, 2: { cellWidth: 21 },
+  3: { cellWidth: 12 }, 4: { cellWidth: 16 }, 5: { cellWidth: 13 },
+  6: { cellWidth: 23 }, 7: { cellWidth: 17 }, 8: { cellWidth: 12 },
+  9: { cellWidth: 14 }, 10: { cellWidth: 17 }
 };
 
 /* Die Musterangabe stand frueher als eigene Tabellenzeile und verbrauchte auf
@@ -663,8 +717,23 @@ function generatePDF(isBlank = false) {
   if (!isBlank) {
     const ohneMessung = prueflingeOhneMessung(
       document.querySelectorAll('.circuit-card'),
-      ['.c-rpe', '.c-riso', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta', '.c-umess']);
+      ['.c-rpe', '.c-riso', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta', '.c-umess'],
+      '.c-totgelegt');
     if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Stromkreis'); return; }
+
+    // Ein totgelegter Stromkreis MUSS einen Fehlertext haben - sonst
+    // dokumentiert das Protokoll eine Freischaltung ohne erkennbaren Grund.
+    const totOhneGrund = [];
+    document.querySelectorAll('.circuit-card').forEach((card, i) => {
+      if (card.querySelector('.c-totgelegt')?.checked && istLeerWert(card.querySelector('.c-totlegung-grund')?.value)) {
+        totOhneGrund.push(i + 1);
+      }
+    });
+    if (totOhneGrund.length) {
+      alert('Stromkreis ' + totOhneGrund.join(', ') + ' ist als totgelegt markiert, aber es fehlt die Angabe des festgestellten Fehlers.\n\n' +
+        'Bitte im Feld "Festgestellter Fehler / Grund der Totlegung" eintragen.\n\nDas PDF wurde deshalb nicht erstellt.');
+      return;
+    }
   }
 
   /* Mindestangaben: ohne sie ist das Protokoll keinem Vorgang zuzuordnen. */
@@ -778,7 +847,10 @@ function generatePDF(isBlank = false) {
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
 
   doc.setFontSize(7.2);
-  const spL = 13, spR = 107, spB = 90;   // linke/rechte Spalte, Spaltenbreite
+  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
+  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
+  // vor spR (107) endet.
+  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;   // linke/rechte Spalte, Spaltenbreite
 
   let volt = feldWert('netzspannung');
   if (volt && !volt.toLowerCase().includes('v')) volt += ' V';
@@ -828,9 +900,15 @@ function generatePDF(isBlank = false) {
 
   if (hatNetzmessung) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text('Netzmessung:', spL, z1(6));
+    // 4.7.0: seit spL auf 23 mm verschoben wurde (Locherrand), passte die fett
+    // gesetzte Beschriftung "Netzmessung:" bei 7 pt nicht mehr vor die bei
+    // x = 36 beginnende erste Kurzfeld-Spalte und ueberdeckte "U L1-N".
+    // drawFittedText verkleinert die Schrift so weit wie noetig (ca. 13 mm
+    // verfuegbar) - bei Bedarf bis auf 5.5 pt, was hier immer noch gut lesbar
+    // ist, weil es sich um ein kurzes, einzeiliges Label handelt.
+    drawFittedText(doc, 'Netzmessung:', spL, z1(6), 36 - spL - 1, 7, 5.5);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
 
     // Vier Kurzfelder je Zeile, 45 mm Raster ab x = 36 mm
     const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
@@ -887,9 +965,15 @@ function generatePDF(isBlank = false) {
     "5. Kennzeichnung", "6. Doku/Warnung", "7. Zus. Potenzialausgl.", "8. Basisschutz",
     "9. Typenschild", "10. Brandabschottung", "11. Leiterverbindungen", "12. Gebäudesystemt."
   ];
-  const SICHT_LABEL_X = [13, 76, 139];   // Textbeginn je Spalte
-  const SICHT_CB_X    = [43, 106, 169];  // "i.O."-Kaestchen (30 mm Textbreite)
-  const SICHT_LABEL_W = 28;
+  // 4.7.0: Spalten neu berechnet (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  // Zwei Zwischenstaende hatten noch Ueberlappungen: zuerst ueberdeckte das
+  // "n.a." einer Spalte das Label der naechsten, danach stiess bei 9/18 mm
+  // Kaestchenabstand der Text von "n.i.O." an das "n.a."-Kaestchen. Jetzt:
+  // schmaleres Label (22 mm) UND etwas weiterer Kaestchenabstand (11/22 mm),
+  // beides zusammen passt wieder in die Spaltenbreite von 58 mm.
+  const SICHT_LABEL_X = [23, 81, 139];   // Textbeginn je Spalte
+  const SICHT_CB_X    = [48, 106, 164];  // "i.O."-Kaestchen
+  const SICHT_LABEL_W = 22;
 
   // Ein Pruefpunkt mit den drei Zustaenden i.O. / n.i.O. / n.a.
   const drawPruefpunkt = (label, xLabel, xBox, yy, wert) => {
@@ -897,8 +981,8 @@ function generatePDF(isBlank = false) {
     drawFittedText(doc, label + ':', xLabel, yy, SICHT_LABEL_W, 7, 5.2);
     doc.setFontSize(6.4);
     drawCheckbox(doc, xBox, yy, "i.O.", !isBlank && wert === "i.O.");
-    drawCheckbox(doc, xBox + 10.5, yy, "n.i.O.", !isBlank && wert === "n.i.O.", true);
-    drawCheckbox(doc, xBox + 23, yy, "n.a.", !isBlank && wert === "n.a.");
+    drawCheckbox(doc, xBox + 11, yy, "n.i.O.", !isBlank && wert === "n.i.O.", true);
+    drawCheckbox(doc, xBox + 22, yy, "n.a.", !isBlank && wert === "n.a.");
     doc.setFontSize(7);
   };
 
@@ -915,12 +999,12 @@ function generatePDF(isBlank = false) {
   const yKabel = y + 9 + 4 * SICHT_ZA + 0.6;
   drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
                              : "Anschlusskabel (Typ / Adern / Querschnitt):",
-                kabelAnschluss, 13, yKabel, 184, isBlank);
+                kabelAnschluss, PDF_MARGIN_LEFT + 3, yKabel, 177, isBlank);
 
   const yErp = yKabel + SICHT_ZA + 1.4;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.text("Erproben:", 13, yErp);
+  doc.text("Erproben:", PDF_MARGIN_LEFT + 3, yErp);
   doc.setFont("helvetica", "normal");
 
   const erpEls = document.querySelectorAll('.erp-item');
@@ -946,7 +1030,7 @@ function generatePDF(isBlank = false) {
   // dort wird nichts ausgefuellt und es kann nichts rot markiert sein.
   doc.text(isBlank ? "Grenzwerte je Spalte im Tabellenkopf."
                    : "Grenzwerte je Spalte im Tabellenkopf. Werte außerhalb des zulässigen Bereichs werden rot hinterlegt.",
-           10, y + 3.4);
+           PDF_MARGIN_LEFT, y + 3.4);
   doc.setTextColor(...textColor);
 
   const tableRows = [];
@@ -969,6 +1053,23 @@ function generatePDF(isBlank = false) {
   } else {
     const cards = document.querySelectorAll('.circuit-card');
     cards.forEach((card, idx) => {
+      /* TOTGELEGTER STROMKREIS: keine Messwerte vorhanden (er wird nicht
+       * betrieben) - statt der normalen Messwertspalten erscheint eine
+       * durchgaengige, rot hinterlegte Kennzeichnung mit dem dokumentierten
+       * Fehlergrund. Fliesst NICHT in anyMeasurementOut ein: eine bewusste
+       * Freischaltung ist kein ausserhalb der Norm liegender Messwert - die
+       * uebrige Anlage bleibt dadurch als "keine Maengel" bewertbar. */
+      if (card.querySelector('.c-totgelegt')?.checked) {
+        const grund = cleanStr(card.querySelector('.c-totlegung-grund')?.value || '');
+        tableRows.push([
+          idx + 1,
+          cleanStr(card.querySelector('.c-bez').value || '-'),
+          { content: 'TOTGELEGT / FREIGESCHALTET – Mangel festgestellt, nicht in Betrieb\n' + grund,
+            colSpan: 7, styles: { halign: 'left', fontStyle: 'bold', textColor: [153, 27, 27], fillColor: [254, 226, 226] } }
+        ]);
+        return;
+      }
+
       const kTyp = card.querySelector('.c-kabel-typ').value;
       const kLei = card.querySelector('.c-leiter').value;
       const kQs = card.querySelector('.c-querschnitt').value;
@@ -1093,10 +1194,11 @@ function generatePDF(isBlank = false) {
     'U_{mess} (V)\nU_{L} 50/25 V AC\n120/60 V DC'
   ]];
 
+  // 4.7.0: Summe = 180 mm statt vorher 190 mm (siehe LEER_SPALTEN_VDE oben).
   const SPALTEN_AUSGEFUELLT = {
-    0: { cellWidth: 7 }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 26 },
-    3: { cellWidth: 16 }, 4: { cellWidth: 20 }, 5: { cellWidth: 18 },
-    6: { cellWidth: 25 }, 7: { cellWidth: 26 }, 8: { cellWidth: 18 }
+    0: { cellWidth: 6 }, 1: { cellWidth: 32, halign: 'left' }, 2: { cellWidth: 25 },
+    3: { cellWidth: 15 }, 4: { cellWidth: 19 }, 5: { cellWidth: 17 },
+    6: { cellWidth: 24 }, 7: { cellWidth: 25 }, 8: { cellWidth: 17 }
   };
 
   // Gemeinsame Optionen, damit Blatt 1 und die Fortsetzungsblaetter identisch
@@ -1111,7 +1213,7 @@ function generatePDF(isBlank = false) {
     },
     bodyStyles: { fontSize: 6.5, textColor: textColor, halign: 'center', valign: 'middle' },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
-    styles: { lineColor: [203, 213, 225], lineWidth: 0.1,
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
               minCellHeight: isBlank ? LEER_ZEILENHOEHE : 5, overflow: 'linebreak',
               cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
   };
@@ -1145,7 +1247,7 @@ function generatePDF(isBlank = false) {
    * Zeile fehlten im fertigen PDF. Deshalb erst Schrift setzen, dann messen. */
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, 178) : [];
+  const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
   const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
@@ -1179,14 +1281,14 @@ function generatePDF(isBlank = false) {
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 13, finalY + OFF_R, 184, isBlank, { rot: isErdungOut });
+                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
 
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt (z. B. HES, PA-Schiene, UV, Fundamenterder):",
-                feldWert('erdung_messpunkt'), 13, finalY + OFF_PUNKT, 184, isBlank);
+                feldWert('erdung_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
 
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
-  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), 13, finalY + OFF_UMFANG, 184, isBlank);
+  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + OFF_UMFANG, 177, isBlank);
 
   /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
    * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
@@ -1213,10 +1315,10 @@ function generatePDF(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", 13, finalY + offErgebnis);
-  drawCheckbox(doc, 34, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 82, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 146, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -1226,7 +1328,7 @@ function generatePDF(isBlank = false) {
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, 13, finalY + offTermin, 90, isBlank);
+  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, PDF_MARGIN_LEFT + 3, finalY + offTermin, 90, isBlank);
 
   // Die Prüfplakette steht jetzt in dieser Zeile: die Ergebniszeile darueber
   // braucht die volle Breite fuer das dritte Ankreuzfeld ("Mängel behoben").
@@ -1238,13 +1340,13 @@ function generatePDF(isBlank = false) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.text("Bemerkungen / Mängel:", 13, finalY + offBemLabel);
+  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
-    drawSchreibLinien(doc, 13, finalY + offBemStart + 1, 184, bemZeilen, 4.2);
+    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
-    doc.text(splitBemerkung, 13, finalY + offBemStart);
+    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
   }
 
   // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
@@ -1291,7 +1393,7 @@ function generatePDF(isBlank = false) {
    * Nichtfreigabe ausspricht. Schrift deshalb VOR splitTextToSize setzen. */
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceGesamt, 190);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
 
   // Bedarf fuer Bestaetigungszeile + Hinweistext + Unterschriftenblock exakt
   // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
@@ -1316,14 +1418,15 @@ function generatePDF(isBlank = false) {
   // GEWÄHRLEISTUNG & UNTERSCHRIFTEN
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", 10, finalY);
-  drawCheckbox(doc, 58, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 115, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
+  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
+  drawCheckbox(doc, 68, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
+  drawCheckbox(doc, 125, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
 
   doc.setFont("helvetica", hasIssues ? "bold" : "italic");
   doc.setFontSize(6.5);
   doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
-  doc.text(complianceLines, 10, finalY + 4);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 
   finalY += 4 + complianceLines.length * 3.2 + 2;
@@ -1335,15 +1438,16 @@ function generatePDF(isBlank = false) {
     : (unterschriftDatum ? `${ort}, den ${unterschriftDatum}` : `${ort}, den ____________`);
 
   if (!isBlank && !padPruefer.isEmpty()) {
-    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', 10, finalY, 38, 12);
+    // 4.7.0: x=10 -> PDF_MARGIN_LEFT (20 mm, Locherrand).
+    doc.addImage(padPruefer.toDataURL('image/png'), 'PNG', PDF_MARGIN_LEFT, finalY, 38, 12);
   }
   doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.2);
-  doc.line(10, finalY + 12, 90, finalY + 12);
+  doc.line(PDF_MARGIN_LEFT, finalY + 12, PDF_MARGIN_LEFT + 80, finalY + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, 10, finalY + 15);
+  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
@@ -1413,8 +1517,16 @@ function generatePDF(isBlank = false) {
   Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
     .then(function (gespeichert) {
     if (isBlank || gespeichert === false) return;
+    // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
+    // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
+    // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
+    // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
+    // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
+    // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
     verbraucheProtokollNummer(nummerRoh, 'PR');
-    nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave);
+    nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
+      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+    });
   });
 }
 
@@ -1430,7 +1542,16 @@ function initSignaturePads() {
 // Einheitliches Praefix 'vde_' fuer ALLE Autosave-Schluessel, damit die
 // Datensicherung sie zuverlaessig erfasst (migriereAutosaveSchluessel in
 // storage.js benennt vorhandene Staende beim Start um).
-const AUTOSAVE_KEY = 'vde_autosave_pr';
+//
+// 4.7.0: Statt EINES festen Schluessels ('vde_autosave_pr') fuehrt jeder
+// EntwurF (siehe entwuerfe.js) seinen eigenen Autosave-Stand. AUTOSAVE_KEY
+// ist damit keine Konstante mehr, sondern zeigt immer auf den Autosave-Key
+// des gerade AKTIVEN Entwurfs - dadurch koennen mehrere Pruefungen parallel
+// offen sein (z. B. zwei Anschlussstellen), ohne sich gegenseitig zu
+// ueberschreiben.
+entwurfAusUrlUebernehmen('PR');
+let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('PR', 'vde_autosave_pr');
+function AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('PR', AKTUELLER_ENTWURF_ID); }
 
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
@@ -1478,7 +1599,9 @@ function collectProtocolState() {
     rcd_pruefstrom: card.querySelector('.c-rcd-pruefstrom').value,
     art: card.querySelector('.c-spannung-art').value,
     gefaehrdung: card.querySelector('.c-gefaehrdung').value,
-    umess: card.querySelector('.c-umess').value
+    umess: card.querySelector('.c-umess').value,
+    totgelegt: card.querySelector('.c-totgelegt')?.checked || false,
+    totlegung_grund: card.querySelector('.c-totlegung-grund')?.value || ''
   }));
 
   return state;
@@ -1500,6 +1623,15 @@ function restoreProtocolState(state) {
      * sonst entstuende ein fertiges Protokoll ohne Pruefdatum. */
     if ((id === 'datum' || id === 'unterschrift_datum' || id === 'res_termin_date') &&
         !String(val || '').trim()) return;
+    /* BUGFIX: Ein leerer Wert in einem Stammdatenfeld (Hausanschluss,
+     * Seriennummer, ...) darf nicht den Wert ueberschreiben, den
+     * applyMasterDataToForm() gerade eben aus den zentralen Stammdaten
+     * gesetzt hat - sonst verschwindet z. B. der Hausanschluss wieder,
+     * sobald ein aelterer Autosave-Stand restauriert wird, der dieses Feld
+     * noch leer hatte. Ein tatsaechlich GEFUELLTER Autosave-Wert setzt sich
+     * weiterhin durch (das aktuelle Formular hat Vorrang vor den
+     * Stammdaten). */
+    if (MASTERDATA_FIELD_IDS.includes(id) && !String(val || '').trim()) return;
     el.value = val;
   });
 
@@ -1539,18 +1671,28 @@ function restoreProtocolState(state) {
 }
 
 function autosaveProtocol() {
-  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(collectProtocolState())); } catch (e) {}
+  try {
+    localStorage.setItem(AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectProtocolState()));
+    entwurfMerken('PR', AKTUELLER_ENTWURF_ID, {
+      protokollnummer: document.getElementById('protokollnummer')?.value || '',
+      bezeichnung: entwurfBezeichnung('PR', () => ({
+        anlage: document.getElementById('anlage_bez')?.value,
+        gebaeude: document.getElementById('gebaeude_custom')?.value
+      }))
+    });
+  } catch (e) {}
 }
 
 function loadAutosave() {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    const raw = localStorage.getItem(AUTOSAVE_KEY_AKTUELL());
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
 function clearAutosave() {
-  localStorage.removeItem(AUTOSAVE_KEY);
+  localStorage.removeItem(AUTOSAVE_KEY_AKTUELL());
+  entwurfEntfernen(AKTUELLER_ENTWURF_ID);
 }
 
 // SETZT DAS GESAMTE FORMULAR AUF DEN AUSGANGSZUSTAND ZURÜCK (FÜR "NEUES FORMULAR")

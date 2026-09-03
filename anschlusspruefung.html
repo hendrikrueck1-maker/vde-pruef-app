@@ -28,6 +28,9 @@
   <script src="js/vendor/liberation-sans-font.js"></script>
   <script src="js/vendor/signature_pad.umd.min.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/entwuerfe.js"></script>
+  <script src="js/statusleiste.js"></script>
+  <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/anschluss-generator.js"></script>
@@ -286,6 +289,19 @@
   addFeedCard();
 
   restoreAnschlussState(loadAnschlussAutosave());
+
+  initStatusleiste({
+    typLabel: 'Anschlussprüfung',
+    nummerFeldId: 'protokollnummer',
+    bezFeldIds: ['uebergabe_standort', 'gebaeude_custom'],
+    kartenSelector: '.feed-card',
+    kartenLabelSelector: '.feed-header span',
+    kartenContainerSelector: '#feedsContainer'
+  });
+
+  initPflichtfelder({
+    ids: ['datum', 'pruefer', 'veranstaltung', 'uebergabe_standort']
+  });
 
   const pads = initSignaturePadsAnschluss();
   padUebergeber = pads.uebergeber;

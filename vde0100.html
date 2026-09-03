@@ -28,6 +28,9 @@
   <script src="js/vendor/liberation-sans-font.js"></script>
   <script src="js/vendor/signature_pad.umd.min.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/entwuerfe.js"></script>
+  <script src="js/statusleiste.js"></script>
+  <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/pdf-generator.js"></script>
@@ -141,7 +144,6 @@
         </select>
       </div>
       <div class="form-group"><label>Netzspannung (V):</label><input type="text" inputmode="decimal" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)"></div>
-      <div class="form-group"><label>Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       <div class="form-group">
         <label>Art der Einspeisung:</label>
         <select id="einspeisung" onchange="updateEinspeisung()">
@@ -149,20 +151,21 @@
           <option>Netzersatzanlage (NEA / Aggregat)</option>
           <option>Wechselrichter / Batteriespeicher</option>
         </select>
-        <div class="limit-hint">Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe.</div>
+        <div class="limit-hint">Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten.</div>
       </div>
       <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="vnb"></div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
-    <!-- NETZMESSUNG (optional) -->
+    <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
     <details class="sub-section" id="netzmessung_block" style="margin-top:10px;">
       <summary class="sub-title" style="cursor:pointer;">Netzmessung (optional) – Spannungen &amp; Frequenz am Speisepunkt</summary>
       <p class="limit-hint" style="margin:6px 0 8px;">
-        Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V.
+        Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V · Frequenz 50 Hz.
         Leere Felder werden im PDF nicht gedruckt. Die N&ndash;PE-Spannung ist der einzige Wert,
-        der eigenständig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung).
+        der eigenständig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung). Die Frequenz ist
+        bei Netzersatzanlage/Wechselrichter Pflichtangabe (siehe „Art der Einspeisung“ oben).
       </p>
       <div class="grid">
         <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230"></div>
@@ -172,6 +175,7 @@
         <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400"></div>
         <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400"></div>
         <div class="form-group"><label>U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
+        <div class="form-group"><label>Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
     </details>
 
@@ -398,6 +402,30 @@
 
   // AUTOSAVE WIEDERHERSTELLEN, FALLS VORHANDEN (verhindert Datenverlust bei versehentlichem Reload)
   restoreProtocolState(loadAutosave());
+
+  // STATUS-KOPFLEISTE: zeigt jederzeit Protokollnummer, Anlage und den
+  // gerade fokussierten Stromkreis (siehe js/statusleiste.js)
+  initStatusleiste({
+    typLabel: 'Prüfprotokoll',
+    nummerFeldId: 'protokollnummer',
+    bezFeldIds: ['anlage_bez', 'gebaeude_custom'],
+    kartenSelector: '.circuit-card',
+    kartenLabelSelector: '.circuit-header span',
+    kartenContainerSelector: '#circuitsContainer'
+  });
+
+  // PFLICHTFELD-KENNZEICHNUNG: dieselben Felder, die generatePDF() beim
+  // Export als verpflichtend prüft (siehe erstesLeerePflichtfeld-Aufruf
+  // in pdf-generator.js), sind hier schon beim Ausfüllen farbig markiert.
+  // HINWEIS: .sicht-item/.erp-item/res_maengel/res_plakette/res_gewaehrleistung
+  // sind <select>-Felder ohne leere erste Option (immer auf einen Wert wie
+  // "i.O." vorbelegt) - technisch also nie "leer" und daher fuer eine
+  // Pflichtfeld-Markierung ungeeignet (sie waeren immer gruen, auch wenn nie
+  // bewusst gewaehlt). Markiert werden nur echte Frei-/Datumsfelder.
+  initPflichtfelder({
+    ids: ['datum', 'pruefer', 'anlage_bez'],
+    bedingt: () => (istErsatzstromversorgung() ? ['netzfrequenz'] : [])
+  });
 
   const pads = initSignaturePads();
   padPruefer = pads.pruefer;
