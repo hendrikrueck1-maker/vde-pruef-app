@@ -1,4 +1,4 @@
-# VDE-Prüfprotokoll-App 4.7.0 / 4.7.1 – Änderungsbericht
+# VDE-Prüfprotokoll-App 4.7.0 / 4.7.1 / 4.7.2 – Änderungsbericht
 
 **Vorgängerversion:** 4.6.1
 **Umgesetzt:** alle 14 von dir gemeldeten Punkte – Stammdaten (Hausanschluss,
@@ -480,3 +480,67 @@ Ausgeführt in Chromium (Playwright):
 **Nach dem Hochladen:** `APP_VERSION` und `SW_VERSION` stehen beide auf
 4.7.1 (siehe 3. Nachtrag), der Offline-Cache lädt also alles neu und die
 Nutzer bekommen den Hinweis „Neue Version verfügbar".
+
+---
+
+## 4. Nachtrag · Version 4.7.2 – Pflichtfeld-Farben für alle Felder, RCD-Einklappen, automatische Statusleiste
+
+Drei weitere von dir gemeldete Anpassungen, alle testweise per Playwright
+geprüft:
+
+**a) Gelb/Grün-Kennzeichnung jetzt für ALLE ausfüllbaren Felder, nicht nur
+eine Auswahl.** Bisher deckte `initPflichtfelder()` nur eine fest im Code
+hinterlegte Liste einzelner Felder ab (z. B. Datum, Prüfer, Z_S). Du hast
+zurecht gemeldet, dass die farbliche Markierung „für alle Felder" fehlt, um
+auf einen Blick zu sehen, wo noch etwas fehlt. `js/pflichtfelder.js` hat jetzt
+einen neuen generischen Modus (`cfg.alleFelder: true`): Er markiert
+automatisch jedes ausfüllbare Text-, Datums-, Dezimal- und Auswahlfeld
+(`input`, `select`, `textarea`) im gesamten Formular gelb, solange leer, und
+grün, sobald ein Wert eingetragen ist – schreibgeschützte Felder (z. B.
+automatisch berechnete Werte wie U_L max) sowie versteckte/Datei-Felder sind
+ausdrücklich ausgenommen. Aktiviert in allen drei Formularen (Anlagen-,
+Anschluss- und Geräteprüfung), wie von dir bestätigt ("Alle Felder in allen
+3 Formularen").
+Betroffen: `js/pflichtfelder.js` (neue Option `cfg.alleFelder`), `vde0100.html`,
+`anschlusspruefung.html`, `geraetepruefung.html`.
+
+**b) RCD-Messwerte klappen bei „Ohne RCD" automatisch ein.** Analog zum
+bestehenden Einklappen der Messprüfungen bei einem totgelegten Stromkreis
+(siehe 2. Nachtrag) klappen jetzt auch die RCD-Messwerte (I∆n, I∆mess,
+Prüfstrom, Auslösezeit) automatisch ein, sobald bei der
+Fehlerstrom-Schutzeinrichtung „Ohne RCD" ausgewählt wird, da diese Werte
+dann nicht mehr relevant sind. Über die Kopfzeile des RCD-Abschnitts lässt
+sich der Block jederzeit von Hand wieder auf-/zuklappen, unabhängig vom
+gewählten RCD-Typ. Beim Wechsel zurück auf einen RCD-Typ mit Messwerten
+klappt der Block automatisch wieder auf.
+Betroffen: `js/pdf-generator.js` (`syncRcdMesswerteAnzeige()`, RCD-Abschnitt
+der Kartenvorlage neu strukturiert, `toggleMessSections()` verallgemeinert
+für beide einklappbaren Blöcke), `css/style.css`.
+
+**c) Statusleiste aktualisiert sich automatisch beim Scrollen.** Bisher
+zeigte die feste Kopfleiste den aktuellen Stromkreis nur nach einem Klick
+hinein an. Auf deine Bestätigung „Aktueller Stromkreis beim Scrollen" hin
+erkennt die Statusleiste jetzt per `IntersectionObserver` automatisch,
+welche Stromkreis-Karte gerade im sichtbaren Bereich steht, und aktualisiert
+die Anzeige laufend beim Scrollen – ganz ohne Klick. Neu hinzugefügte oder
+gelöschte Karten werden dabei automatisch wieder mitverfolgt.
+Betroffen: `js/statusleiste.js` (`kartenBeobachten()`, `IntersectionObserver`).
+
+**Geprüft:** Per Playwright in Chromium: alle drei Formulare geladen, mit
+Beispieldaten befüllt – Pflichtfeld-Markierung greift in allen drei
+Formularen für sämtliche Felder korrekt (leer = gelb, ausgefüllt = grün,
+schreibgeschützte Felder ausgenommen), keine JavaScript-Fehler. RCD-Wechsel
+auf „Ohne RCD" klappt den Messwerte-Block nachweislich ein
+(`mess-sections-collapsed`-Klasse gesetzt), manuelles Auf-/Zuklappen über die
+Kopfzeile funktioniert unabhängig davon. Statusleiste aktualisiert sich beim
+Scrollen zum letzten von sieben Stromkreisen korrekt auf „Stromkreis #7",
+ganz ohne Klick. PDF-Export mit „Ohne RCD" an einem Stromkreis erneut
+bestätigt: `generatePDF()` läuft ohne JavaScript-Fehler durch. Wie beim
+2. Nachtrag: `SW_VERSION` (`sw.js`) und `APP_VERSION` (`js/app-config.js`)
+wurden gemeinsam auf **4.7.2** hochgezählt, damit die Änderungen beim
+nächsten Laden zuverlässig sichtbar werden (siehe 3. Nachtrag zur Ursache).
+
+Betroffen (gesamt, 4.7.2): `js/pflichtfelder.js`, `js/pdf-generator.js`,
+`js/pdf-utils.js`, `js/statusleiste.js`, `css/style.css`, `vde0100.html`,
+`anschlusspruefung.html`, `geraetepruefung.html`, `sw.js`, `js/app-config.js`.
+

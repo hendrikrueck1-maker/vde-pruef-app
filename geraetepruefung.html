@@ -225,7 +225,9 @@
   });
 
   initPflichtfelder({
-    ids: ['datum', 'pruefer', 'auftraggeber']
+    ids: ['datum', 'pruefer', 'auftraggeber'],
+    // 4.7.1: ganzes Formular als Fortschrittsanzeige gelb/gruen markieren.
+    alleFelder: true
   });
 
   const pads = initSignaturePads();

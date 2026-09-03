@@ -200,6 +200,15 @@ input::placeholder, textarea::placeholder { color: #94a3b8; font-style: italic; 
   background-color: #fef9c3 !important;
   border-color: #ca8a04 !important;
 }
+/* 4.7.1: Das Begruendungsfeld einer Totlegung ist bewusst dauerhaft rot
+   (dokumentiert einen Fehler, ist keine "richtige/falsche Eingabe" im Sinne
+   der gruen/gelb-Fortschrittsanzeige) - bleibt deshalb von alleFelder
+   unberuehrt, auch wenn es ausgefuellt ist. */
+.totlegung-grund textarea.pflichtfeld-ok,
+.totlegung-grund textarea.pflichtfeld-leer {
+  background-color: #fef2f2 !important;
+  border-color: #f87171 !important;
+}
 
 /* Feld-Badge (4.7.0): kleine Markierung direkt im Label, z. B. bei ZS/ZL-N,
    damit "Pflicht" und "Optional" auf den ersten Blick gleich aussehen statt
@@ -253,9 +262,14 @@ label .limit-hint { display: inline; margin-top: 0; }
 .mess-sections-titel { font-weight: bold; color: var(--primary); font-size: 0.85rem; }
 .mess-sections-hinweis { font-size: 0.72rem; color: var(--secondary); flex: 1; }
 .mess-sections-chevron { transition: transform 0.15s; color: var(--secondary); }
-.c-mess-sections.mess-sections-collapsed .mess-sections-chevron { transform: rotate(-90deg); }
+.c-mess-sections.mess-sections-collapsed .mess-sections-chevron,
+.c-rcd-messwerte.mess-sections-collapsed .mess-sections-chevron { transform: rotate(-90deg); }
 .c-mess-sections.mess-sections-collapsed .sub-section { display: none; }
-.c-mess-sections:not(.mess-sections-collapsed) .mess-sections-hinweis { display: none; }
+/* 4.7.1: c-rcd-messwerte ist kein Stapel von .sub-section wie c-mess-sections,
+   sondern hat sein eigenes .grid direkt als Kind - deshalb eigene Regel. */
+.c-rcd-messwerte.mess-sections-collapsed > .grid { display: none; }
+.c-mess-sections:not(.mess-sections-collapsed) .mess-sections-hinweis,
+.c-rcd-messwerte:not(.mess-sections-collapsed) .mess-sections-hinweis { display: none; }
 
 /* Ergebnis-Auswahlfeld je Stromkreis (4.7.0) - steht am Ende der Karte. */
 .circuit-totlegung { margin: 10px 0 -4px; }

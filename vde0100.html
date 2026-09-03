@@ -425,18 +425,12 @@
   initPflichtfelder({
     ids: ['datum', 'pruefer', 'anlage_bez'],
     bedingt: () => (istErsatzstromversorgung() ? ['netzfrequenz'] : []),
-    // 4.7.0: Pflichtfelder je Stromkreis werden ebenfalls gelb/gruen markiert.
-    // Z_S ist das einzige Messfeld, das UNBEDINGT pro Stromkreis verlangt
-    // wird (siehe Badge "Pflicht" im Formular); die uebrigen Messwerte
-    // (R_PE, R_ISO, RCD, U_mess ...) sind je nach Absicherung/RCD-Typ
-    // unterschiedlich relevant und werden weiterhin ueber die bestehende
-    // pruefungslogik beim PDF-Export geprueft (prueflingeOhneMessung).
-    // Das Ergebnis-Auswahlfeld je Stromkreis (i.O./n.i.O.) ist ebenfalls
-    // dabei, damit es demselben gruenen Muster wie Sichtpruefung/Erprobung
-    // folgt, sobald eine Karte angelegt ist.
-    karten: [
-      { selektor: '.circuit-card', felder: ['.c-zs', '.c-totgelegt'] }
-    ]
+    // 4.7.1: nicht mehr nur die export-kritischen Felder, sondern das ganze
+    // Formular gelb/gruen markieren - reine Fortschrittsanzeige, damit auf
+    // einen Blick zu sehen ist, wo schon etwas eingetragen wurde und wo
+    // nicht (deckt damit automatisch auch .c-zs und das Ergebnis-Auswahlfeld
+    // je Stromkreis ab, ohne die beiden extra aufzaehlen zu muessen).
+    alleFelder: true
   });
 
   const pads = initSignaturePads();

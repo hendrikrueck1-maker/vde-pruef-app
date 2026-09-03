@@ -62,8 +62,25 @@ function toggleTotlegung(select) {
 }
 
 function toggleMessSections(header) {
-  const wrapper = header.closest('.c-mess-sections');
+  // Wird sowohl vom Messpruefungs-Block einer totgelegten Karte
+  // (.c-mess-sections) als auch vom RCD-Messwerte-Block (.c-rcd-messwerte)
+  // verwendet - beide teilen sich dieselbe Kopfzeilen-Struktur.
+  const wrapper = header.closest('.c-mess-sections, .c-rcd-messwerte');
   if (wrapper) wrapper.classList.toggle('mess-sections-collapsed');
+}
+
+/* RCD-MESSWERTE EIN-/AUSKLAPPEN JE NACH "OHNE RCD" (4.7.1)
+ * ---------------------------------------------------------------------------
+ * Reine Anzeige-Synchronisation ohne Seiteneffekte (kein Fokus/Autosave) -
+ * analog zu syncTotlegungAnzeige(). Wird bei jeder Eingabe im RCD-Typ-Feld
+ * sowie beim Anlegen/Wiederherstellen einer Karte aufgerufen. */
+function syncRcdMesswerteAnzeige(cardId) {
+  const card = document.getElementById(`circuit_${cardId}`);
+  if (!card) return;
+  const rcdTypElem = card.querySelector('.c-rcd-typ');
+  const ohneRcd = !!(rcdTypElem && /ohne\s*rcd/i.test(rcdTypElem.value));
+  const wrapper = card.querySelector('.c-rcd-messwerte');
+  if (wrapper) wrapper.classList.toggle('mess-sections-collapsed', ohneRcd);
 }
 
 function addCircuitCard(data = {}) {
@@ -207,15 +224,28 @@ function addCircuitCard(data = {}) {
       <div class="grid">
         <div class="form-group">
           <label>RCD Typ:</label>
-          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A">
+          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A" oninput="syncRcdMesswerteAnzeige(${cardCounter})">
           <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A')">Typ A</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B')">Typ B</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B+')">Typ B+</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ F')">Typ F</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Ohne RCD')">Ohne RCD</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A'); syncRcdMesswerteAnzeige(${cardCounter})">Typ A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B'); syncRcdMesswerteAnzeige(${cardCounter})">Typ B</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B+'); syncRcdMesswerteAnzeige(${cardCounter})">Typ B+</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ F'); syncRcdMesswerteAnzeige(${cardCounter})">Typ F</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Ohne RCD'); syncRcdMesswerteAnzeige(${cardCounter})">Ohne RCD</button>
           </div>
         </div>
+      </div>
+      <!-- 4.7.1: Bei "Ohne RCD" sind die Ausloese-Messwerte nicht relevant
+           (es gibt keinen RCD zu pruefen) - klappt automatisch ein, ueber die
+           Kopfzeile jederzeit von Hand wieder aufklappbar (gleiches Muster wie
+           bei den Messpruefungen eines totgelegten Stromkreises, siehe
+           .c-mess-sections/toggleMessSections). -->
+      <div class="c-rcd-messwerte">
+        <div class="mess-sections-header" onclick="toggleMessSections(this)">
+          <span class="mess-sections-titel">RCD-Messwerte</span>
+          <span class="mess-sections-hinweis">Bei „Ohne RCD" eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
+          <span class="mess-sections-chevron">▾</span>
+        </div>
+        <div class="grid">
         <div class="form-group">
           <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
           <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${attrEsc(data.rcd_idn)}" placeholder="z. B. 30 mA" oninput="validateCardNorms(${cardCounter})">
@@ -241,6 +271,7 @@ function addCircuitCard(data = {}) {
         <div class="form-group">
           <label>Auslösezeit t<sub>A</sub> (ms) <span class="limit-hint" id="ta_limit_${cardCounter}"></span>:</label>
           <input type="text" inputmode="decimal" class="c-rcd-ta" value="${attrEsc(data.rcd_ta)}" placeholder="z. B. 24" oninput="validateCardNorms(${cardCounter})">
+        </div>
         </div>
       </div>
     </div>
@@ -313,6 +344,7 @@ function addCircuitCard(data = {}) {
   if (data.art) card.querySelector('.c-spannung-art').value = data.art;
   if (data.gefaehrdung) card.querySelector('.c-gefaehrdung').value = data.gefaehrdung;
 
+  syncRcdMesswerteAnzeige(cardCounter);
   validateCardNorms(cardCounter);
 }
 

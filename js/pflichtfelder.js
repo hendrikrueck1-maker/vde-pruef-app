@@ -32,7 +32,19 @@
  *                  fuer die darin liegenden Pflichtfelder (z. B. '.c-zs').
  *                  Wird bei jeder Aktualisierung UND bei jeder Kartenaenderung
  *                  neu ausgewertet (derselbe MutationObserver wie unten).
- * ========================================================================== */
+ *    cfg.alleFelder  optional (4.7.1): true markiert NICHT nur die oben
+ *                  einzeln gelisteten echten Pflichtfelder, sondern JEDES
+ *                  ausfuellbare Feld im gesamten Formular gelb/gruen - auch
+ *                  optionale. Zweck ist reine Fortschrittsanzeige ("wo habe
+ *                  ich schon etwas eingetragen, wo noch nicht"), nicht mehr
+ *                  nur die Kennzeichnung export-kritischer Felder. Aus der
+ *                  automatischen Erfassung ausgenommen: readonly-Felder
+ *                  (berechnete Werte, z. B. U_L max.), Suchfelder und
+ *                  Datei-Uploads. Ein Feld, das schon eine eigene rote
+ *                  "falscher Wert"-Kennzeichnung hat (z. B. .out-of-norm),
+ *                  bleibt trotzdem gelb/gruen UNTER der roten Markierung -
+ *                  die CSS-Vorrangregel (Rot vor Gruen) sorgt weiterhin
+ *                  dafuer, dass ein falscher Wert nie gruen erscheint. */
 function initPflichtfelder(cfg) {
   function markiereFeld(el) {
     if (!el) return;
@@ -56,6 +68,17 @@ function initPflichtfelder(cfg) {
         });
       });
     });
+    if (cfg.alleFelder) {
+      const form = document.querySelector('form') || document;
+      form.querySelectorAll(
+        'input[type="text"]:not([readonly]), input[type="date"]:not([readonly]), ' +
+        'input[inputmode="decimal"]:not([readonly]), input:not([type]):not([readonly]), ' +
+        'select, textarea'
+      ).forEach(el => {
+        if (el.type === 'search' || el.type === 'file' || el.type === 'hidden') return;
+        markiereFeld(el);
+      });
+    }
   }
 
   aktualisiereAlle();
