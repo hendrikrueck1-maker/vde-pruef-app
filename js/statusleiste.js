@@ -59,6 +59,46 @@ function initStatusleiste(cfg) {
   document.addEventListener('change', aktualisiereKopf);
   document.addEventListener('focusin', function (ev) { aktualisiereKreis(ev.target); });
 
+  /* [Nutzerwunsch] STATUSLEISTE VERSCHWINDET BEI GEOEFFNETER BILDSCHIRMTASTATUR
+   * --------------------------------------------------------------------------
+   *  "position: sticky" (siehe style.css) haelt die Leiste zuverlaessig oben,
+   *  SOLANGE Layout- und sichtbarer (visueller) Bereich beim Scrollen
+   *  gemeinsam wandern. Oeffnet sich auf einem Smartphone/Tablet die
+   *  Bildschirmtastatur, verschieben iOS Safari und (je nach Geraet/Version)
+   *  auch mobile Chrome-Varianten den TATSAECHLICH SICHTBAREN Ausschnitt
+   *  (visualViewport) unabhaengig vom Scroll-Stand des Layout-Viewports nach
+   *  oben, um das fokussierte Feld oberhalb der Tastatur einzublenden - der
+   *  Scroll-Stand, auf den sich "sticky"/"fixed" beziehen, aendert sich dabei
+   *  NICHT mit. Die Leiste bleibt also an ihrer Position im Layout-Viewport
+   *  stehen, waehrend genau dieser Bereich durch die Tastatur-Verschiebung
+   *  nicht mehr im sichtbaren Ausschnitt liegt - sie wirkt dadurch wie
+   *  verschwunden, obwohl sie technisch weiterhin vorhanden ist.
+   *
+   *  Die window.visualViewport-API (breit unterstuetzt: iOS Safari ab 13,
+   *  Chrome/Android seit Jahren) liefert genau diesen Versatz als
+   *  "offsetTop". Ein einfaches translateY() um diesen Betrag gleicht ihn
+   *  aus und haelt die Leiste exakt am oberen Rand des tatsaechlich
+   *  sichtbaren Bereichs - beim normalen Scrollen (Tastatur geschlossen)
+   *  bleibt offsetTop 0 und die Leiste verhaelt sich unveraendert wie zuvor. */
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    let taktGeplant = false;
+    function statusleisteAnSichtbarenBereichAnpassen() {
+      taktGeplant = false;
+      leiste.style.transform = vv.offsetTop ? 'translateY(' + vv.offsetTop + 'px)' : '';
+    }
+    function taktPlanen() {
+      // rAF buendelt mehrere schnell aufeinanderfolgende resize/scroll-
+      // Ereignisse (z. B. waehrend der Tastatur-Einblendanimation) zu einem
+      // Layout-Update statt bei jedem einzelnen Ereignis neu zu rechnen.
+      if (taktGeplant) return;
+      taktGeplant = true;
+      requestAnimationFrame(statusleisteAnSichtbarenBereichAnpassen);
+    }
+    vv.addEventListener('resize', taktPlanen);
+    vv.addEventListener('scroll', taktPlanen);
+  }
+
   /* Beim reinen Scrollen (ohne Klick/Fokus in ein Feld) soll die Anzeige
    * ebenfalls folgen: ein IntersectionObserver beobachtet alle Karten und
    * merkt sich, welche davon gerade den sichtbaren Bereich unmittelbar unter

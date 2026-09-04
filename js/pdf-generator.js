@@ -111,6 +111,7 @@ function addCircuitCard(data = {}) {
           <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'NYM-J')">NYM-J</button>
           <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'H07RN-F')">H07RN-F</button>
           <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'TITANEX')">TITANEX</button>
+          <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'H07V-K')">H07V-K</button>
         </div>
       </div>
       <div class="form-group">
@@ -515,6 +516,21 @@ function validateCardNorms(cardId) {
     else zsElem.classList.remove('out-of-norm');
   }
 
+  /* [Nutzerhinweis] Z_L-N (Netzimpedanz) wurde bisher gar nicht gegen einen
+   * Grenzwert geprueft - weder hier live im Formular noch im PDF-Export. Ein
+   * zu hoher Wert (z. B. ein hochohmiger N-Leiter, genau der Fehler, den
+   * dieses Feld laut eigenem Hinweistext finden soll) blieb dadurch komplett
+   * unauffaellig. Z_L-N wird als Aussenleiter-N-Schleife bei gleicher
+   * Betriebsspannung (230 V) gemessen wie Z_S (Aussenleiter-PE) - derselbe
+   * Hoechstwert (aus der Abschaltzeit der vorgeschalteten Absicherung) gilt
+   * daher sinngemaess auch hier. */
+  const zlnElem = card.querySelector('.c-zln');
+  if (zlnElem) {
+    const zlnNum = parseMesswert(zlnElem.value);
+    if (zlnElem.value.trim() !== '' && maxZs !== null && !isNaN(zlnNum) && (zlnNum > maxZs || zlnNum < 0)) zlnElem.classList.add('out-of-norm');
+    else zlnElem.classList.remove('out-of-norm');
+  }
+
   /* Widerspruch zwischen Z_S und I_K sichtbar machen. Der Fall entsteht, wenn
    * beide Werte von Hand eingetippt wurden (dann greift die Kopplung nicht)
    * oder ein alter Zwischenstand geladen wurde. */
@@ -559,6 +575,7 @@ function onZsInput(cardId) {
 function onZlnInput(cardId) {
   const card = document.getElementById(`circuit_${cardId}`);
   if (card) koppleImpedanzMitStrom(card, '.c-zln', '.c-ik2');
+  validateCardNorms(cardId);
 }
 
 // Eine Eingabe von Hand hebt die Kopplung fuer dieses Feld auf.
@@ -1035,7 +1052,7 @@ function generatePDFInner(isBlank = false) {
 
     // Vier Kurzfelder je Zeile, 45 mm Raster ab x = 36 mm
     const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
-    const nmZelle = (label, id, spalte, zeile, rot) => {
+    const nmZelle = (label, id, spalte, zeile, rotOverride) => {
       const wert = netzWert(id);
       const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
       /* 4.5.0: Im AUSGEFUELLTEN Protokoll steht bei einem nicht gemessenen Wert
@@ -1045,6 +1062,12 @@ function generatePDFInner(isBlank = false) {
        * "einphasige Einspeisung" fuer Verwirrung sorgte. Im Leerformular
        * bleibt die Schreiblinie natuerlich stehen. */
       const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+      // Fehlerbewertung: u_npe uebergibt weiterhin explizit isNpeOut (eigener
+      // Schwellenwert, siehe oben); alle anderen Felder (L-N/L-L) werden jetzt
+      // zentral ueber netzspannungAusserNorm() geprueft - vorher wurden diese
+      // sechs Werte im PDF nie bewertet, ein Tippfehler wie "400" bei L1-N
+      // erschien unauffaellig und unmarkiert.
+      const rot = rotOverride !== undefined ? rotOverride : (!isBlank && netzspannungAusserNorm(id, wert));
       drawFeldZeile(doc, label + ':', text,
                     NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA1, NM_FELD_B, isBlank, { rot: !!rot });
     };
@@ -1230,7 +1253,14 @@ function generatePDFInner(isBlank = false) {
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       const maxZsPdf = getMaxZs(sich);
       const zsNumPdf = parseMesswert(zs);
-      const isZsOut = (maxZsPdf !== null && !isNaN(zsNumPdf) && (zsNumPdf > maxZsPdf || zsNumPdf < 0))
+      // [Nutzerhinweis] Z_L-N wurde hier bisher nur auf eine UNGUELTIGE Eingabe
+      // geprueft (istMesswertUngueltig), nie auf einen zu hohen WERT - ein
+      // gueltig eingetragener, aber zu hoher Z_L-N-Wert (z. B. ein hochohmiger
+      // N-Leiter) blieb im gedruckten Protokoll unmarkiert. Gleicher
+      // Grenzwert wie Z_S (siehe Live-Pruefung in validateCardNorms()).
+      const zlnNumPdf = parseMesswert(zln);
+      const isZlnOut = maxZsPdf !== null && !isNaN(zlnNumPdf) && (zlnNumPdf > maxZsPdf || zlnNumPdf < 0);
+      const isZsOut = (maxZsPdf !== null && !isNaN(zsNumPdf) && (zsNumPdf > maxZsPdf || zsNumPdf < 0)) || isZlnOut
         || istMesswertUngueltig(zs) || istMesswertUngueltig(ik) || istMesswertUngueltig(zln) || istMesswertUngueltig(ik2);
       let zsik = '-';
       if (zs || ik) zsik = `${kommaZahlGeprueft(zs) || '-'} Ω / ${kommaZahlGeprueft(ik) || '-'} A`;
@@ -1389,21 +1419,68 @@ function generatePDFInner(isBlank = false) {
   const offBemStart   = offBemLabel + 4.2;
   const boxHeight     = offBemStart + bemZeilen * 4.2 + 1.5;
 
+  /* [Nutzerhinweis] Seitenumbruch bei genau 6 statt erst 7 Stromkreisen: Bis
+   * 6.0.0 wurde der Platzbedarf von Kasten 4 + Abschlussblock (Freigabe,
+   * Konformitaetstext, Unterschriften) an dieser Stelle nur GROB GESCHAETZT
+   * (fester Wert von 32 mm), weil der tatsaechliche Konformitaetstext erst
+   * WEITER UNTEN, waehrend Kasten 4 gezeichnet wird, feststand (4.5.0, Befund
+   * C1: Kasten 4 und Abschlussblock werden seitdem GEMEINSAM auf Platz
+   * geprueft, um ein Auseinanderreissen ueber einen Seitenumbruch zu
+   * verhindern). Ein kurzer, positiver Abschlusstext (keine Maengel, keine
+   * fehlende Angabe) braucht real oft nur rund 25-28 mm statt der
+   * geschaetzten 32 mm - bei einem knapp befuellten Blatt 1 (z. B. genau 6
+   * statt 5 Stromkreisen) loeste die zu grosszuegige Schaetzung dadurch einen
+   * unnoetigen Seitenumbruch aus, obwohl Kasten 4 UND der Abschlussblock
+   * rechnerisch noch auf Seite 1 gepasst haetten.
+   *
+   * Jetzt wird der tatsaechliche Bedarf VORGEZOGEN und EXAKT genauso berechnet
+   * wie bisher (identische Formeln, nur vor statt nach dem Zeichnen von
+   * Kasten 4) - alle dafuer noetigen Werte sind reine Feldablesungen bzw.
+   * boole'sche Verknuepfungen ohne Zeichen-Seiteneffekt und daher gefahrlos
+   * vorziehbar. Die spaeteren, gleichnamigen Deklarationen entfallen dadurch
+   * (sonst "bereits deklariert"-Fehler) - genutzt werden ab hier ausschliesslich
+   * diese hier vorgezogenen Werte. */
+  const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
+  const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT || erdungReNum < 0);
+  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
+  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
+  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
+  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
+  const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
+  const anyErpNiO = Array.from(document.querySelectorAll('.erp-item')).some(el => el?.value === 'n.i.O.');
+  const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO ||
+                             anyMeasurementOut || isErdungOut || isNpeOut);
+  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
+  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
+  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+  const complianceText = isBlank
+    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
+    : hasIssues
+      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
+      : behobenOk
+        ? MAENGEL_BEHOBEN_TEXT_ANLAGE
+        : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+  const complianceGesamt = complianceText +
+    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
+  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFontSize(6.5);
+  const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
+  const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
+
   /* 4.5.0 (C1): Kasten 4 und der Abschlussblock (Freigabe, Konformitaetstext,
    * Unterschriften) werden GEMEINSAM auf Platz geprueft. Vorher wurden beide
    * getrennt geprueft; dadurch passte der Kasten noch auf die Seite, der
    * Unterschriftenblock aber nicht mehr - und ein "1 Blatt"-Leerformular
    * ergab zwei PDF-Seiten, die zweite mit nichts als zwei Linien darauf. */
-  const ABSCHLUSS_H_SCHAETZUNG = 32;   // Freigabezeile + Hinweistext + Unterschriften
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + ABSCHLUSS_H_SCHAETZUNG);
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + abschlussHoehe);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
 
-  const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
-  const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT || erdungReNum < 0);
+  // erdungReNum/isErdungOut wurden weiter oben vorgezogen (siehe Kommentar
+  // bei der Kasten-4/Abschlussblock-Platzpruefung).
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
                 feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
@@ -1418,25 +1495,9 @@ function generatePDFInner(isBlank = false) {
   /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
    * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
    * ein Sonderfall von "Mängel festgestellt". */
-  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
-  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
-  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
-
-  /* Beanstandungen, die UNABHAENGIG von dieser Auswahl im Protokoll stehen.
-   * Nur wenn keine davon uebrig ist, darf "behoben" positiv ausgehen - sonst
-   * liesse sich der Widerspruch durch die Auswahl einfach umdrehen. */
-  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
-  const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
-  // "n.a." ist kein Befund und darf die Gesamtbewertung nicht kippen -
-  // gezaehlt wird nur ein ausdrueckliches n.i.O.
-  const anyErpNiO = Array.from(document.querySelectorAll('.erp-item')).some(el => el?.value === 'n.i.O.');
-  /* Die N-PE-Spannung geht ebenfalls in die Gesamtbewertung ein - sie ist der
-   * einzige Wert der Netzmessung, der eigenstaendig einen Fehler findet
-   * (hochohmiger PEN, Fremdeinspeisung) - am Buehnenverteiler ist das
-   * lebensgefaehrlich. */
-  const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO ||
-                             anyMeasurementOut || isErdungOut || isNpeOut);
-  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
+  // hatKeineMaengel/hatBehoben/hatMaengel/gewaehrleistungVal/anySichtNiO/
+  // anyErpNiO/restBeanstandungen/behobenTrotzOffener wurden weiter oben
+  // vorgezogen (siehe Kommentar bei der Kasten-4/Abschlussblock-Platzpruefung).
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
@@ -1463,23 +1524,42 @@ function generatePDFInner(isBlank = false) {
   drawCheckbox(doc, 150, finalY + offTermin, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
   drawCheckbox(doc, 162, finalY + offTermin, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
+  /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
+   * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
+   * ueberhaupt etwas vermerkt wurde, ohne die Zeile bewusst zu lesen. Jetzt:
+   * sobald tatsaechlich Text eingetragen wurde, wird der gesamte Bereich rot
+   * hinterlegt und in Fettschrift gedruckt (dieselbe Rot-Palette wie bei
+   * einem totgelegten Stromkreis, redCellBg/redCellText oben in dieser
+   * Funktion). Eine leere Bemerkung (Leerformular oder nichts eingetragen)
+   * bleibt unveraendert schwarz mit Schreiblinien. */
+  const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
+  if (hatBemerkungstext) {
+    const bemHighlightY = finalY + offBemLabel - 3.3;
+    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+    doc.setFillColor(...redCellBg);
+    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
+  doc.setTextColor(...(hatBemerkungstext ? redCellText : PDF_TEXT));
   doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
+    doc.setTextColor(...PDF_TEXT);
     drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
     doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
+    doc.setTextColor(...PDF_TEXT);
+    doc.setFont("helvetica", "normal");
   }
 
   // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
   // BEI MÄNGELN, SICHERHEITSRISIKO ODER N.I.O.-ERGEBNISSEN MUSS EINE WARNUNG STEHEN
   /* Ein "behoben" mit noch offenen roten Werten bleibt ein Mangelprotokoll -
    * sonst koennte man den Widerspruch einfach in die andere Richtung erzeugen. */
-  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
-  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+  // hasIssues/behobenOk wurden weiter oben vorgezogen (siehe Kommentar bei
+  // der Kasten-4/Abschlussblock-Platzpruefung).
 
   // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT gewährleistet" schreibt.
   if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
@@ -1496,33 +1576,9 @@ function generatePDFInner(isBlank = false) {
     return;
   }
 
-  const complianceText = isBlank
-    // Im Leerformular waere die Konformitaetsaussage eine unbelegte Behauptung -
-    // dort steht nur der Hinweis, dass sie nach der Pruefung anzukreuzen ist.
-    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
-    : hasIssues
-      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
-      : behobenOk
-        ? MAENGEL_BEHOBEN_TEXT_ANLAGE
-        : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
-
-  // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
-  const complianceGesamt = complianceText +
-    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
-
-  /* Derselbe Grund wie oben, hier aber mit groesserer Wirkung: der Warntext
-   * bei Maengeln wird FETT gesetzt und ist damit rund 7 % breiter als in
-   * normaler Schrift. Gemessen in normaler Schrift ergaben sich Zeilen von
-   * 202 mm - bei 10 mm linkem Rand 2 mm ueber die Papierkante hinaus. Im PDF
-   * fehlten dadurch die letzten Zeichen ausgerechnet in dem Satz, der die
-   * Nichtfreigabe ausspricht. Schrift deshalb VOR splitTextToSize setzen. */
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
-  doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
-
-  // Bedarf fuer Bestaetigungszeile + Hinweistext + Unterschriftenblock exakt
-  // ausrechnen, damit nur dann umgebrochen wird, wenn es wirklich nicht passt.
-  const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
+  // complianceText/complianceGesamt/complianceLines/abschlussHoehe wurden
+  // weiter oben vorgezogen (siehe Kommentar bei der Kasten-4/Abschlussblock-
+  // Platzpruefung) - identische Berechnung, nur vor dem Zeichnen von Kasten 4.
   finalY += boxHeight + 5;
   /* 4.6.0: Im Leerformular darf der Abschlussblock nicht nur bis
    * PDF_CONTENT_BOTTOM reichen, sondern muss VOR der Fussnotenzeile enden -
@@ -1801,6 +1857,20 @@ function restoreProtocolState(state) {
     cardCounter = 0;
     state.circuits.forEach(c => addCircuitCard(c));
   }
+
+  /* [Nutzerwunsch] Rote Markierung + Bemerkungen-Zeile fuer n.i.O.
+   * (sichtErpNiOPruefen(), siehe pdf-utils.js) greift bisher nur beim
+   * LIVE-Aendern eines Feldes (onchange). Ein wiederhergestellter Stand -
+   * Autosave beim Neuladen der Seite ebenso wie eine aus dem Archiv
+   * uebernommene Vorlage - setzte die Werte bisher per el.value = val OHNE
+   * diese Pruefung anzustossen: ein bereits als n.i.O. gespeichertes Feld
+   * blieb dadurch unmarkiert, bis es erneut angefasst wurde. Erst NACH dem
+   * Wiederherstellen der Stromkreise aufgerufen, damit ein durch
+   * autosaveProtocol() (wird von sichtErpNiOPruefen() mit ausgeloest)
+   * versehentlich zu frueh angestossener Zwischenspeichern-Vorgang nicht
+   * mit noch leerem circuitsContainer speichert. */
+  document.querySelectorAll('.sicht-item').forEach(el => sichtErpNiOPruefen(el));
+  document.querySelectorAll('.erp-item').forEach(el => sichtErpNiOPruefen(el));
 
   return true;
 }

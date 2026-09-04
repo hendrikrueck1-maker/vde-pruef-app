@@ -41,7 +41,7 @@
  *  Hochzaehlen jetzt sofort auf, statt erst wenn eine Nutzerin sich
  *  wundert, warum eine gemeldete Aenderung nicht ankommt (wie beim
  *  4.7.0-Vorfall, siehe "3. Nachtrag" im Änderungsbericht). */
-const SW_VERSION = '6.0.0';
+const SW_VERSION = '6.1.0';
 
 /* Konfiguration + Dateiliste laden (relativ zum Speicherort dieser Datei).
  * Der Parameter ?v= erzwingt eine frische Kopie: importScripts wird sonst aus

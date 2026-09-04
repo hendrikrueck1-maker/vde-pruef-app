@@ -504,6 +504,7 @@ function generatePDFAnschlussInner(isBlank = false) {
   const boxBorder = [203, 213, 225];
   const tableHeaderBg = [226, 232, 240];
   const redCellText = [153, 27, 27];
+  const redCellBg = [254, 226, 226];
 
   const getVal = (id, defaultBlank = "____________________") => {
     if (isBlank) return defaultBlank;
@@ -624,8 +625,13 @@ function generatePDFAnschlussInner(isBlank = false) {
       // Im fertigen Protokoll steht bei einem nicht gemessenen Wert "n. gem."
       // statt einer leeren Schreiblinie (die sonst wie ein vergessenes Feld aussieht).
       const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+      // Diese sechs Aussenleiterwerte wurden bisher nie bewertet - weder live
+      // im Formular noch im PDF. netzspannungAusserNorm() (pdf-utils.js)
+      // prueft jetzt zentral gegen das 10%-Toleranzband um 230 V (L-N) bzw.
+      // 400 V (L-L).
+      const rot = !isBlank && netzspannungAusserNorm(id, wert);
       drawFeldZeile(doc, label + ':', text,
-                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA, NM_FELD_B, isBlank);
+                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA, NM_FELD_B, isBlank, { rot: !!rot });
     };
     doc.setFontSize(6.6);
     nmZelle('U L1-N',  'u_l1n', 0, 0);
@@ -944,15 +950,31 @@ function generatePDFAnschlussInner(isBlank = false) {
   // "n.a." war im Formular waehlbar, im PDF aber nicht darstellbar
   drawCheckbox(doc, 158, finalY + offFreigabe, "n.a.", !isBlank && leistungVal === "n.a.");
 
+  /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
+   * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
+   * ueberhaupt etwas vermerkt wurde. Jetzt: sobald Text eingetragen wurde,
+   * wird der Bereich rot hinterlegt und in Fettschrift gedruckt (gleiche
+   * Rot-Palette wie bei einer rot markierten Messzelle). */
+  const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
+  if (hatBemerkungstext) {
+    const bemHighlightY = finalY + offBemLabel - 3.3;
+    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+    doc.setFillColor(...redCellBg);
+    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
+  doc.setTextColor(...(hatBemerkungstext ? redCellText : textColor));
   doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
+    doc.setTextColor(...textColor);
     drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
     doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
+    doc.setTextColor(...textColor);
+    doc.setFont("helvetica", "normal");
   }
 
   finalY += boxHeight + 5;
@@ -1204,6 +1226,15 @@ function restoreAnschlussState(state) {
       if (f.drehfeld !== undefined) card.querySelector('.c-drehfeld').value = f.drehfeld;
     });
   }
+
+  /* [Nutzerwunsch] siehe gleichlautender Kommentar in pdf-generator.js/
+   * restoreProtocolState(): sichtErpNiOPruefen() (pdf-utils.js) muss auch
+   * beim Wiederherstellen eines gespeicherten Standes angestossen werden,
+   * nicht nur bei manueller Auswahl im Formular - sonst bleibt ein bereits
+   * gespeichertes n.i.O. unmarkiert. Erst NACH dem Wiederherstellen der
+   * Einspeisepunkte, damit der darin ausgeloeste autosaveProtocol()-Aufruf
+   * nicht mit noch leerem feedsContainer speichert. */
+  document.querySelectorAll('.sicht-item').forEach(el => sichtErpNiOPruefen(el));
 
   return true;
 }

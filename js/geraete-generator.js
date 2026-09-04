@@ -489,6 +489,7 @@ function generatePDFGeraeteInner(isBlank = false) {
   const boxBorder = [203, 213, 225];
   const tableHeaderBg = [226, 232, 240];
   const redCellText = [153, 27, 27];
+  const redCellBg = [254, 226, 226];
 
   const makeCell = (text, isOut = false) => {
     if (!isBlank && isOut) {
@@ -809,15 +810,31 @@ function generatePDFGeraeteInner(isBlank = false) {
   drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
   drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
+  /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
+   * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
+   * ueberhaupt etwas vermerkt wurde. Jetzt: sobald Text eingetragen wurde,
+   * wird der Bereich rot hinterlegt und in Fettschrift gedruckt (gleiche
+   * Rot-Palette wie bei einer rot markierten Messzelle). */
+  const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
+  if (hatBemerkungstext) {
+    const bemHighlightY = finalY + offBemLabel - 3.3;
+    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+    doc.setFillColor(...redCellBg);
+    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
+  doc.setTextColor(...(hatBemerkungstext ? redCellText : textColor));
   doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
   doc.setFontSize(6.8);
   if (isBlank || splitBemerkung.length === 0) {
+    doc.setTextColor(...textColor);
     drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
   } else {
     doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
+    doc.setTextColor(...textColor);
+    doc.setFont("helvetica", "normal");
   }
 
   finalY += boxHeight + 5;

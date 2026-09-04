@@ -138,12 +138,12 @@
         Genau diese Fehler liegen hinter einem fremden Übergabepunkt.
       </p>
       <div class="grid">
-        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230"></div>
-        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230"></div>
-        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230"></div>
-        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400"></div>
-        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400"></div>
-        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400"></div>
+        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
         <div class="form-group"><label>Frequenz f (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="50"></div>
       </div>
     </div>
@@ -155,15 +155,15 @@
       keine Prüfplakette an einer bauseitigen Steckvorrichtung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 4. ÜBERGABEPUNKTE -->

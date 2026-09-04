@@ -438,28 +438,71 @@ function archivUebernahmeErlaubt(key) {
   return ARCHIV_UEBERNEHMEN.indexOf(key) !== -1;
 }
 
+/* ---------------------------------------------------------------------------
+ *  AUSNAHME: STANDARDWERTE STATT LEERFELD (auf Nutzerwunsch)
+ * ---------------------------------------------------------------------------
+ *  Sichtpruefung/Erproben (.sicht-item/.erp-item) und der RCD-Pruefstrom
+ *  wurden bisher wie jeder andere Messwert komplett geleert - dadurch griff
+ *  weder die normale "- bitte waehlen -"-Leerauswahl (Befund N3, 6.0.0) noch
+ *  die eingebaute RCD-Pruefstrom-Vorbelegung (5x, siehe pruefstromSel() in
+ *  pdf-generator.js/anschluss-generator.js), weil beide nur beim FEHLEN des
+ *  Wertes greifen, nicht bei einem explizit auf '' gesetzten. Eine neu aus
+ *  einer Vorlage angelegte Pruefung stand dadurch mit lauter leeren
+ *  Ergebnisfeldern da, obwohl ein druckfrisches Formular an derselben Stelle
+ *  einen Standardwert zeigt.
+ *
+ *  Auf ausdruecklichen Wunsch verhaelt sich die Vorlage jetzt wie ein
+ *  druckfrisches Formular: RCD-Pruefstrom wird durch ENTFERNEN des Schluessels
+ *  wieder der eingebauten 5x-Vorbelegung ueberlassen, Sichtpruefung/Erproben
+ *  bekommen ihren jeweiligen Formular-Standardwert. Echte Messwerte, ein
+ *  n.i.O.-Ergebnis, Freigabe und Unterschriften bleiben davon unberuehrt und
+ *  weiterhin ausnahmslos leer - nur der WIEDERHOLTE Standardzustand eines noch
+ *  nicht bearbeiteten Feldes wird wiederhergestellt, kein Messergebnis. */
+const ARCHIV_KEY_ENTFERNEN = ['rcd_pruefstrom'];
+const ARCHIV_ERP_STANDARDWERT = {
+  erp_anlage: 'i.O.', erp_schutz: 'i.O.',
+  erp_drehfeld: 'n.a.', erp_polaritaet: 'n.a.', erp_prueftaste: 'n.a.',
+  erp_sicherheitsbel: 'n.a.', erp_motoren: 'n.a.', erp_gst: 'n.a.'
+};
+
 /* Geht rekursiv durch den gespeicherten Formularstand.
  * WICHTIG: Container werden DURCHLAUFEN, nicht bewertet. Der frueher hier
  * stehende Code stieg nur in Arrays ab - dadurch wurden state.fields und
  * state.erproben (beides einfache Objekte) nie angefasst und ihr kompletter
  * Inhalt unveraendert uebernommen. Bewertet wird immer nur der einzelne Wert
- * an seinem Schluessel. */
-function archivVorlageBereinigen(knoten) {
+ * an seinem Schluessel.
+ *
+ * 'elternSchluessel' ist der Objekt-/Array-Schluessel, unter dem 'knoten' im
+ * Elternobjekt steht (z. B. 'sicht', 'erproben') - nur dadurch kann bei
+ * Arrays aus reinen Werten (state.sicht) bzw. bei state.erproben zwischen
+ * "Sichtpruefung/Erproben" und jedem anderen Wertefeld unterschieden werden. */
+function archivVorlageBereinigen(knoten, elternSchluessel) {
   if (Array.isArray(knoten)) {
+    if (elternSchluessel === 'sicht') {
+      // Sichtpruefungs-Ergebnisse: Standardwert i.O., wie vor der
+      // Sicherheitsaenderung in 6.0.0 (siehe Kommentarblock oben).
+      return knoten.map(function () { return 'i.O.'; });
+    }
     return knoten.map(function (eintrag) {
       // Liste von Objekten (Stromkreise, Uebergabepunkte, Geraete): absteigen
       if (eintrag && typeof eintrag === 'object') return archivVorlageBereinigen(eintrag);
-      // Liste von Einzelwerten (z. B. Sichtpruefungs-Ergebnisse): immer leeren
+      // Liste von Einzelwerten ausserhalb von 'sicht': weiterhin immer leeren
       return '';
     });
   }
   if (knoten && typeof knoten === 'object') {
     Object.keys(knoten).forEach(function (key) {
+      if (ARCHIV_KEY_ENTFERNEN.indexOf(key) !== -1) {
+        delete knoten[key];
+        return;
+      }
       var wert = knoten[key];
       if (wert && typeof wert === 'object') {
-        knoten[key] = archivVorlageBereinigen(wert);
+        knoten[key] = archivVorlageBereinigen(wert, key);
       } else if (!archivUebernahmeErlaubt(key)) {
-        knoten[key] = archivWertLeeren(wert);
+        knoten[key] = (elternSchluessel === 'erproben' && ARCHIV_ERP_STANDARDWERT[key] !== undefined)
+          ? ARCHIV_ERP_STANDARDWERT[key]
+          : archivWertLeeren(wert);
       }
     });
     return knoten;

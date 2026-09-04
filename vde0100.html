@@ -175,12 +175,12 @@
         bei Netzersatzanlage/Wechselrichter Pflichtangabe (siehe „Art der Einspeisung“ oben).
       </p>
       <div class="grid">
-        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230"></div>
-        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230"></div>
-        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230"></div>
-        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400"></div>
-        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400"></div>
-        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400"></div>
+        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
         <div class="form-group"><label>U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
         <div class="form-group"><label>Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
@@ -193,18 +193,18 @@
       keine Gebäudesystemtechnik an einer mobilen Verteilung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>1. Betriebsmittel:</label><select class="sicht-item" id="sicht_betriebsmittel"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>2. Kabel & Leitungen:</label><select class="sicht-item" id="sicht_kabel"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>3. Zugänglichkeit:</label><select class="sicht-item" id="sicht_zugang"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>6. Doku / Warnung:</label><select class="sicht-item" id="sicht_doku"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>8. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>9. Typenschild:</label><select class="sicht-item" id="sicht_typenschild"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>10. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>11. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>12. Gebäudesystemtechnik:</label><select class="sicht-item" id="sicht_gst"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>1. Betriebsmittel:</label><select class="sicht-item" id="sicht_betriebsmittel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>2. Kabel & Leitungen:</label><select class="sicht-item" id="sicht_kabel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>3. Zugänglichkeit:</label><select class="sicht-item" id="sicht_zugang" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>6. Doku / Warnung:</label><select class="sicht-item" id="sicht_doku" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>7. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>8. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>9. Typenschild:</label><select class="sicht-item" id="sicht_typenschild" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>10. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>11. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>12. Gebäudesystemtechnik:</label><select class="sicht-item" id="sicht_gst" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- ANSCHLUSSKABEL DER ANLAGE (TEXT KORRIGIERT & MIT BUTTONS) -->
@@ -218,6 +218,7 @@
             <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'NYM-J')">NYM-J</button>
             <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07RN-F')">H07RN-F</button>
             <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'TITANEX')">TITANEX</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07V-K')">H07V-K</button>
           </div>
         </div>
         <div class="form-group">
@@ -253,14 +254,14 @@
       Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.“.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>Funktion Anlage:</label><select class="erp-item" id="erp_anlage"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>Funktion Anlage:</label><select class="erp-item" id="erp_anlage" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label>Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
     </div>
 
     <!-- 5. MESSWERTE PRO STROMKREIS -->

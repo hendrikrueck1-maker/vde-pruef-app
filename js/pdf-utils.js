@@ -1282,6 +1282,96 @@ function drawLeerFuss(doc, bloecke) {
  * Messwert ueberhaupt. */
 const U_NPE_SCHWELLE = 1.0;
 
+/* AUSSENLEITER-/STRANGSPANNUNGEN DER NETZMESSUNG (L-N, L-L): TOLERANZBAND
+ * ---------------------------------------------------------------------------
+ * Bisher wurde nur U_N-PE bewertet (Schwellenwert, siehe oben). Die eigentlichen
+ * Spannungswerte U_L1-N ... U_L1-L3 wurden weder live im Formular noch im PDF
+ * geprueft - ein Tippfehler wie "400" bei L1-N (statt 230) blieb vollstaendig
+ * unauffaellig und unmarkiert, sowohl auf dem Bildschirm als auch im fertigen
+ * Protokoll. Toleranzband nach DIN EN 50160 (+/-10 % der Nennspannung). */
+const NETZSPANNUNG_LN_SOLL = 230;
+const NETZSPANNUNG_LL_SOLL = 400;
+const NETZSPANNUNG_TOLERANZ = 0.10;
+const NETZSPANNUNG_SOLL_JE_FELD = {
+  u_l1n: NETZSPANNUNG_LN_SOLL, u_l2n: NETZSPANNUNG_LN_SOLL, u_l3n: NETZSPANNUNG_LN_SOLL,
+  u_l12: NETZSPANNUNG_LL_SOLL, u_l23: NETZSPANNUNG_LL_SOLL, u_l13: NETZSPANNUNG_LL_SOLL
+};
+
+/* Liefert true, wenn der Wert fuer das gegebene Netzmessungs-Feld (per ID)
+ * ungueltig ist ODER ausserhalb des Toleranzbands liegt. Ohne Eintrag im
+ * Sollwert-Lookup (z. B. 'netzfrequenz', 'u_npe' - eigene Bewertung) wird nur
+ * auf eine ungueltige Zahleneingabe geprueft, nie auf einen Sollwert. */
+function netzspannungAusserNorm(id, wert) {
+  if (String(wert === undefined || wert === null ? '' : wert).trim() === '') return false;
+  if (istMesswertUngueltig(wert)) return true;
+  const soll = NETZSPANNUNG_SOLL_JE_FELD[id];
+  if (soll === undefined) return false;
+  const num = parseMesswert(wert);
+  return num < 0 || num < soll * (1 - NETZSPANNUNG_TOLERANZ) || num > soll * (1 + NETZSPANNUNG_TOLERANZ);
+}
+
+/* Live-Validierung im Formular: an oninput der sechs Aussenleiterfelder
+ * gebunden (vde0100.html und anschlusspruefung.html). */
+function validateNetzspannungsfeld(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('out-of-norm', netzspannungAusserNorm(id, el.value));
+}
+
+/* ============================================================================
+ *  SICHTPRUEFUNG/ERPROBEN: n.i.O. SOFORT ROT MARKIEREN + IN DEN BEMERKUNGEN
+ *  VERMERKEN
+ * ----------------------------------------------------------------------------
+ *  [Nutzerwunsch] Ein als n.i.O. bewertetes Sicht-/Erprobungsfeld wurde bisher
+ *  nur an der Auswahl selbst sichtbar - stand der Text nicht (mehr) auf dem
+ *  Bildschirm (z. B. weit nach oben gescrollt) oder wurde die Bewertung nur
+ *  kurz gesetzt, konnte ein festgestellter Mangel leicht vergessen werden,
+ *  wenn spaeter das Bemerkungsfeld ausgefuellt wird.
+ *
+ *  JETZT: bei "n.i.O." wird das Auswahlfeld selbst rot markiert (dieselbe
+ *  .out-of-norm-Klasse wie bei jedem anderen falschen Messwert - inklusive der
+ *  bereits vorhandenen Vorrangregel, dass Rot immer vor der gruenen
+ *  Pflichtfeld-Markierung gewinnt) UND automatisch eine Zeile in "Mängel /
+ *  Bemerkungen" eingetragen, die den betroffenen Pruefpunkt benennt. Wird die
+ *  Auswahl wieder zurueckgesetzt (i.O./n.a./leer), verschwindet exakt diese
+ *  Zeile wieder - von Hand ergaenzter Text in den Bemerkungen bleibt davon
+ *  unberuehrt, da nur die eine, deterministisch aus dem Feldnamen gebildete
+ *  Zeile gesucht wird. */
+function sichtErpNiOPruefen(el) {
+  if (!el) return;
+  const istNiO = el.value === 'n.i.O.';
+  el.classList.toggle('out-of-norm', istNiO);
+
+  const formGroup = el.closest('.form-group');
+  const labelEl = formGroup ? formGroup.querySelector('label') : null;
+  const rohLabel = (labelEl ? labelEl.textContent : (el.id || '')).replace(/:\s*$/, '').trim();
+  const istErp = el.classList.contains('erp-item');
+  const nummerMatch = rohLabel.match(/^(\d+)\.\s*(.+)$/);
+  let zeile;
+  if (istErp) {
+    zeile = 'Erproben (' + rohLabel + '): n.i.O.';
+  } else if (nummerMatch) {
+    zeile = 'Sichtprüfung Pkt. ' + nummerMatch[1] + ' (' + nummerMatch[2] + '): n.i.O.';
+  } else {
+    zeile = 'Sichtprüfung (' + rohLabel + '): n.i.O.';
+  }
+
+  const ta = document.getElementById('res_bemerkungen');
+  if (ta) {
+    const zeilen = ta.value === '' ? [] : ta.value.split('\n');
+    const idx = zeilen.indexOf(zeile);
+    if (istNiO && idx === -1) {
+      zeilen.push(zeile);
+    } else if (!istNiO && idx !== -1) {
+      zeilen.splice(idx, 1);
+    }
+    ta.value = zeilen.join('\n');
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
 function npeUeberschritten(wert) {
   const num = parseMesswert(String(wert === undefined || wert === null ? '' : wert));
   // [Befund N6, 6.0.0] eine negative Spannung ist hier physikalisch nicht
