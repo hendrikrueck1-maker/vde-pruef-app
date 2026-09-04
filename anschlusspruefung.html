@@ -88,6 +88,13 @@
         <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
       <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label>Qualifikation der prüfenden Person:</label>
+        <select id="pruefer_qualifikation">
+          <option value="">– bitte wählen –</option>
+          <option value="Elektrofachkraft (EFK)">Elektrofachkraft (EFK)</option>
+          <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
+        </select>
+      </div>
       <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
       <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
@@ -148,15 +155,15 @@
       keine Prüfplakette an einer bauseitigen Steckvorrichtung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 4. ÜBERGABEPUNKTE -->

@@ -428,8 +428,29 @@ function drawCheckbox(doc, x, y, label, isChecked = false, isRed = false) {
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "normal"); doc.setDrawColor(203, 213, 225); doc.setFillColor(255, 255, 255);
 }
 
+/* [Befund N5, 6.0.0] MASKIERUNG NUR ANWENDEN, WENN SIE ZUR EINGABE PASST
+ * ----------------------------------------------------------------------------
+ *  Ziel dieser Funktion ist eine Eintipp-Hilfe: wer "230400" tippt (230 V
+ *  Strang-, 400 V Verkettungsspannung ohne Trenner), bekommt daraus live
+ *  "230 / 400". Dafuer wurden bisher STUR alle Nicht-Ziffern entfernt und
+ *  nach der dritten verbliebenen Ziffer ein Trenner gesetzt - unabhaengig
+ *  davon, was die Eingabe eigentlich war. Eine Notation wie "3x400" (3-phasig,
+ *  400 V, wie sie in der Veranstaltungstechnik ueblich ist) wurde dadurch zu
+ *  "3400" und weiter zu "340 / 0" verstuemmelt: eine gueltige Eingabe wurde
+ *  in einen falschen, aber unauffaellig gueltig aussehenden Messwert verwandelt.
+ *
+ *  JETZT: die Maskierung greift nur, wenn die ROHE Eingabe (nach Entfernen von
+ *  Leerzeichen) bereits zum erwarteten Muster passt - reine Ziffern, optional
+ *  schon mit "/" getrennt (z. B. "230400", "230/400", "230"). Alles andere
+ *  (Buchstaben wie "3x400", mehr als ein Trenner usw.) bleibt unveraendert
+ *  stehen, statt verstuemmelt zu werden. */
 function formatNetzspannung(input) {
-  let digits = input.value.replace(/\D/g, '');
+  const roh = String(input.value || '');
+  const ohneLeerzeichen = roh.replace(/\s+/g, '');
+  const passtZumMuster = /^\d{1,3}\/?\d{0,3}$/.test(ohneLeerzeichen);
+  if (!passtZumMuster) return; // unveraendert lassen, z.B. "3x400"
+
+  let digits = roh.replace(/\D/g, '');
   if (digits.length > 6) digits = digits.slice(0, 6);
   if (digits.length > 3) {
     input.value = digits.slice(0, 3) + ' / ' + digits.slice(3);
@@ -866,9 +887,15 @@ function istRcdSelektiv(typ) {
 function buildRcdZelle(roh) {
   const typ = String(roh.typ || '').trim();
   // 4.5.0 (D1): Zahlenwerte der RCD-Zelle mit Dezimalkomma.
-  const idn = kommaZahl(String(roh.idn || '').trim());
-  const imess = kommaZahl(String(roh.imess || '').trim());
-  const ta = kommaZahl(String(roh.ta || '').trim());
+  // [Befund N1, 6.0.0] kommaZahlGeprueft statt kommaZahl: eine ungueltige
+  // Zahl (z.B. "1,2,3") erscheint jetzt mit Warnpraefix statt unauffaellig.
+  const idnUngueltig = istMesswertUngueltig(roh.idn);
+  const imessUngueltig = istMesswertUngueltig(roh.imess);
+  const taUngueltig = istMesswertUngueltig(roh.ta);
+  const idn = kommaZahlGeprueft(String(roh.idn || '').trim());
+  const imess = kommaZahlGeprueft(String(roh.imess || '').trim());
+  const ta = kommaZahlGeprueft(String(roh.ta || '').trim());
+  const rcdWertUngueltig = idnUngueltig || imessUngueltig || taUngueltig;
   const pruefstrom = String(roh.pruefstrom || '').trim();
 
   const ohneRcd = /ohne\s*rcd/i.test(typ);
@@ -941,8 +968,11 @@ function buildRcdZelle(roh) {
 
   return {
     text: zeilen.join('\n'),
-    isOut: dokuMangel || pruefungUnvollstaendig,
-    isDokumentationsmangel: dokuMangel,
+    // [Befund N1, 6.0.0] eine ungueltige Zahleneingabe (z.B. "1,2,3") faerbt
+    // die Zelle jetzt ebenfalls rot, auch wenn kein Grenzwert ueberschritten
+    // wurde - der Warntext in "zeilen" macht die Zahl selbst schon sichtbar.
+    isOut: dokuMangel || pruefungUnvollstaendig || rcdWertUngueltig,
+    isDokumentationsmangel: dokuMangel || rcdWertUngueltig,
     isPruefungUnvollstaendig: pruefungUnvollstaendig,
     taMax: taMax
   };
@@ -1254,7 +1284,11 @@ const U_NPE_SCHWELLE = 1.0;
 
 function npeUeberschritten(wert) {
   const num = parseMesswert(String(wert === undefined || wert === null ? '' : wert));
-  return String(wert || '').trim() !== '' && !isNaN(num) && num > U_NPE_SCHWELLE;
+  // [Befund N6, 6.0.0] eine negative Spannung ist hier physikalisch nicht
+  // moeglich (U N-PE ist eine Betragsmessung) - vorher wurde nur auf
+  // Ueberschreitung des oberen Grenzwerts geprueft, ein negativer Wert lief
+  // unbemerkt durch.
+  return String(wert || '').trim() !== '' && !isNaN(num) && (num > U_NPE_SCHWELLE || num < 0);
 }
 
 /* KOMMA STATT PUNKT IN MESSWERTEN  (4.5.0, Befund D1)
@@ -1268,6 +1302,35 @@ function npeUeberschritten(wert) {
  * Funktion ausschliesslich auf Messwerte angewendet. */
 function kommaZahl(wert) {
   return String(wert === undefined || wert === null ? '' : wert).replace(/(\d)\.(?=\d)/g, '$1,');
+}
+
+/* [Befund N1, 6.0.0] kommaZahl() PRUEFT NICHT, OB DER WERT GUELTIG IST
+ * ----------------------------------------------------------------------------
+ *  kommaZahl() ist rein kosmetisch (Punkt -> Komma) und wird an vielen Stellen
+ *  auf rohe Nutzereingaben angewandt, OHNE dass parseMesswert() (siehe oben)
+ *  vorher pruefte, ob der Wert ueberhaupt eine gueltige Zahl ist. Eine
+ *  Fehleingabe wie "1,2,3" erschien dadurch unmarkiert und unauffaellig im
+ *  gedruckten Beweisdokument - obwohl parseMesswert() sie laengst als NaN
+ *  erkennt.
+ *
+ *  kommaZahlGeprueft() ist ein Ersatz fuer kommaZahl() an Druckstellen, die
+ *  einen einzelnen Nutzer-Messwert direkt darstellen: bei ungueltiger, aber
+ *  nicht leerer Eingabe wird der ROHE Text (nicht durch kommaZahl gejagt) mit
+ *  einem auffaelligen Warnpraefix zurueckgegeben. Der Aufrufer markiert die
+ *  Zelle zusaetzlich rot, indem er istMesswertUngueltig(wert) mit ODER in das
+ *  bestehende isOut-Flag der Zelle einfliessen laesst (siehe makeCell in den
+ *  drei *-generator.js-Dateien). Bei leerem oder gueltigem Wert verhaelt sich
+ *  die Funktion identisch zu kommaZahl(). */
+function istMesswertUngueltig(wert) {
+  const s = String(wert === undefined || wert === null ? '' : wert).trim();
+  if (s === '') return false;
+  return isNaN(parseMesswert(s));
+}
+
+function kommaZahlGeprueft(wert) {
+  const s = String(wert === undefined || wert === null ? '' : wert);
+  if (istMesswertUngueltig(s)) return '⚠ ungültig: ' + s.trim();
+  return kommaZahl(s);
 }
 
 // Legt bei Bedarf eine neue Seite an und liefert die y-Position zurueck, an der
@@ -1389,6 +1452,16 @@ function drawSchreibLinien(doc, x, y, breite, anzahl, abstand = 5) {
 
 // Setzt Text und verkleinert die Schrift so weit, dass maxWidth eingehalten wird.
 // Gibt die tatsaechlich verwendete Schriftgroesse zurueck.
+//
+// [Befund N7, 6.0.0] BISHER: Ab minSize wurde nicht mehr weiter verkleinert -
+// ein sehr langer Text (z.B. eine lange Standortbezeichnung im einzeiligen
+// Kopf-Textfeld "Standort Uebergabepunkt", gezeichnet ueber drawFeldZeile())
+// lief bei minSize dann trotzdem ueber die verfuegbare Feldbreite in die
+// Nachbarspalte. JETZT: passt der Text auch bei minSize nicht, wird er
+// zusaetzlich zeichenweise gekuerzt und mit "…" abgeschlossen - der Wert
+// bleibt vollstaendig im Formular erfasst (Autosave/Feldwert unveraendert),
+// nur die GEDRUCKTE Darstellung wird gekappt, analog zum Umbruch per
+// splitTextToSize() bei den mehrzeiligen Feldern (siehe z.B. Bemerkungen).
 function drawFittedText(doc, text, x, y, maxWidth, startSize, minSize = 6) {
   const istFormel = hatFormel(text);
   let size = startSize;
@@ -1401,7 +1474,27 @@ function drawFittedText(doc, text, x, y, maxWidth, startSize, minSize = 6) {
     size -= 0.25;
   }
   doc.setFontSize(size);
-  drawTextF(doc, text, x, y, { fontSize: size });
+
+  let ausgabeText = text;
+  // Formeln (hoch-/tiefgestellte Zeichen) werden ueber ein eigenes Verfahren
+  // gezeichnet (formelBreite/drawTextF kuemmern sich dort selbst um die
+  // Zeichen) - das zeichenweise Kuerzen greift bewusst nur beim einfachen,
+  // nicht-Formel-Fall, dem einzigen, in dem ein Ueberlauf in der Praxis
+  // vorkommt (lange Freitext-Feldwerte).
+  if (!istFormel) {
+    const breiteBeiMinSize = doc.getStringUnitWidth(ausgabeText) * size / doc.internal.scaleFactor;
+    if (breiteBeiMinSize > maxWidth && ausgabeText.length > 1) {
+      let gekuerzt = ausgabeText;
+      while (gekuerzt.length > 1) {
+        gekuerzt = gekuerzt.slice(0, -1);
+        const kandidat = gekuerzt.replace(/\s+$/, '') + '…';
+        const breite = doc.getStringUnitWidth(kandidat) * size / doc.internal.scaleFactor;
+        if (breite <= maxWidth) { ausgabeText = kandidat; break; }
+      }
+    }
+  }
+
+  drawTextF(doc, ausgabeText, x, y, { fontSize: size });
   return size;
 }
 

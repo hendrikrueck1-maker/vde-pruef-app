@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '5.0.0';
+var APP_VERSION = '6.0.0';
 
 /* ---------------------------------------------------------------------------
  * 2. PROTOKOLLE

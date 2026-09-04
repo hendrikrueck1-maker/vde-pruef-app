@@ -150,6 +150,30 @@ function archivFeld(id) {
   return el ? String(el.value || '').trim() : '';
 }
 
+/* [Befund N4, 6.0.0] Seit 4.7.0 gibt es pro Formulartyp keinen EINEN
+ * Autosave-Schluessel mehr, sondern einen pro parallelem Entwurf
+ * (autosaveKeyFuerEntwurf() in entwuerfe.js, aktueller Stand global in
+ * AKTUELLER_ENTWURF_ID der jeweiligen *-generator.js-Datei). typ.autosave
+ * (z. B. 'vde_autosave_pr') ist der ALTE, statische Schluessel - er wird nur
+ * einmalig bei der Migration eines Alt-Standes befuellt und existiert danach
+ * praktisch nie wieder. archivMetaSammeln() suchte bisher trotzdem dort und
+ * fand nie einen Formularstand -> "Erneut pruefen (Vorlage)" scheiterte
+ * IMMER, weil der Archiv-Eintrag ohne formState angelegt wurde.
+ *
+ * JETZT: bevorzugt wird der Autosave-Key des GERADE AKTIVEN Entwurfs gelesen
+ * (autosaveKeyFuerEntwurf() + AKTUELLER_ENTWURF_ID sind auf jeder der drei
+ * Formularseiten bereits vor archiv.js/den Generatoren geladen bzw. als
+ * globale Variable gesetzt). Der alte statische Key bleibt als Fallback fuer
+ * den Uebergangsfall, dass diese Funktionen aus irgendeinem Grund fehlen. */
+function archivAktuellerAutosaveKey(praefix) {
+  try {
+    if (typeof autosaveKeyFuerEntwurf === 'function' && typeof AKTUELLER_ENTWURF_ID !== 'undefined' && AKTUELLER_ENTWURF_ID) {
+      return autosaveKeyFuerEntwurf(praefix, AKTUELLER_ENTWURF_ID);
+    }
+  } catch (e) {}
+  return null;
+}
+
 function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
   var typ = archivTyp(praefix);
   var anzahl = 0;
@@ -157,9 +181,12 @@ function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
   else if (praefix === 'GP') anzahl = document.querySelectorAll('#devicesContainer .feed-card').length;
   else if (praefix === 'AP') anzahl = document.querySelectorAll('.feed-card').length;
 
+  // Aktueller Entwurf zuerst, alter statischer Key nur als Rueckfallebene.
+  var autosaveKey = archivAktuellerAutosaveKey(praefix) || typ.autosave;
+
   var formState = null;
   try {
-    var roh = typ.autosave ? localStorage.getItem(typ.autosave) : null;
+    var roh = autosaveKey ? localStorage.getItem(autosaveKey) : null;
     if (roh) formState = JSON.parse(roh);
   } catch (e) { formState = null; }
 
@@ -451,14 +478,32 @@ function archivStateAlsVorlage(state) {
 }
 
 /* Schreibt die bereinigte Vorlage in den Zwischenspeicher des passenden
- * Formulars und liefert die Zieldatei zurueck. */
+ * Formulars und liefert die Zieldatei zurueck.
+ *
+ * [Befund N4, 6.0.0] Frueher landete die Vorlage im ALTEN, seit 4.7.0 nicht
+ * mehr verwendeten statischen Autosave-Key (typ.autosave, z. B.
+ * 'vde_autosave_pr'). Das Zielformular liest beim Start aber ausschliesslich
+ * den Autosave-Key seines AKTIVEN Entwurfs (aktivenEntwurfSicherstellen() in
+ * entwuerfe.js) - die Migration von typ.autosave greift dabei nur, wenn noch
+ * gar kein aktiver Entwurf existiert. In der Praxis existiert nach der
+ * ersten Nutzung immer schon einer, wodurch die Vorlage nie ankam und "Erneut
+ * pruefen (Vorlage)" wirkungslos blieb.
+ *
+ * JETZT: es wird ein NEUER, eigener Entwurf angelegt (neuenEntwurfAnlegen()
+ * aus entwuerfe.js, das archiv.html jetzt ebenfalls einbindet), die Vorlage
+ * geht in dessen Autosave-Key, und dieser Entwurf wird sofort zum aktiven
+ * Entwurf des Zielformulars gemacht. Ein eventuell noch offener Zwischenstand
+ * bleibt dadurch unangetastet im Index stehen (Datenverlust vermieden), statt
+ * ueberschrieben zu werden. */
 function archivVorlageUebernehmen(eintrag) {
   var typ = archivTyp(eintrag.praefix);
-  if (!typ.autosave || !eintrag.formState) return null;
+  if (!eintrag.formState) return null;
+  if (typeof neuenEntwurfAnlegen !== 'function' || typeof autosaveKeyFuerEntwurf !== 'function') return null;
   var vorlage = archivStateAlsVorlage(eintrag.formState);
   if (!vorlage) return null;
   try {
-    localStorage.setItem(typ.autosave, JSON.stringify(vorlage));
+    var neueId = neuenEntwurfAnlegen(eintrag.praefix); // legt an UND macht ihn aktiv
+    localStorage.setItem(autosaveKeyFuerEntwurf(eintrag.praefix, neueId), JSON.stringify(vorlage));
     localStorage.setItem('vde_vorlage_hinweis', JSON.stringify({
       quelle: eintrag.nummer, typ: eintrag.praefix, zeit: new Date().toISOString()
     }));

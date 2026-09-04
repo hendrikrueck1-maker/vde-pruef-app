@@ -427,7 +427,7 @@ function validateCardNorms(cardId) {
   const taElem = card.querySelector('.c-rcd-ta');
   if (taElem && taMax !== null && taElem.value.trim() !== '' && taElem.value.trim() !== '-') {
     const num = parseMesswert(taElem.value);
-    if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
+    if (!isNaN(num) && (num > taMax || num < 0)) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
     /* Der haeufigste Fehler ist nicht der defekte RCD, sondern der falsch
      * angegebene Pruefstrom: 210 ms bei "5x" ist ein typischer Wert fuer eine
      * Messung mit 1x I_dn. Statt nur "zu hoch" zu melden, wird gesagt, wozu
@@ -511,7 +511,7 @@ function validateCardNorms(cardId) {
   }
   if (zsElem) {
     const zsNum = parseMesswert(zsElem.value);
-    if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && zsNum > maxZs) zsElem.classList.add('out-of-norm');
+    if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && (zsNum > maxZs || zsNum < 0)) zsElem.classList.add('out-of-norm');
     else zsElem.classList.remove('out-of-norm');
   }
 
@@ -930,8 +930,13 @@ function generatePDFInner(isBlank = false) {
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
   // Im Leerformular ist der Ort noch offen: frueher stand dort fest "Konstanz",
   // auch wenn in den Stammdaten etwas anderes hinterlegt war.
-  const ort = isBlank ? "" : getVal('unterschrift_ort', "Konstanz");
+  const ort = isBlank ? "" : getVal('unterschrift_ort', "");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
+  // [Befund A6, 6.0.0] Qualifikation der pruefenden Person (EFK / EuP unter
+  // Aufsicht einer EFK) - wird an der Unterschriftzeile der pruefenden
+  // Person mit ausgedruckt, siehe unten bei 'Unterschrift Prüfer/-in'.
+  const pruegerQualiVal = isBlank ? "" : feldWert('pruefer_qualifikation');
+  const pruegerQualiKurz = pruegerQualiVal.startsWith('Elektrotechnisch') ? 'EuP unter Aufsicht einer EFK' : pruegerQualiVal;
   // Im Leerformular bleiben Kopf-Felder leer -> die Kopfbox zeichnet dort
   // Schreiblinien, auf die von Hand eingetragen werden kann.
   const kopfProtokollNr = isBlank ? "" : protokollNr;
@@ -1196,18 +1201,19 @@ function generatePDFInner(isBlank = false) {
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseMesswert(rpeVal);
-      const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
+      const isRpeOut = (!isNaN(rpeNum) && (rpeNum > 0.30 || rpeNum < 0)) || istMesswertUngueltig(rpeVal);
+      const rpeText = rpeVal ? `${kommaZahlGeprueft(rpeVal)} Ω` : '-';
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoModeVal = card.querySelector('.c-riso-mode')?.value || '';
       // Mindestwert je Pruefspannung (SELV/PELV 0,5 MOhm, sonst 1,0 MOhm)
       const risoMinPdf = risoModeVal.includes('SELV') ? 0.5 : 1.0;
       const risoNum = parseMesswert(risoVal);
-      const isRisoOut = !risoVal.trim().startsWith('>') && !isNaN(risoNum) && risoNum < risoMinPdf;
+      const isRisoOut = (!risoVal.trim().startsWith('>') && !isNaN(risoNum) && risoNum < risoMinPdf)
+        || (!risoVal.trim().startsWith('>') && istMesswertUngueltig(risoVal));
       // Die Pruefspannung gehoert nach DIN VDE 0100-600 mit ins Protokoll,
       // weil der Grenzwert von ihr abhaengt.
-      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
+      const risoText = risoVal ? `${risoVal.trim().startsWith('>') ? kommaZahl(risoVal) : kommaZahlGeprueft(risoVal)} MΩ\n(${risoModeVal.replace(/\s*\(.*\)/, '')})` : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
 
@@ -1224,11 +1230,12 @@ function generatePDFInner(isBlank = false) {
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       const maxZsPdf = getMaxZs(sich);
       const zsNumPdf = parseMesswert(zs);
-      const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
+      const isZsOut = (maxZsPdf !== null && !isNaN(zsNumPdf) && (zsNumPdf > maxZsPdf || zsNumPdf < 0))
+        || istMesswertUngueltig(zs) || istMesswertUngueltig(ik) || istMesswertUngueltig(zln) || istMesswertUngueltig(ik2);
       let zsik = '-';
-      if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
+      if (zs || ik) zsik = `${kommaZahlGeprueft(zs) || '-'} Ω / ${kommaZahlGeprueft(ik) || '-'} A`;
       // Netzimpedanz nur drucken, wenn sie tatsaechlich gemessen wurde.
-      if (zln || ik2) zsik += `\nL-N: ${kommaZahl(zln) || '-'} Ω / ${kommaZahl(ik2) || '-'} A`;
+      if (zln || ik2) zsik += `\nL-N: ${kommaZahlGeprueft(zln) || '-'} Ω / ${kommaZahlGeprueft(ik2) || '-'} A`;
       // [Befund N3] Absicherung angegeben, aber weder als B/C/D-Charakteristik
       // noch als Schmelzsicherung erkannt: Z_S/I_K wurden in diesem
       // Stromkreis NICHT bewertet. Das muss im gedruckten Protokoll selbst
@@ -1258,7 +1265,7 @@ function generatePDFInner(isBlank = false) {
       // Ausloesezeit nur bewerten, wenn der Pruefstrom bekannt ist - sonst gibt
       // es keinen definierten Grenzwert (DIN EN 61008-1/61009-1).
       const taNum = parseMesswert(rcdTa);
-      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
+      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && (taNum > rcdZelle.taMax || taNum < 0);
       const idnRange = getRcdIdnRangeMa(rcdIdn);
       const imessNum = parseMesswert(rcdImess);
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
@@ -1277,12 +1284,12 @@ function generatePDFInner(isBlank = false) {
       const artPdf = card.querySelector('.c-spannung-art')?.value || 'AC';
       const gefPdf = card.querySelector('.c-gefaehrdung')?.value || 'normal';
       const limitU = getUlGrenzwert(artPdf, gefPdf);
-      const isUOut = !isNaN(uNum) && uNum > limitU;
+      const isUOut = (!isNaN(uNum) && (uNum > limitU || uNum < 0)) || istMesswertUngueltig(uMessVal);
 
       // withUnit haengt "V" nur an, wenn die Einheit nicht schon eingetippt wurde
       // (fruehere Ausgabe: "1.2 V V")
       // Der Grenzwert steht bereits im Tabellenkopf -> hier nur der Messwert
-      const uText = uMessVal ? `${withUnit(uMessVal, 'V')}\n(U_{L} ${getUlText(artPdf, gefPdf)})` : '-';
+      const uText = uMessVal ? `${istMesswertUngueltig(uMessVal) ? kommaZahlGeprueft(uMessVal) : withUnit(uMessVal, 'V')}\n(U_{L} ${getUlText(artPdf, gefPdf)})` : '-';
 
       if (isRpeOut || isRisoOut || isIkOut || isZsOut || isRcdBeanstandung || isUOut) anyMeasurementOut = true;
 
@@ -1396,7 +1403,7 @@ function generatePDFInner(isBlank = false) {
   doc.setFontSize(7.2);
 
   const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
-  const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT;
+  const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT || erdungReNum < 0);
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
                 feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
@@ -1565,7 +1572,17 @@ function generatePDFInner(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
+  // [Befund A6, 6.0.0] die Qualifikationsangabe kann die Zeile verlaengern -
+  // drawFittedText() (statt rohem doc.text) verkleinert bei Bedarf die
+  // Schrift bzw. kuerzt mit "…", damit die Beschriftung innerhalb der
+  // eigenen Unterschriftspalte (bis x=100) bleibt und nicht in die zweite
+  // Unterschriftspalte (ab x=115) laeuft.
+  drawFittedText(doc, `${ortDatum} - Unterschrift Prüfer/-in${pruegerQualiKurz ? ' (' + pruegerQualiKurz + ')' : ''}`,
+    PDF_MARGIN_LEFT, finalY + 15, 80, 6.5, 5);
+  // drawFittedText() kann die Schriftgroesse verkleinert haben - fuer die
+  // naechste Zeile (Auftraggeber-Unterschrift) wieder auf 6.5 zuruecksetzen,
+  // sonst wuerde eine geschrumpfte Groesse dort unbeabsichtigt weitergelten.
+  doc.setFontSize(6.5);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
@@ -1672,7 +1689,7 @@ let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('PR', 'vde_autosave_pr');
 function AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('PR', AKTUELLER_ENTWURF_ID); }
 
 const AUTOSAVE_FIELD_IDS = [
-  'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
+  'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
   'netzspannung', 'netzfrequenz', 'einspeisung', 'hausanschluss', 'vnb', 'messgeraet', 'seriennummer',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
@@ -1788,9 +1805,17 @@ function restoreProtocolState(state) {
   return true;
 }
 
+// [Bug #1 aus 4.7.2-Pruefung, 6.0.0] sicherSetItem() (storage.js) statt
+// direktem localStorage.setItem() im stillen catch: vorher blieb ein voller
+// Speicher hier unbemerkt - kein Hinweis, keine Statusleisten-Meldung, der
+// Nutzer tippte scheinbar normal weiter, wurde aber nichts mehr gesichert.
+// sicherSetItem() faengt den Fehler selbst ab (meldet ihn per Alert/Statusleiste)
+// und liefert true/false zurueck - ein zusaetzliches try/catch um den Aufruf
+// ist deshalb nicht mehr noetig. Der try/catch bleibt um den REST der Funktion
+// bestehen (entwurfMerken, collectProtocolState) fuer andere, unerwartete Fehler.
 function autosaveProtocol() {
   try {
-    localStorage.setItem(AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectProtocolState()));
+    sicherSetItem(AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectProtocolState()));
     entwurfMerken('PR', AKTUELLER_ENTWURF_ID, {
       protokollnummer: document.getElementById('protokollnummer')?.value || '',
       bezeichnung: entwurfBezeichnung('PR', () => ({

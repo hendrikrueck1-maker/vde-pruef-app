@@ -476,6 +476,10 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
   .quick-btn-group { gap: 8px; margin-top: 6px; }
   /* Auch die "Entfernen"-Knöpfe an den Karten sind sonst schwer zu treffen */
   .btn-danger { min-height: 44px; padding: 10px 14px; font-size: 0.82rem; }
+  /* [Befund N9, 6.0.0] .btn/.btn-secondary hatten hier bisher keine eigene
+   * Regel und blieben unter der 44px-Mindestgroesse fuer Touch-Bedienung
+   * (WCAG 2.5.5) - gleiche Werte wie .quick-btn/.btn-danger oben. */
+  .btn, .btn-secondary { min-height: 44px; padding: 10px 14px; }
 }
 
 @media (pointer: coarse) {

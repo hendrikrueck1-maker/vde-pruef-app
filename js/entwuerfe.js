@@ -198,7 +198,7 @@ function renderOffenePruefungen(containerId) {
         '</div>' +
         '<div class="offene-pruefung-aktionen">' +
           '<a class="btn btn-success" href="' + datei + '?entwurf=' + encodeURIComponent(e.id) + '">Öffnen</a>' +
-          '<button type="button" class="btn-danger" onclick="offenePruefungLoeschen(\'' + e.id + '\', \'' + e.praefix + '\')">Löschen</button>' +
+          '<button type="button" class="btn-danger" onclick="offenePruefungLoeschen(\'' + attrEsc(e.id) + '\', \'' + attrEsc(e.praefix) + '\')">Löschen</button>' +
         '</div>' +
       '</div>'
     );

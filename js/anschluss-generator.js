@@ -218,7 +218,7 @@ function validateFeedNorms(cardId) {
   }
   if (zsElem) {
     const zsNum = parseMesswert(zsElem.value);
-    if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && zsNum > maxZs) zsElem.classList.add('out-of-norm');
+    if (zsElem.value.trim() !== '' && maxZs !== null && !isNaN(zsNum) && (zsNum > maxZs || zsNum < 0)) zsElem.classList.add('out-of-norm');
     else zsElem.classList.remove('out-of-norm');
   }
   // Widerspruch zwischen Z_S und I_K sichtbar machen (I = 230 V / Z).
@@ -258,7 +258,7 @@ function validateFeedNorms(cardId) {
   const taElem = card.querySelector('.c-rcd-ta');
   if (taElem && taMax !== null && taElem.value.trim() !== '') {
     const num = parseMesswert(taElem.value);
-    if (!isNaN(num) && num > taMax) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
+    if (!isNaN(num) && (num > taMax || num < 0)) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
   } else if (taElem) taElem.classList.remove('out-of-norm');
 
   // Ist ein RCD eingetragen, muss er auch geprueft worden sein
@@ -531,7 +531,7 @@ function generatePDFAnschlussInner(isBlank = false) {
   const pruefNr = getVal('pruefungsnummer', "__________");
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
   // Im Leerformular bleibt der Ort offen (Gastspiel, Freilicht, Fremdhaus).
-  const ort = isBlank ? "" : getVal('unterschrift_ort', "Konstanz");
+  const ort = isBlank ? "" : getVal('unterschrift_ort', "");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
@@ -574,7 +574,14 @@ function generatePDFAnschlussInner(isBlank = false) {
   drawFeldZeile(doc, "Auftraggeber:",         feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Gebäude/Bereich:",      feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
   drawFeldZeile(doc, "Veranstaltung/Anlass:", feldWert('veranstaltung'),   spL, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",           feldWert('pruefer'),         spL, z1(3), spB, isBlank);
+  // [Befund A6, 6.0.0] Qualifikation der pruefenden Person (EFK / EuP unter
+  // Aufsicht einer EFK) wird als Kurzform an den Namen angehaengt - eine
+  // eigene Zeile wuerde das voll belegte 6-Zeilen-Raster dieser Spalte sprengen.
+  const pruegerQualiValAP = feldWert('pruefer_qualifikation');
+  const pruegerQualiKurzAP = pruegerQualiValAP.startsWith('Elektrotechnisch') ? 'EuP unter Aufsicht einer EFK' : pruegerQualiValAP;
+  const prueferNameAP = feldWert('pruefer');
+  const prueferMitQualiAP = prueferNameAP + (prueferNameAP && pruegerQualiKurzAP ? ' (' + pruegerQualiKurzAP + ')' : '');
+  drawFeldZeile(doc, "Prüfer/-in:",           prueferMitQualiAP,            spL, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Prüfdatum:",            datum,                       spL, z1(4), spB, isBlank);
   drawFeldZeile(doc, "Prüfgerät:",            messgeraetText,              spL, z1(5), spB, isBlank);
 
@@ -734,13 +741,13 @@ function generatePDFAnschlussInner(isBlank = false) {
 
       const rpeVal = card.querySelector('.c-rpe').value;
       const rpeNum = parseMesswert(rpeVal);
-      const isRpeOut = !isNaN(rpeNum) && rpeNum > 0.30;
-      const rpeText = rpeVal ? `${kommaZahl(rpeVal)} Ω` : '-';
+      const isRpeOut = (!isNaN(rpeNum) && (rpeNum > 0.30 || rpeNum < 0)) || istMesswertUngueltig(rpeVal);
+      const rpeText = rpeVal ? `${kommaZahlGeprueft(rpeVal)} Ω` : '-';
 
       /* 4.5.0 (B1): Spannung N-PE je Uebergabepunkt. Sollwert 0 V. */
       const unpeVal = card.querySelector('.c-unpe')?.value || '';
-      const isUnpeOut = npeUeberschritten(unpeVal);
-      const unpeText = unpeVal ? withUnit(unpeVal, 'V') : '-';
+      const isUnpeOut = npeUeberschritten(unpeVal) || istMesswertUngueltig(unpeVal);
+      const unpeText = unpeVal ? (istMesswertUngueltig(unpeVal) ? kommaZahlGeprueft(unpeVal) : withUnit(unpeVal, 'V')) : '-';
 
       const sich = card.querySelector('.c-sich-typ').value || '-';
       const zs = card.querySelector('.c-zs').value;
@@ -752,11 +759,12 @@ function generatePDFAnschlussInner(isBlank = false) {
       // Plausibilitaet gegen I_K - bisher war das Feld reine Dokumentation.
       const maxZsPdf = getMaxZs(sich);
       const zsNumPdf = parseMesswert(zs);
-      const isZsOut = maxZsPdf !== null && !isNaN(zsNumPdf) && zsNumPdf > maxZsPdf;
+      const isZsOut = (maxZsPdf !== null && !isNaN(zsNumPdf) && (zsNumPdf > maxZsPdf || zsNumPdf < 0))
+        || istMesswertUngueltig(zs) || istMesswertUngueltig(ik);
       const zsIkWiderspruch = !zIkPlausibel(zs, ik);
       if (zsIkWiderspruch) anyDokumentationsmangel = true;
       let zsik = '-';
-      if (zs || ik) zsik = `${kommaZahl(zs) || '-'} Ω / ${kommaZahl(ik) || '-'} A`;
+      if (zs || ik) zsik = `${kommaZahlGeprueft(zs) || '-'} Ω / ${kommaZahlGeprueft(ik) || '-'} A`;
 
       // Die frueheren "|| '-'"-Vorgaben erzeugten Zellen wie "- (-)". Die
       // Rohwerte gehen jetzt unveraendert in die gemeinsame Auswertung.
@@ -775,7 +783,7 @@ function generatePDFAnschlussInner(isBlank = false) {
       });
 
       const taNum = parseMesswert(rcdTa);
-      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && taNum > rcdZelle.taMax;
+      const isTaOut = rcdZelle.taMax !== null && !isNaN(taNum) && (taNum > rcdZelle.taMax || taNum < 0);
       const idnRange = getRcdIdnRangeMa(rcdIdn);
       const imessNum = parseMesswert(rcdImess);
       const isImessOut = idnRange !== null && !isNaN(imessNum) && (imessNum < idnRange.min || imessNum > idnRange.max);
@@ -889,7 +897,7 @@ function generatePDFAnschlussInner(isBlank = false) {
   drawCheckbox(doc, 95, finalY + OFF_PA, "n.a.", !isBlank && paVal === "n.a.");
 
   const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
-  const isErdungOut = !isBlank && !isNaN(erdungReNum) && erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS;
+  const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS || erdungReNum < 0);
 
   drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
                 feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', 107, finalY + OFF_PA, 90, isBlank, { rot: isErdungOut });
@@ -1096,7 +1104,7 @@ let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('AP', 'vde_autosave_ap');
 function ANSCHLUSS_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('AP', AKTUELLER_ENTWURF_ID); }
 
 const ANSCHLUSS_FIELD_IDS = [
-  'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
+  'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon', 'einspeisung_art', 'einspeisung_sonstiges',
   'uebergabe_standort', 'anschlussleistung_vertrag', 'vnb',
   // Netzmessung am Uebergabepunkt (neu in 4.5.0, Befund B1)
@@ -1200,9 +1208,13 @@ function restoreAnschlussState(state) {
   return true;
 }
 
+// [Bug #1 aus 4.7.2-Pruefung, 6.0.0] sicherSetItem() statt direktem
+// localStorage.setItem() - siehe Erlaeuterung in pdf-generator.js
+// autosaveProtocol(). Ein voller Speicher wird jetzt sichtbar gemeldet statt
+// still zu scheitern.
 function autosaveProtocol() {
   try {
-    localStorage.setItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectAnschlussState()));
+    sicherSetItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectAnschlussState()));
     entwurfMerken('AP', AKTUELLER_ENTWURF_ID, {
       protokollnummer: document.getElementById('protokollnummer')?.value || '',
       bezeichnung: entwurfBezeichnung('AP', () => ({

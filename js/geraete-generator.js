@@ -267,7 +267,7 @@ function validateDeviceNorms(cardId) {
     rpeElem.placeholder = 'z. B. 0,20';
     if (rpeElem.value.trim() !== '') {
       const num = parseMesswert(rpeElem.value);
-      if (!isNaN(num) && num > rpeMax) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
+      if (!isNaN(num) && (num > rpeMax || num < 0)) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
     } else rpeElem.classList.remove('out-of-norm');
   }
 
@@ -295,7 +295,7 @@ function validateDeviceNorms(cardId) {
   }
   if (ableitElem.value.trim() !== '') {
     const num = parseMesswert(ableitElem.value);
-    if (!isNaN(num) && ableitMax !== null && num > ableitMax) ableitElem.classList.add('out-of-norm'); else ableitElem.classList.remove('out-of-norm');
+    if (!isNaN(num) && ableitMax !== null && (num > ableitMax || num < 0)) ableitElem.classList.add('out-of-norm'); else ableitElem.classList.remove('out-of-norm');
   } else ableitElem.classList.remove('out-of-norm');
 }
 
@@ -533,6 +533,10 @@ function generatePDFGeraeteInner(isBlank = false) {
    * falsche Ortsangabe. (In pdf-generator.js war das bereits behoben.) */
   const ort = isBlank ? "" : getVal('unterschrift_ort', "");
   const unterschriftDatum = isBlank ? "" : formatDatum(document.getElementById('unterschrift_datum')?.value);
+  // [Befund A6, 6.0.0] Qualifikation der pruefenden Person - siehe
+  // pdf-generator.js fuer dieselbe Logik.
+  const pruegerQualiVal = isBlank ? "" : feldWert('pruefer_qualifikation');
+  const pruegerQualiKurz = pruegerQualiVal.startsWith('Elektrotechnisch') ? 'EuP unter Aufsicht einer EFK' : pruegerQualiVal;
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
   // Auch im AUSGEFUELLTEN Protokoll darf kein Ausfuell-Platzhalter stehen: ist
@@ -658,26 +662,28 @@ function generatePDFGeraeteInner(isBlank = false) {
       // "n.a." sagt das ausdruecklich; ein blosser Strich liesse offen, ob nur
       // die Messung fehlt.
       const rpeGiltPdf = sk === 'I';
-      const isRpeOut = rpeGiltPdf && !isNaN(rpeNum) && rpeNum > rpeMax;
+      const isRpeOut = rpeGiltPdf && ((!isNaN(rpeNum) && (rpeNum > rpeMax || rpeNum < 0)) || istMesswertUngueltig(rpeVal));
       // Grenzwert mitdrucken: er haengt von der Leitungslaenge ab und war fuer
       // den Leser des PDF sonst nicht nachvollziehbar.
       const rpeText = !rpeGiltPdf ? 'n.a.'
-        : (rpeVal ? `${kommaZahl(rpeVal)} Ω\n(max. ${kommaZahl(rpeMax.toFixed(2))})` : '-');
+        : (rpeVal ? `${kommaZahlGeprueft(rpeVal)} Ω\n(max. ${kommaZahl(rpeMax.toFixed(2))})` : '-');
 
       const risoVal = card.querySelector('.c-riso').value;
       const risoMin = getIsoMin(sk, card.querySelector('.c-heizelement').checked);
-      const isRisoOut = !risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseMesswert(risoVal)) && parseMesswert(risoVal) < risoMin;
-      const risoText = risoVal ? `${kommaZahl(risoVal)} MΩ\n(min. ${kommaZahl(risoMin)})` : '-';
+      const isRisoOut = (!risoVal.trim().startsWith('>') && risoMin !== null && !isNaN(parseMesswert(risoVal)) && parseMesswert(risoVal) < risoMin)
+        || (!risoVal.trim().startsWith('>') && istMesswertUngueltig(risoVal));
+      const risoText = risoVal ? `${risoVal.trim().startsWith('>') ? kommaZahl(risoVal) : kommaZahlGeprueft(risoVal)} MΩ\n(min. ${kommaZahl(risoMin)})` : '-';
 
       const ableitVal = card.querySelector('.c-ableitstrom').value;
       const heizleistung = card.querySelector('.c-heizleistung')?.value;
       const ableitMax = getAbleitstromMax(sk, heizleistung);
-      const isAbleitOut = ableitMax !== null && !isNaN(parseMesswert(ableitVal)) && parseMesswert(ableitVal) > ableitMax;
+      const isAbleitOut = (ableitMax !== null && !isNaN(parseMesswert(ableitVal)) && (parseMesswert(ableitVal) > ableitMax || parseMesswert(ableitVal) < 0))
+        || istMesswertUngueltig(ableitVal);
       // Messverfahren gehoert ins Protokoll - die Grenzwerte gelten verfahrensabhaengig
       const methode = card.querySelector('.c-ableit-methode').value || '';
       const methodeKurz = methode.replace('Direktmessung Berührungsstrom', 'Direktmessung').replace('Differenzstrommessung', 'Differenzstrom');
       const ableitText = ableitVal
-        ? `${kommaZahl(ableitVal)} mA (max. ${kommaZahl(ableitMax)})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
+        ? `${kommaZahlGeprueft(ableitVal)} mA (max. ${kommaZahl(ableitMax)})\n${getAbleitstromBezeichnung(sk)}\n${methodeKurz}`
         : '-';
 
       const isFunktionOut = funktion === 'n.i.O.';
@@ -690,7 +696,10 @@ function generatePDFGeraeteInner(isBlank = false) {
         cleanStr(invnr),
         `Kl. ${sk}`,
         // auch dieses Feld ist Freitext -> ueber cleanStr ausgeben
-        laengeVal ? cleanStr(`${kommaZahl(laengeVal)} m`) : '-',
+        // [Befund N1, 6.0.0] ungueltige Laenge (z.B. "1,2,3") rot markieren -
+        // sie fliesst in getRpeMaxDevice() ein und wuerde sonst unbemerkt
+        // einen falschen R_PE-Grenzwert erzeugen.
+        laengeVal ? makeCell(cleanStr(`${kommaZahlGeprueft(laengeVal)} m`), istMesswertUngueltig(laengeVal)) : '-',
         makeCell(cleanStr(sichtText), sichtNiO),
         makeCell(cleanStr(funktion), isFunktionOut),
         makeCell(cleanStr(rpeText), isRpeOut),
@@ -877,7 +886,12 @@ function generatePDFGeraeteInner(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(...textColor);
-  doc.text(`${ortDatum} - Unterschrift Prüfer/-in`, PDF_MARGIN_LEFT, finalY + 15);
+  // [Befund A6, 6.0.0] siehe pdf-generator.js: drawFittedText() statt rohem
+  // doc.text(), damit die zusaetzliche Qualifikationsangabe nicht in die
+  // zweite Unterschriftspalte (ab x=115) laeuft.
+  drawFittedText(doc, `${ortDatum} - Unterschrift Prüfer/-in${pruegerQualiKurz ? ' (' + pruegerQualiKurz + ')' : ''}`,
+    PDF_MARGIN_LEFT, finalY + 15, 80, 6.5, 5);
+  doc.setFontSize(6.5);
 
   if (!isBlank && !padKunde.isEmpty()) {
     doc.addImage(padKunde.toDataURL('image/png'), 'PNG', 115, finalY, 38, 12);
@@ -975,7 +989,7 @@ let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('GP', 'vde_autosave_gp');
 function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AKTUELLER_ENTWURF_ID); }
 
 const GERAETE_FIELD_IDS = [
-  'auftraggeber', 'pruefungsnummer', 'pruefer', 'datum', 'messgeraet', 'seriennummer',
+  'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
   'pruefart', 'pruefintervall', 'res_termin_date',
   'pruefumfang',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
@@ -1052,9 +1066,13 @@ function restoreGeraeteState(state) {
   return true;
 }
 
+// [Bug #1 aus 4.7.2-Pruefung, 6.0.0] sicherSetItem() statt direktem
+// localStorage.setItem() - siehe Erlaeuterung in pdf-generator.js
+// autosaveProtocol(). Ein voller Speicher wird jetzt sichtbar gemeldet statt
+// still zu scheitern.
 function autosaveProtocol() {
   try {
-    localStorage.setItem(GERAETE_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectGeraeteState()));
+    sicherSetItem(GERAETE_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectGeraeteState()));
     const anzahl = document.querySelectorAll('#devicesContainer .feed-card').length;
     entwurfMerken('GP', AKTUELLER_ENTWURF_ID, {
       protokollnummer: document.getElementById('protokollnummer')?.value || '',

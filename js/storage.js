@@ -59,15 +59,20 @@ function getMasterData() {
   if (saved) {
     try { return JSON.parse(saved); } catch(e) {}
   }
+  // [Befund N2, 6.0.0] Vorher standen hier erfundene Beispieldaten
+  // ("Stadttheater Konstanz", "Fluke 1663" usw.) als stiller Default. Ein
+  // Nutzer, der die Stammdaten noch nie ausgefuellt hat, bekam damit
+  // Fantasiewerte in echte Pruefprotokolle gedruckt, ohne das zu merken.
+  // Jetzt: alle Defaults leer, Struktur/Keys unveraendert.
   return {
-    auftraggeber: "Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz",
-    gebaeude: "Gr. Haus",
-    vnb: "Stadtwerke Konstanz",
+    auftraggeber: "",
+    gebaeude: "",
+    vnb: "",
     hausanschluss: "",
     pruefer: "",
-    messgeraet: "Fluke 1663",
-    seriennummer: "SN-1663-98214",
-    ort: "Konstanz"
+    messgeraet: "",
+    seriennummer: "",
+    ort: ""
   };
 }
 
