@@ -89,17 +89,44 @@ const MESSGROESSEN_INFO = {
     fluke6500Hinweis: 'Bei langen oder dünnen Anschlussleitungen steigt der zulässige Grenzwert – siehe Grenzwert-Hinweis im Formular direkt am Messfeld.'
   },
   ul: {
-    icon: 'img/drehschalter/U_L_Netzspannung.png',
-    iconAlt: 'Drehschalter-Icon Netzspannung',
-    label: 'U<sub>L</sub>',
+    icon: 'img/drehschalter/RCD_Ausloesezeit_deltaT.png',
+    iconAlt: 'Drehschalter-Icon RCD-Auslösezeit (Berührungsspannung wird hier mitgemessen)',
+    label: 'U<sub>F</sub>',
     was: 'Die Berührungsspannung U<sub>L</sub> ist die höchste Spannung, die an einem leitfähigen Teil im Fehlerfall dauerhaft anstehen darf, ohne eine unzumutbare Gefährdung darzustellen. Der zulässige Grenzwert hängt von der Umgebung ab (50&nbsp;V normal, 25&nbsp;V bei erhöhter Gefährdung, z.&nbsp;B. Bühnen- oder Open-Air-Umgebung).',
     warum: 'Der strengere Grenzwert existiert genau für Umgebungen, in denen Menschen mit schlechterem Erdungswiderstand (z.&nbsp;B. barfuß, nasser Boden) in Kontakt mit Anlagenteilen kommen können – eine überschrittene Berührungsspannung ist ein unmittelbares Sicherheitsrisiko.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">V AC</span> stellen.',
-      'Spannung an den geforderten Punkten messen (L-N, L-L, N-PE, je nach Prüfpunkt).',
-      'Bei Bühnen-/Open-Air-Umgebung mit erhöhter Gefährdung besonders auf den strengeren Grenzwert (25&nbsp;V statt 50&nbsp;V) achten.'
+      'Keine eigene Drehschalter-Position nötig – die Berührungsspannung (U<sub>F</sub>, „Fehlerspannung") wird bei der RCD-Auslösezeitmessung (Drehschalter-Position <span class="drehschalter">ΔT</span>) automatisch mitgemessen.',
+      'Nach der RCD-Auslösezeitmessung: Wert U<sub>F</sub> in der sekundären Anzeige des Fluke 1663 ablesen (Spannungsabfall am PE-Leiter im Verhältnis zum Bemessungsfehlerstrom).',
+      'Diesen Wert unten als „Gemessene Berührungsspannung U<sub>mess</sub>" eintragen.'
     ],
-    fluke1663Hinweis: 'Dieser Grenzwert wird von der App bereits automatisch anhand der Auswahl „Gefährdung" berechnet – die Fluke-Anzeige liefert nur den Messwert, die Bewertung übernimmt das Formular.'
+    fluke1663Hinweis: 'Der Grenzwert (≤ 50 V AC normal / ≤ 25 V AC bei erhöhter Gefährdung) wird von der App bereits automatisch anhand der Auswahl „Gefährdung" berechnet. Eine separate Spannungsmessung („Drehschalter auf V AC") ist für die Berührungsspannung nicht nötig – das war in einer früheren Version dieser Anleitung fälschlich als eigener Messschritt beschrieben.'
+  },
+  uv: {
+    icon: 'img/drehschalter/V_Hz_Netzspannung.png',
+    iconAlt: 'Drehschalter-Icon Netzspannung/Frequenz (V, Hz)',
+    label: 'U<sub>V</sub>',
+    was: 'Die Netzmessung erfasst die tatsächlichen Spannungen am Speisepunkt (L-N, L-L, N-PE) sowie die Frequenz – eine eigenständige, optionale Messung, unabhängig von der Berührungsspannung.',
+    warum: 'Abweichende Netzspannungen oder eine erhöhte N-PE-Spannung können auf einen hochohmigen PEN-Leiter oder eine Fremdeinspeisung hindeuten. Bei Netzersatzanlagen/Wechselrichtern ist die Frequenz zusätzlich ein echter Pflicht-Messwert (Sollwert 50 Hz).',
+    fluke1663: [
+      'Drehschalter auf <span class="drehschalter">V, Hz</span> stellen.',
+      'Spannung an den geforderten Punkten messen (L-N, L-L, N-PE je nach Prüfpunkt) sowie die Frequenz ablesen.',
+      'Werte in die Felder im Abschnitt „Netzmessung (optional)" übertragen.'
+    ],
+    fluke1663Hinweis: 'Die N–PE-Spannung ist der einzige Wert, der eigenständig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung) – Sollwert 0 V.'
+  },
+  rlo: {
+    icon: 'img/drehschalter/R_LO_Potenzialausgleich.png',
+    iconAlt: 'Drehschalter-Icon Potenzialausgleich (R LOW Ω)',
+    label: 'R<sub>PA</sub>',
+    was: 'Die Potenzialausgleichsmessung prüft die Durchgängigkeit und den niederohmigen Widerstand zwischen der Potenzialausgleichsschiene/Erdungspunkt und den zu verbindenden leitfähigen Teilen der Anlage.',
+    warum: 'Ein unterbrochener oder zu hochohmiger Potenzialausgleich verhindert, dass im Fehlerfall gefährliche Spannungsunterschiede zwischen berührbaren leitfähigen Teilen sicher ausgeglichen werden – ein zentraler Baustein des Schutzes gegen elektrischen Schlag.',
+    fluke1663: [
+      'Drehschalter auf <span class="drehschalter">Ω LOW OHM</span> bzw. <span class="drehschalter">R LOW Ω</span> stellen (dieselbe Messfunktion wie bei R<sub>PE</sub>).',
+      'Vorher am Gerät nullen (Messleitungswiderstand kompensieren).',
+      'Messung zwischen Potenzialausgleichsschiene und dem zu prüfenden Anlagenteil durchführen.',
+      'Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
+    ],
+    fluke1663Hinweis: 'Gleiche Drehschalter-Position und Vorgehensweise wie beim Schutzleiterwiderstand R<sub>PE</sub> – nur der Messpunkt unterscheidet sich.'
   }
 };
 
@@ -206,6 +233,40 @@ function infokartenSchalterGeaendert(checkbox) {
   infokartenSichtbarkeitSetzen(!!checkbox.checked);
 }
 
+/* Netzmessung-Icon (U_v) und Potenzialausgleich-Icon (R_LO) einbinden -
+ * nur vorhanden in vde0100.html (dort existieren #netzmessung_icon /
+ * #erdung_icon). Infokarte + Fluke-Kurzanleitung werden direkt nach dem
+ * jeweiligen Abschnitt eingefuegt, analog zu den Stromkreis-Karten. */
+function zusatzIconsEinbinden() {
+  const netzIcon = document.getElementById('netzmessung_icon');
+  if (netzIcon) {
+    const block = messgroesseBlock('uv', 'fluke1663');
+    netzIcon.innerHTML = block.icon;
+    const netzDetails = document.getElementById('netzmessung_block');
+    if (netzDetails && !document.getElementById('netzmessung_infokarten')) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'netzmessung_infokarten';
+      wrapper.innerHTML = block.karten;
+      netzDetails.appendChild(wrapper);
+    }
+  }
+
+  const erdungIcon = document.getElementById('erdung_icon');
+  if (erdungIcon) {
+    const block = messgroesseBlock('rlo', 'fluke1663');
+    erdungIcon.innerHTML = block.icon;
+    const erdungBlock = document.querySelector('.kat-block.kat-erdung');
+    if (erdungBlock && !document.getElementById('erdung_infokarten')) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'erdung_infokarten';
+      wrapper.innerHTML = block.karten;
+      erdungBlock.insertBefore(wrapper, erdungBlock.firstChild.nextSibling ? erdungBlock.children[1] : null);
+      if (!wrapper.parentNode) erdungBlock.appendChild(wrapper);
+    }
+  }
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', infokartenSichtbarkeitAnwenden);
+  document.addEventListener('DOMContentLoaded', zusatzIconsEinbinden);
 }

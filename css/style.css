@@ -314,6 +314,15 @@ label .limit-hint { display: inline; margin-top: 0; }
 .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.88rem; }
 .btn-success { background: var(--success); }
 .btn-secondary { background: #64748b; font-size: 0.78rem; padding: 6px 12px; }
+
+/* 6.3.0 (Befund #3): <select> im Look eines .btn-secondary-Buttons - fuer
+ * die 3 Beispieldaten-Varianten, ohne dass 3 einzelne Buttons in die knappe
+ * header-bar muessen. */
+select.beispieldaten-auswahl {
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  border: none; cursor: pointer; color: #fff;
+}
+select.beispieldaten-auswahl option { color: #0f172a; background: #fff; }
 .btn-danger { background: #dc2626; font-size: 0.75rem; padding: 4px 8px; color: white; border: none; border-radius: 3px; cursor: pointer; }
 
 .sig-block { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
@@ -776,4 +785,16 @@ details.fluke[open] summary::before { transform: rotate(90deg); }
    dieselbe. */
 @media (min-width: 1100px) {
   .karussell-track > .circuit-card { flex: 0 0 calc(50% - 6px); max-width: calc(50% - 6px); }
+}
+
+/* Smartphone: Pfeil-Buttons komplett ausblenden (Feature D Bugfix 6.2.1) -
+   auf schmalen Viewports frisst .karussell-pfeil (36px + gap je Seite)
+   spuerbar Platz und die aktive Karte ragt seitlich heraus. Auf Mobil bleibt
+   ausschliesslich die native Wisch-Navigation (scroll-snap, s.o.) uebrig;
+   der Indikator ("Stromkreis X von Y") bleibt als einzige Orientierung
+   sichtbar. Ab 768px (Tablet) bleiben die Pfeile wie bisher erhalten. */
+@media (max-width: 767px) {
+  .karussell-pfeil { display: none; }
+  .karussell { gap: 0; }
+  .karussell-track { flex: 1 1 100%; }
 }

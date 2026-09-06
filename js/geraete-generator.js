@@ -598,6 +598,9 @@ function generatePDFGeraeteInner(isBlank = false) {
 
   const tableRows = [];
   let anyDeviceOut = false;
+  // Anzahl defekter Geraete (Befund #2, Ampel-Logik): genau EIN defektes
+  // Geraet bei sonst i.O. Geraeten ist der neue gelbe Zwischenzustand.
+  let deviceOutCount = 0;
   // Gewaehlte Blattzahl des Leerformulars (1-4).
   const blaetterGp = isBlank ? leerBlattzahlGeraete() : 1;
 
@@ -691,7 +694,7 @@ function generatePDFGeraeteInner(isBlank = false) {
 
       const isFunktionOut = funktion === 'n.i.O.';
       const isDeviceOut = isRpeOut || isRisoOut || isAbleitOut || sichtNiO || isFunktionOut;
-      if (isDeviceOut) anyDeviceOut = true;
+      if (isDeviceOut) { anyDeviceOut = true; deviceOutCount++; }
 
       tableRows.push([
         idx + 1,
@@ -796,21 +799,32 @@ function generatePDFGeraeteInner(isBlank = false) {
   // positiv ausgehen.
   const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
   const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anyDeviceOut);
+  // Beanstandungen ohne das/die als defekt gezaehlten Geraet(e) - noetig, um
+  // "genau ein Geraet defekt, sonst alles i.O." (gelb) von "zusaetzlich noch
+  // andere Probleme" (rot) zu unterscheiden. Da restBeanstandungen hier nur
+  // aus gewaehrleistungVal und anyDeviceOut besteht, bleibt bei genau einem
+  // defekten Geraet und "Ja" bei der Gewaehrleistung nichts Zusaetzliches uebrig.
+  const restBeanstandungenOhneEinzelDefekt = !isBlank && gewaehrleistungVal === 'Nein';
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
+  const ampelStatus = ermittleAmpelStatus({
+    isBlank, hatKeineMaengel, hatBehoben, hatMaengel, restBeanstandungen,
+    einzelDefektAnzahl: deviceOutCount,
+    restBeanstandungenOhneEinzelDefekt
+  });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
-  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfplakette erteilt:", PDF_MARGIN_LEFT + 3, finalY + offPlakette);
   // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
-  drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja", document.getElementById('res_plakette')?.value === "Ja" ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", 'rot');
 
   /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
    * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
@@ -861,17 +875,19 @@ function generatePDFGeraeteInner(isBlank = false) {
 
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
-    : hasIssues
-      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
-      : behobenOk
-        ? MAENGEL_BEHOBEN_TEXT_GERAETE
-        : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+    : ampelStatus === 'gelb'
+      ? `HINWEIS: ${deviceOutCount} Gerät wurde als n.i.O. dokumentiert und darf nicht weiter betrieben werden (siehe Kennzeichnung/Bemerkung). Die übrigen geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik und dürfen bestimmungsgemäß weiterverwendet werden.`
+      : hasIssues
+        ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
+        : behobenOk
+          ? MAENGEL_BEHOBEN_TEXT_GERAETE
+          : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
 
   /* Der Warntext bei Maengeln wird FETT gesetzt und ist damit rund 7 %
    * breiter als in normaler Schrift. Wurde er normal gemessen und fett
    * gedruckt, lief er ueber die rechte Papierkante hinaus und die letzten
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
@@ -880,12 +896,13 @@ function generatePDFGeraeteInner(isBlank = false) {
   doc.setFontSize(7.5);
   doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
   // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
-  drawCheckbox(doc, 68, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 128, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  drawCheckbox(doc, 68, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja", gewaehrleistungVal === "Ja" ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 128, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", 'rot');
 
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
-  doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
+  const ampelTextFarbeGeraete = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
+  doc.setTextColor(...ampelTextFarbeGeraete);
   doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 

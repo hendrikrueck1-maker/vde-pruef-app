@@ -58,7 +58,12 @@
     </div>
     <h1>VDE 0100 / 0105 Prüfprotokoll</h1>
     <div>
-      <button type="button" class="btn btn-secondary" onclick="fillExampleData()">+ Beispieldaten laden</button>
+      <select class="btn btn-secondary beispieldaten-auswahl" onchange="if(this.value){window[this.value](); this.value='';}" title="Beispieldaten laden (3 Varianten zum Testen)">
+        <option value="">+ Beispieldaten laden…</option>
+        <option value="fillExampleDataOhneMaengel">Ohne Mängel</option>
+        <option value="fillExampleDataMitMaengeln">Mit Mängeln</option>
+        <option value="fillExampleData1StromkreisDefekt">1 Stromkreis defekt</option>
+      </select>
       <button type="button" class="btn btn-secondary" onclick="neuesProtokoll()">+ Neues Formular</button>
     </div>
   </div>
@@ -169,7 +174,7 @@
 
     <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
     <details class="sub-section" id="netzmessung_block" style="margin-top:10px;">
-      <summary class="sub-title" style="cursor:pointer;">Netzmessung (optional) – Spannungen &amp; Frequenz am Speisepunkt</summary>
+      <summary class="sub-title mess-karte-titel" style="cursor:pointer;"><span id="netzmessung_icon"></span>Netzmessung (optional) – Spannungen &amp; Frequenz am Speisepunkt</summary>
       <p class="limit-hint" style="margin:6px 0 8px;">
         Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V · Frequenz 50 Hz.
         Leere Felder werden im PDF nicht gedruckt. Die N&ndash;PE-Spannung ist der einzige Wert,
@@ -289,7 +294,7 @@
     <button type="button" class="btn btn-secondary" onclick="addCircuitCard()">+ Stromkreis hinzufügen</button>
 
     <!-- 6. ERDUNG & POTENZIALAUSGLEICH -->
-    <h2 class="kat-erdung" id="abschnitt-erdung">6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
+    <h2 class="kat-erdung mess-karte-titel" id="abschnitt-erdung"><span id="erdung_icon"></span>6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
     <div class="kat-block kat-erdung">
     <div class="grid" style="margin-bottom: 8px;">
       <div class="form-group">

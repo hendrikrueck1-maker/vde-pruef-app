@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '6.2.0';
+var APP_VERSION = '6.3.0';
 
 /* ---------------------------------------------------------------------------
  * 1b. BETRIEBSNAME (Branding)
@@ -143,6 +143,8 @@ var CORE_ASSETS = [
   'img/drehschalter/R_ISO_Isolationswiderstand.png',
   'img/drehschalter/R_PE_Schutzleiterwiderstand.png',
   'img/drehschalter/U_L_Netzspannung.png',
+  'img/drehschalter/V_Hz_Netzspannung.png',
+  'img/drehschalter/R_LO_Potenzialausgleich.png',
   'js/pwa.js',
   'js/vendor/jspdf.umd.min.js',
   'js/vendor/jspdf.plugin.autotable.min.js',

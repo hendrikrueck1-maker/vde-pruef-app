@@ -932,18 +932,26 @@ function generatePDFAnschlussInner(isBlank = false) {
   const restBeanstandungen = !isBlank && (freigabeVal === 'Nein' || leistungVal === 'Nein' ||
                              anySichtNiOFrueh || anyFeedMeasurementOut || isErdungOut || isPaFehlt);
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
+  // anschlusspruefung.html kennt kein Totlegen einzelner Uebergabepunkte
+  // (typischerweise nur 1-3 Karten) - Ampel bleibt hier zweistufig gruen/rot,
+  // ueber ermittleAmpelStatus() aber technisch dieselbe Funktion wie in den
+  // anderen beiden Formularen (Befund #2).
+  const ampelStatus = ermittleAmpelStatus({
+    isBlank, hatKeineMaengel, hatBehoben, hatMaengel, restBeanstandungen,
+    einzelDefektAnzahl: 0
+  });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
-  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
 
   doc.text("Freigabe zur Nutzung:", PDF_MARGIN_LEFT + 3, finalY + offFreigabe);
   // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
-  drawCheckbox(doc, 55, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja");
-  drawCheckbox(doc, 66, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", true);
+  drawCheckbox(doc, 55, finalY + offFreigabe, "Ja", !isBlank && freigabeVal === "Ja", freigabeVal === "Ja" ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 66, finalY + offFreigabe, "Nein", !isBlank && freigabeVal === "Nein", 'rot');
 
   // "Leistung ausreichend" steht jetzt in dieser Zeile: die Ergebniszeile
   // darueber braucht die volle Breite fuer das dritte Ankreuzfeld.
@@ -1008,13 +1016,14 @@ function generatePDFAnschlussInner(isBlank = false) {
    * breiter als in normaler Schrift. Wurde er normal gemessen und fett
    * gedruckt, lief er ueber die rechte Papierkante hinaus und die letzten
    * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
   // Umbruch nur, wenn Hinweistext + Unterschriftenblock wirklich nicht mehr passen
   finalY = pdfPlatzPruefen(doc, finalY, complianceLines.length * 3.2 + 6 + 16);
 
-  doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
+  const ampelTextFarbeAnschluss = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
+  doc.setTextColor(...ampelTextFarbeAnschluss);
   doc.text(complianceLines, PDF_MARGIN_LEFT, finalY);
   doc.setTextColor(...textColor);
 

@@ -657,10 +657,35 @@ function netzmessungZeile() {
   return teile.join(' · ');
 }
 
-function fillExampleData() {
+/* ===========================================================================
+ *  BEISPIELDATEN (6.3.0, Befund #3): DREI VARIANTEN STATT EINER
+ * ---------------------------------------------------------------------------
+ *  Bisher gab es genau einen "+ Beispieldaten laden"-Button mit einem festen,
+ *  mängelfreien Datensatz - unvollstaendig fuer echte Tests, da sicht_-Felder/
+ *  erp_anlage/erp_schutz (Pflichtfelder ohne Default) nie gesetzt wurden und
+ *  ein PDF-Export dadurch von der "offene Auswahl"-Pruefung blockiert wurde.
+ *
+ *  Jetzt drei vollstaendige Varianten, die je eine der drei Ampel-Farben
+ *  (siehe ermittleAmpelStatus() in pdf-utils.js) auslösen:
+ *    fillExampleDataOhneMaengel()      -> gruen
+ *    fillExampleDataMitMaengeln()      -> rot
+ *    fillExampleData1StromkreisDefekt() -> gelb
+ *
+ *  Alle drei setzen testdatensatzSetzen() (pdf-utils.js) und befuellen
+ *  Auftraggeber/Anlage/Bemerkungen mit einem "TESTDATEN"-Praefix bzw.
+ *  Warnhinweis, damit ein geladener Beispieldatensatz niemals mit einem
+ *  echten Protokoll verwechselt werden kann - zusaetzlich zum Wasserzeichen
+ *  im PDF selbst (testdatenWasserzeichenEinfuegen() in pdf-utils.js).
+ * ========================================================================== */
+const TESTDATEN_HINWEISTEXT = '⚠ Dies sind Beispiel-/Testdaten, kein echtes Prüfprotokoll.';
+
+/* Gemeinsame Stammdaten/Netzmessung/Erdung fuer alle drei Varianten -
+ * unveraendert gegenueber dem bisherigen einzelnen Beispieldatensatz. */
+function fillExampleDataStamm(auftraggeberPraefix) {
   document.getElementById('pruefungsnummer').value = "PR-2026-081";
   document.getElementById('pruefer').value = "Max Mustermann (Elektrofachkraft)";
-  document.getElementById('anlage_bez').value = "Hauptverteilung Unterbühne UV-1";
+  document.getElementById('auftraggeber').value = auftraggeberPraefix + " – Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz";
+  document.getElementById('anlage_bez').value = auftraggeberPraefix + " – Hauptverteilung Unterbühne UV-1";
   document.getElementById('netzspannung').value = "230 / 400";
   document.getElementById('netzfrequenz').value = "50 Hz";
   document.getElementById('anschluss_typ').value = "H07RN-F";
@@ -672,8 +697,6 @@ function fillExampleData() {
   document.getElementById('u_l1n').value = "231";
   document.getElementById('u_l2n').value = "230";
   document.getElementById('u_l3n').value = "229";
-  // 4.5.0: Aussenleiterspannungen gehoeren ins Musterprotokoll. Solange sie
-  // fehlten, druckte das fertige PDF an dieser Stelle drei leere Schreiblinien.
   document.getElementById('u_l12').value = "399";
   document.getElementById('u_l23').value = "400";
   document.getElementById('u_l13').value = "401";
@@ -681,23 +704,82 @@ function fillExampleData() {
   validateNetzmessung();
   updateEinspeisung();
   validateErdung();
-  // Der frueher hier hinterlegte Text "Sicherung in Kreis 2 erneuert" stand im
-  // Widerspruch zum angekreuzten "Keine Mängel festgestellt". Fuer den Fall einer
-  // behobenen Beanstandung gibt es jetzt die eigene Option im Feld res_maengel.
-  document.getElementById('res_bemerkungen').value = "Alle Messwerte innerhalb der zulässigen Grenzen. Keine Mängel festgestellt.";
+
+  // Sicht-/Erprobungspruefung: alle Punkte i.O. setzen (Pflichtfelder ohne
+  // Default) - wird von den "mit Maengeln"-Varianten gezielt ueberschrieben.
+  ['sicht_betriebsmittel', 'sicht_kabel', 'sicht_zugang', 'sicht_schaltgeraete',
+   'sicht_kennzeichnung', 'sicht_doku', 'sicht_pa', 'sicht_basisschutz',
+   'sicht_typenschild', 'sicht_brandschott', 'sicht_leiterverb', 'sicht_gst'
+  ].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
+  ['erp_anlage', 'erp_schutz'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
 
   document.getElementById('circuitsContainer').innerHTML = '';
   cardCounter = 0;
+}
+
+function fillExampleDataOhneMaengel() {
+  fillExampleDataStamm('TESTDATEN – ohne Mängel');
+  document.getElementById('res_maengel').value = 'Keine Mängel festgestellt';
+  document.getElementById('res_plakette').value = 'Ja';
+  document.getElementById('res_gewaehrleistung').value = 'Ja';
+  document.getElementById('res_bemerkungen').value =
+    TESTDATEN_HINWEISTEXT + ' Alle Messwerte innerhalb der zulässigen Grenzen. Keine Mängel festgestellt.';
+
   // Beide Beispielkreise haben einen RCD -> beide bekommen auch Messwerte.
-  // Zuvor stand bei Kreis 1 "- mA / - ms", was einen vorhandenen, aber ungeprueften
-  // RCD dokumentierte. Die Pruefung ist nach DIN VDE 0100-600 zwingend.
-  // Werte ohne Einheit eintragen - die Einheit haengt der Generator an.
-  // Prüfstrom 5 x I_dn ist der Standard -> Auslösezeiten entsprechend unter 40 ms
-  // Typ und I_dn muessen mitgegeben werden: die Beispieldaten sind das
-  // Musterprotokoll der App und duerfen keine unvollstaendige RCD-Zelle erzeugen.
+  // Pruefstrom 5 x I_dn ist der Standard -> Ausloesezeiten entsprechend unter 40 ms.
   addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1,5 mm²', rpe: '0,08', riso: '> 500', sich: 'B 10A', zs: '0,35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1,2' });
   // Buehnenstromkreis: erhoehte Gefaehrdung -> U_L 25 V AC statt 50 V AC
   addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2,5 mm²', rpe: '0,12', riso: '450', sich: 'B 16A', zs: '0,42', ik: '547', zln: '0,38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2,4' });
+
+  testdatensatzSetzen();
+}
+
+function fillExampleDataMitMaengeln() {
+  fillExampleDataStamm('TESTDATEN – mit Mängeln');
+  document.getElementById('res_maengel').value = 'Mängel festgestellt (siehe Bemerkung)';
+  document.getElementById('res_plakette').value = 'Nein';
+  document.getElementById('res_gewaehrleistung').value = 'Nein';
+  document.getElementById('res_bemerkungen').value =
+    TESTDATEN_HINWEISTEXT + ' Stromkreis 2: Isolationswiderstand R_ISO deutlich unter dem Mindestwert (Feuchtigkeit im Kabelkanal vermutet). Anlage bis zur Mängelbehebung nicht freigegeben.';
+
+  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1,5 mm²', rpe: '0,08', riso: '> 500', sich: 'B 10A', zs: '0,35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1,2' });
+  // R_ISO weit unter dem Mindestwert (i.d.R. >= 1 MOhm) -> loest anyMeasurementOut/restBeanstandungen aus.
+  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2,5 mm²', rpe: '0,12', riso: '0,15', sich: 'B 16A', zs: '0,42', ik: '547', zln: '0,38', ik2: '605', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '22', rcd_ta: '15', rcd_pruefstrom: '5', gefaehrdung: 'erhoeht', umess: '2,4' });
+
+  testdatensatzSetzen();
+}
+
+function fillExampleData1StromkreisDefekt() {
+  fillExampleDataStamm('TESTDATEN – 1 Stromkreis defekt');
+  // "Keine Mängel festgestellt" bezieht sich hier bewusst auf die IN BETRIEB
+  // befindliche Anlage: der eine defekte Stromkreis ist dokumentiert
+  // freigeschaltet (siehe Kennzeichnung in der Messwerttabelle und Grund-Text
+  // unten) und fliesst dadurch schon per Definition nicht in die Messwert-
+  // Beanstandungen ein (siehe Kommentar bei totgelegtCount in js/pdf-generator.js).
+  // "Mängel festgestellt" waere hier fachlich falsch, weil dieses Feld die
+  // GESAMTE Anlage als unsicher einstufen wuerde, obwohl nur ein einzelner,
+  // bereits abgesicherter Kreis betroffen ist - genau dafuer gibt es die neue
+  // gelbe Zwischenstufe (siehe ermittleAmpelStatus() in pdf-utils.js).
+  document.getElementById('res_maengel').value = 'Keine Mängel festgestellt';
+  document.getElementById('res_plakette').value = 'Nein';
+  document.getElementById('res_gewaehrleistung').value = 'Ja';
+  document.getElementById('res_bemerkungen').value =
+    TESTDATEN_HINWEISTEXT + ' Stromkreis 2: Isolationsfehler festgestellt, Kreis einzeln abgesichert, freigeschaltet und mit Warnschild versehen. Übrige Anlage sicher und in Betrieb.';
+
+  addCircuitCard({ bez: '1 - Schukosteckdose Lichtregie', kabel: 'NYM-J', leiter: '3G', qs: '1,5 mm²', rpe: '0,08', riso: '> 500', sich: 'B 10A', zs: '0,35', ik: '657', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '19', rcd_ta: '12', rcd_pruefstrom: '5', gefaehrdung: 'normal', umess: '1,2' });
+  // Genau EIN Stromkreis totgelegt/n.i.O., mit dokumentiertem Grund - alle
+  // anderen Kreise sowie Sicht-/Erprobungspruefung bleiben i.O. -> gelb.
+  addCircuitCard({ bez: '2 - CEE 16A Hauptbühne', kabel: 'H07RN-F', leiter: '5G', qs: '2,5 mm²', totgelegt: true,
+    totlegung_grund: 'Isolationsfehler L-PE festgestellt (R_ISO < 1 MΩ). Stromkreis einzeln abgesichert, freigeschaltet und mit Warnschild "Außer Betrieb - defekt" versehen. Instandsetzung durch Elektrofachkraft beauftragt.' });
+
+  testdatensatzSetzen();
+}
+
+/* Bisheriger Funktionsname bleibt als Alias erhalten (falls von aelterem
+ * Code/Playwright-Tests noch referenziert) und laedt die "ohne Maengel"-
+ * Variante - das bisherige Standardverhalten. */
+function fillExampleData() {
+  fillExampleDataOhneMaengel();
 }
 
 // KOPFDATEN DES PROTOKOLLS (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet)
@@ -1454,21 +1536,41 @@ function generatePDFInner(isBlank = false) {
   const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
   const anySichtNiO = Array.from(s).some(el => el?.value === 'n.i.O.');
   const anyErpNiO = Array.from(document.querySelectorAll('.erp-item')).some(el => el?.value === 'n.i.O.');
+  // Anzahl totgelegter/freigeschalteter Stromkreise (Befund #2, Ampel-Logik):
+  // genau EIN totgelegter Kreis bei sonst sicherer Anlage ist der neue
+  // "gelbe" Zwischenzustand statt automatisch "keine Mängel" (siehe
+  // ermittleAmpelStatus() in pdf-utils.js).
+  const totgelegtCount = !isBlank
+    ? Array.from(document.querySelectorAll('.circuit-card')).filter(card => istTotgelegt(card.querySelector('.c-totgelegt'))).length
+    : 0;
   const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anySichtNiO || anyErpNiO ||
                              anyMeasurementOut || isErdungOut || isNpeOut);
+  // Dieselbe Berechnung, aber ohne dass ein einzelner totgelegter Kreis
+  // (der als TOTGELEGT-Zeile separat/rot in der Tabelle erscheint, siehe
+  // oben) automatisch als "Beanstandung" zaehlt - sonst waere "gelb" nie
+  // erreichbar, weil totgelegtCount === 1 fuer sich genommen schon als
+  // Mangel durchgehen wuerde.
+  const restBeanstandungenOhneTotlegung = restBeanstandungen;
   const behobenTrotzOffener = hatBehoben && restBeanstandungen;
   const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
   const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
+  const ampelStatus = ermittleAmpelStatus({
+    isBlank, hatKeineMaengel, hatBehoben, hatMaengel, restBeanstandungen,
+    einzelDefektAnzahl: totgelegtCount,
+    restBeanstandungenOhneEinzelDefekt: restBeanstandungenOhneTotlegung
+  });
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
-    : hasIssues
-      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
-      : behobenOk
-        ? MAENGEL_BEHOBEN_TEXT_ANLAGE
-        : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+    : ampelStatus === 'gelb'
+      ? `HINWEIS: ${totgelegtCount} Stromkreis wurde als n.i.O./freigeschaltet dokumentiert und ist nicht in Betrieb (siehe Kennzeichnung in der Messwerttabelle sowie den dokumentierten Fehlergrund). Die übrige elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch der übrigen, in Betrieb befindlichen Anlagenteile ist gewährleistet; der genannte Stromkreis bleibt bis zur Mängelbehebung und erneuten Prüfung außer Betrieb.`
+      : hasIssues
+        ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
+        : behobenOk
+          ? MAENGEL_BEHOBEN_TEXT_ANLAGE
+          : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
   const complianceGesamt = complianceText +
     (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFont("helvetica", ampelStatus === 'rot' ? "bold" : (ampelStatus === 'gelb' ? "bold" : "italic"));
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
   const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
@@ -1508,9 +1610,9 @@ function generatePDFInner(isBlank = false) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
-  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel);
-  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, behobenTrotzOffener);
-  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, true);
+  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
+  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -1607,12 +1709,13 @@ function generatePDFInner(isBlank = false) {
   doc.setFontSize(7.5);
   doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
   // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
-  drawCheckbox(doc, 68, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja");
-  drawCheckbox(doc, 125, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", true);
+  drawCheckbox(doc, 68, finalY, "Ja (Anlage entspricht VDE-Regeln)", !isBlank && gewaehrleistungVal === "Ja", gewaehrleistungVal === "Ja" ? ampelStatus : 'neutral');
+  drawCheckbox(doc, 125, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", 'rot');
 
-  doc.setFont("helvetica", hasIssues ? "bold" : "italic");
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
-  doc.setTextColor(...(hasIssues ? redCellText : [71, 85, 105]));
+  const ampelTextFarbe = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
+  doc.setTextColor(...ampelTextFarbe);
   doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
   doc.setTextColor(...textColor);
 

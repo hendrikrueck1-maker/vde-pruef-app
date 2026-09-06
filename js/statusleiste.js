@@ -211,12 +211,38 @@ function initStatusleiste(cfg) {
    * auf einen schmalen Bereich knapp unterhalb der (fixen) Leiste zusammen -
    * dadurch zaehlt die Karte, die man gerade tatsaechlich vor Augen hat,
    * nicht irgendeine, die nur teilweise unten ins Bild ragt. */
+  /* 6.2.1 Bugfix: Direkt nach dem Registrieren feuert ein neuer
+   * IntersectionObserver fuer jede bereits im Beobachtungsstreifen
+   * sichtbare Karte sofort ein erstes "isIntersecting"-Ereignis - auch beim
+   * blossen Laden der Seite, ganz ohne dass der Nutzer gescrollt, geklickt
+   * oder gewischt hat. Ohne Absicherung ueberschreibt das den korrekt
+   * berechneten Anfangszustand ("Stammdaten") faelschlich mit der ersten
+   * Karte ("Stromkreis 1"). Analog zur bestehenden eventMelden-Absicherung
+   * in js/karussell.js wird deshalb das ERSTE Ereignis jeder (Neu-)Registrierung
+   * verworfen, wenn der Nutzer bis dahin noch nicht aktiv gescrollt/fokussiert
+   * hat - kartenBeobachtungAktiv wird erst nach der ersten echten Nutzer-
+   * Interaktion (Scroll, Fokus) auf true gesetzt. */
+  let kartenBeobachtungAktiv = false;
+  function nutzerInteraktionMelden() { kartenBeobachtungAktiv = true; }
+  window.addEventListener('scroll', nutzerInteraktionMelden, { passive: true, once: true });
+  document.addEventListener('focusin', nutzerInteraktionMelden, { once: true });
+  document.addEventListener('wheel', nutzerInteraktionMelden, { passive: true, once: true });
+  document.addEventListener('touchmove', nutzerInteraktionMelden, { passive: true, once: true });
+
   let sichtbarkeitsObserver = null;
   function kartenBeobachten() {
     if (!cfg.kartenSelector) return;
     if (!('IntersectionObserver' in window)) return;
     if (sichtbarkeitsObserver) sichtbarkeitsObserver.disconnect();
+    let erstesEreignisDieserRegistrierung = true;
     sichtbarkeitsObserver = new IntersectionObserver(function (entries) {
+      // Das allererste Ereignis nach (Neu-)Registrierung ignorieren, solange
+      // der Nutzer noch nicht aktiv interagiert hat (siehe Kommentar oben) -
+      // verhindert das faelschliche "Stromkreis 1" direkt nach dem Laden.
+      if (erstesEreignisDieserRegistrierung) {
+        erstesEreignisDieserRegistrierung = false;
+        if (!kartenBeobachtungAktiv) return;
+      }
       // Von allen gerade im Beobachtungsstreifen sichtbaren Karten die oberste
       // (kleinster Abstand von oben) als "aktuelle" Karte uebernehmen.
       let beste = null;

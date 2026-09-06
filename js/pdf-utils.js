@@ -407,25 +407,92 @@ function datumsfeldAufHeute(id) {
   if (el) el.value = heuteIso();
 }
 
-function drawCheckbox(doc, x, y, label, isChecked = false, isRed = false) {
-  const activeRed = isRed && isChecked;
-  if (activeRed) {
-    doc.setDrawColor(220, 38, 38); doc.setFillColor(254, 226, 226);
+/* Farbpaletten fuer die Ampel-Checkbox-Darstellung (6.3.0, Befund #2).
+ * Auf ausreichenden Kontrast/Druckbarkeit in Graustufen geachtet: die drei
+ * Farben unterscheiden sich auch in ihrer Helligkeit deutlich voneinander. */
+const AMPEL_FARBEN = {
+  rot:    { rand: [220, 38, 38],  fuellung: [254, 226, 226], text: [185, 28, 28] },
+  gruen:  { rand: [21, 128, 61],  fuellung: [220, 252, 231], text: [21, 101, 52] },
+  gelb:   { rand: [161, 98, 7],   fuellung: [254, 249, 195], text: [133, 77, 6] },
+  neutral:{ rand: [100, 116, 139], fuellung: [255, 255, 255], text: [15, 23, 42] }
+};
+
+/* drawCheckbox: 6. Parameter "farbe" ersetzt das bisherige "isRed" (boolean).
+ * Rueckwaerts-kompatibel: true/false werden weiterhin als 'rot'/'neutral'
+ * interpretiert, damit bestehende Aufrufstellen ohne Anpassung funktionieren. */
+function drawCheckbox(doc, x, y, label, isChecked = false, farbe = 'neutral') {
+  if (farbe === true) farbe = 'rot';
+  if (farbe === false) farbe = 'neutral';
+  const aktiv = isChecked && farbe !== 'neutral';
+  const palette = AMPEL_FARBEN[farbe] || AMPEL_FARBEN.neutral;
+  if (aktiv) {
+    doc.setDrawColor(...palette.rand); doc.setFillColor(...palette.fuellung);
   } else {
     doc.setDrawColor(100, 116, 139); doc.setFillColor(255, 255, 255);
   }
   doc.rect(x, y - 2.6, 3, 3, 'FD');
   if (isChecked) {
     doc.setFont("helvetica", "bold"); doc.setFontSize(7);
-    doc.setTextColor(activeRed ? 185 : 0, activeRed ? 28 : 51, activeRed ? 28 : 102);
+    doc.setTextColor(...(aktiv ? palette.text : [0, 51, 102]));
     doc.text("X", x + 0.6, y - 0.3);
   }
   if (label) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-    doc.setTextColor(activeRed ? 185 : 15, activeRed ? 28 : 23, activeRed ? 28 : 42);
+    doc.setTextColor(...(aktiv ? palette.text : [15, 23, 42]));
     drawTextF(doc, label, x + 4, y);
   }
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "normal"); doc.setDrawColor(203, 213, 225); doc.setFillColor(255, 255, 255);
+}
+
+/* ermittleAmpelStatus() (6.3.0, Befund #2): einheitliche dreistufige
+ * Ampel-Bewertung fuer die Gesamtbewertung, verwendet von pdf-generator.js,
+ * anschluss-generator.js und geraete-generator.js.
+ *
+ *   'rot'   - echte Mängel (hatMaengel oder restBeanstandungen ausserhalb
+ *             eines einzelnen totgelegten/defekten Elements).
+ *   'gelb'  - genau EIN Stromkreis (vde0100.html) bzw. EIN Gerät
+ *             (geraetepruefung.html) ist als n.i.O./totgelegt markiert,
+ *             aber die uebrige Anlage/alle uebrigen Geraete sind sicher
+ *             (keine weiteren Beanstandungen). anschlusspruefung.html kennt
+ *             kein Totlegen einzelner Kreise und nutzt "gelb" daher nicht.
+ *   'gruen' - keine Mängel, oder "Mängel behoben, Nachprüfung i.O.".
+ *
+ * Parameter:
+ *   hatKeineMaengel, hatBehoben, hatMaengel: aus getMaengelZustand().
+ *   restBeanstandungen: boolean, wie bisher in den drei *-generator.js
+ *     Dateien berechnet (Sicht-/Erprobungspruefung, Gewaehrleistung,
+ *     Messwerte ausserhalb der Norm, Erdung/NPE etc.).
+ *   einzelDefektAnzahl: Anzahl der als n.i.O./totgelegt/defekt markierten
+ *     Stromkreise bzw. Geraete (0, wenn das Formular dieses Konzept nicht
+ *     kennt, z. B. anschlusspruefung.html).
+ *   restBeanstandungenOhneEinzelDefekt: boolean - restBeanstandungen
+ *     UNTER AUSSCHLUSS des/der einzelnen totgelegten/defekten Elemente(s).
+ *     Noetig, um zwischen "nur der eine markierte Kreis ist betroffen" (gelb)
+ *     und "zusaetzlich gibt es echte Mängel anderswo" (rot) zu unterscheiden.
+ */
+function ermittleAmpelStatus(opts) {
+  const {
+    isBlank = false,
+    hatKeineMaengel = false,
+    hatBehoben = false,
+    hatMaengel = false,
+    restBeanstandungen = false,
+    einzelDefektAnzahl = 0,
+    restBeanstandungenOhneEinzelDefekt = restBeanstandungen
+  } = opts || {};
+
+  if (isBlank) return 'neutral';
+  if (hatMaengel) return 'rot';
+  if (einzelDefektAnzahl === 1 && !restBeanstandungenOhneEinzelDefekt) {
+    // Genau ein Kreis/Geraet betroffen, sonst nichts zu beanstanden -> gelb,
+    // auch wenn "restBeanstandungen" durch den einen Kreis selbst technisch
+    // schon true waere (das ist ja gerade der eine erlaubte Ausnahmefall).
+    return hatBehoben ? 'gruen' : 'gelb';
+  }
+  if (restBeanstandungen) return 'rot';
+  if (hatBehoben) return 'gruen';
+  if (hatKeineMaengel) return 'gruen';
+  return 'neutral';
 }
 
 /* [Befund N5, 6.0.0] MASKIERUNG NUR ANWENDEN, WENN SIE ZUR EINGABE PASST
@@ -529,6 +596,39 @@ function removeCard(id) {
  *  ist der Unterschied vollstaendig. Vor dem Erzeugen eines PDF und beim
  *  Verlassen der Seite wird zusaetzlich sofort geschrieben.
  * ------------------------------------------------------------------------ */
+/* ============================================================================
+ *  TESTDATEN-KENNZEICHNUNG (6.3.0, Befund #3)
+ * ----------------------------------------------------------------------------
+ *  Wird von den fillExampleData*()-Funktionen gesetzt, sobald Testdaten
+ *  geladen wurden - und automatisch wieder zurueckgesetzt, sobald der Nutzer
+ *  IRGENDEIN Formularfeld von Hand aendert (echtes 'input'/'change'-Ereignis
+ *  auf dem Dokument). Dadurch kann das Flag nicht versehentlich an einem
+ *  echten Protokoll haengen bleiben: die programmatische Befuellung durch
+ *  fillExampleData*() loest selbst KEIN 'input'/'change'-Ereignis aus (reine
+ *  .value-Zuweisung), erst eine tatsaechliche Nutzereingabe danach setzt das
+ *  Flag zurueck. Wird in pdf-generator.js/anschluss-generator.js/
+ *  geraete-generator.js ausgelesen, um im PDF ein Wasserzeichen einzublenden.
+ * ------------------------------------------------------------------------ */
+let istTestdatensatz = false;
+
+function testdatensatzSetzen() {
+  istTestdatensatz = true;
+}
+
+if (typeof document !== 'undefined') {
+  // capture:true, damit auch programmatische dispatchEvent()-Aufrufe mit
+  // bubbles:false erfasst wuerden - hier aber vor allem, um zuverlaessig VOR
+  // anderen Handlern zu laufen. once:false, da wiederholt gesetzt werden muss.
+  ['input', 'change'].forEach(function (evt) {
+    document.addEventListener(evt, function (ev) {
+      // Nur echte, vom Nutzer ausgeloeste Ereignisse zaehlen (isTrusted) -
+      // ein von fillExampleData*() selbst dispatchtes Ereignis (falls je
+      // eines noetig wird) soll das Flag nicht sofort wieder loeschen.
+      if (ev.isTrusted) istTestdatensatz = false;
+    }, true);
+  });
+}
+
 function entprellt(fn, ms) {
   var timer = null;
   var wrapped = function () {
@@ -1930,7 +2030,43 @@ function pdfDirektDownload(blob, filename) {
  * Leerformular, wandert das erzeugte PDF zusaetzlich ins App-Archiv. Der
  * Archiveintrag ist eine Zugabe - schlaegt er fehl, bleibt die Datei selbst
  * unberuehrt und der Rueckgabewert unveraendert. */
+/* Wasserzeichen "BEISPIELDATEN - KEIN ECHTES PROTOKOLL" auf jede Seite, wenn
+ * istTestdatensatz gesetzt ist (siehe Kommentar bei der Deklaration weiter
+ * oben in dieser Datei). Wird von savePdfCompatible() VOR der eigentlichen
+ * Ausgabe aufgerufen, damit sowohl der Download/Teilen-Pfad als auch die
+ * Archiv-Ablage (beide lesen denselben doc.output('blob')) das Wasserzeichen
+ * enthalten. */
+function testdatenWasserzeichenEinfuegen(doc) {
+  if (!istTestdatensatz) return;
+  const anzahlSeiten = doc.internal.getNumberOfPages();
+  const seitenBreite = doc.internal.pageSize.getWidth();
+  const seitenHoehe = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= anzahlSeiten; i++) {
+    doc.setPage(i);
+    doc.saveGraphicsState();
+    if (typeof doc.setGState === 'function' && doc.GState) {
+      doc.setGState(new doc.GState({ opacity: 0.28 }));
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(200, 30, 30);
+    doc.text('BEISPIELDATEN - KEIN ECHTES PROTOKOLL', seitenBreite / 2, seitenHoehe / 2, {
+      align: 'center', angle: 40
+    });
+    doc.restoreGraphicsState();
+    // Zusaetzlich klein und undurchsichtig in der Kopfzeile, damit es auch
+    // beim Ausdrucken in Schwarz-Weiss/ohne Transparenz-Unterstuetzung nicht
+    // verloren geht.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(185, 28, 28);
+    doc.text('BEISPIELDATEN - KEIN ECHTES PROTOKOLL', seitenBreite / 2, 6, { align: 'center' });
+    doc.setTextColor(15, 23, 42);
+  }
+}
+
 async function savePdfCompatible(doc, filename, meta) {
+  testdatenWasserzeichenEinfuegen(doc);
   const gespeichert = await pdfDateiAusgeben(doc, filename);
   if (gespeichert !== false && meta && !meta.isBlank && typeof archivPdfAblegen === 'function') {
     try {
