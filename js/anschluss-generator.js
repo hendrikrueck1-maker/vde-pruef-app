@@ -63,7 +63,7 @@ function addFeedCard(data = {}) {
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">1. Schutzleiter & Spannung N–PE</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('rpe', 'fluke1663').icon}<span class="titel-text">1. Schutzleiter & Spannung N–PE</span></div>
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
@@ -77,10 +77,11 @@ function addFeedCard(data = {}) {
             fremden Übergabepunkt ist das der wichtigste Messwert &ndash; deshalb Pflichtangabe.</div>
         </div>
       </div>
+      ${messgroesseBlock('rpe', 'fluke1663').karten}
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">2. Absicherung & Schleifenimpedanz am Übergabepunkt</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('zs', 'fluke1663').icon}<span class="titel-text">2. Absicherung & Schleifenimpedanz am Übergabepunkt</span></div>
       <div class="grid">
         <div class="form-group">
           <label>Absicherung (Typ / Nennstrom):</label>
@@ -103,10 +104,11 @@ function addFeedCard(data = {}) {
           <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
         </div>
       </div>
+      ${messgroesseBlock('zs', 'fluke1663').karten}
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">3. Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('rcd', 'fluke1663').icon}<span class="titel-text">3. Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
       <div class="grid">
         <div class="form-group">
           <label>RCD Typ:</label>
@@ -144,6 +146,7 @@ function addFeedCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-rcd-ta" value="${attrEsc(data.rcd_ta)}" placeholder="z. B. 24" oninput="validateFeedNorms(${cardCounter})">
         </div>
       </div>
+      ${messgroesseBlock('rcd', 'fluke1663').karten}
     </div>
   `;
   // Pruefstrom: bei einer neuen Karte ist "5" bereits per <option selected>

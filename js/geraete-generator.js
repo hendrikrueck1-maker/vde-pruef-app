@@ -78,22 +78,22 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       </div>
     </div>
 
     <div class="sub-section">
       <div class="sub-title">2. Erproben</div>
       <div class="grid">
-        <div class="form-group"><label>Funktionsprüfung:</label><select class="c-funktion"><option>i.O.</option><option>n.i.O.</option></select></div>
+        <div class="form-group"><label>Funktionsprüfung:</label><select class="c-funktion erp-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option></select></div>
       </div>
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">3. Messen</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('rpe', 'fluke6500').icon}${messgroesseBlock('riso', 'fluke6500').icon}<span class="titel-text">3. Messen</span></div>
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
@@ -117,6 +117,8 @@ function addDeviceCard(data = {}) {
           <div class="limit-hint" id="ableit_methode_hint_${cardCounter}"></div>
         </div>
       </div>
+      ${messgroesseBlock('rpe', 'fluke6500').karten}
+      ${messgroesseBlock('riso', 'fluke6500').karten}
     </div>
   `;
   if (data.ableit_methode) {

@@ -233,7 +233,14 @@ function archivGroesse(bytes) {
 function archivStatus(eintrag) {
   var m = String(eintrag.maengel || '');
   var frei = String(eintrag.ergebnis || '');
-  if (/^keine/i.test(m) && frei !== 'Nein') return { text: 'i. O.', bg: '#dcfce7', fg: '#166534' };
+  /* [Befund #5, Vollprüfungsbericht 6.1.0] Vorher frei !== 'Nein': ein
+   * Archiveintrag mit leerem ergebnis-Feld (z. B. unvollstaendiger
+   * formState) wurde damit optimistisch als "i. O." angezeigt, weil ein
+   * leerer String ungleich 'Nein' ist. Jetzt strenger: nur ein
+   * ausdrueckliches 'Ja' zaehlt als i. O. - eine fehlende Angabe faellt
+   * durch die Pruefung und wird ueber die spaeteren Faelle (Maengel/ohne
+   * Angabe) korrekt eingeordnet. */
+  if (/^keine/i.test(m) && frei === 'Ja') return { text: 'i. O.', bg: '#dcfce7', fg: '#166534' };
   if (/behoben/i.test(m)) return { text: 'behoben', bg: '#fef9c3', fg: '#854d0e' };
   if (m) return { text: 'Mängel', bg: '#fef2f2', fg: '#991b1b' };
   return { text: 'ohne Angabe', bg: '#f1f5f9', fg: '#475569' };
@@ -416,6 +423,14 @@ var ARCHIV_UEBERNEHMEN = [
 
   /* --- je Stromkreis (Anlagenpruefung) --- */
   'bez', 'kabel', 'leiter', 'qs', 'sich', 'rcd_typ', 'rcd_idn', 'art', 'gefaehrdung',
+  /* riso_mode (Befund #6, Vollprüfungsbericht 6.1.0): die gewaehlte
+   * Pruefspannung fuer den Isolationswiderstand (500 V DC / 250 V DC
+   * SELV-PELV / 1000 V DC) haengt an der Anlage, nicht am einzelnen
+   * Messvorgang, und aendert sich bei derselben Anlage in der Praxis so gut
+   * wie nie - im Unterschied zu den unter "Bewusst NICHT uebernommen"
+   * gelisteten echten Messwerten (Netzspannung/-frequenz). Deshalb hier bei
+   * den beschreibenden Leitungsdaten mit aufgenommen. */
+  'riso_mode',
 
   /* Bewusst NICHT uebernommen: netzspannung / netzfrequenz (Anlagenpruefung)
    * und spannung / frequenz je Uebergabepunkt (Anschlusspruefung). Sie sehen

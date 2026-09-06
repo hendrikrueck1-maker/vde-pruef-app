@@ -143,12 +143,44 @@ function entwurfWechseln(praefix, entwurfId) {
 /* Beim Aufruf einer Formularseite mit ?entwurf=<id> (Link aus der Liste
  * "Offene Prüfungen") wird dieser Entwurf sofort zum aktiven gemacht, BEVOR
  * aktivenEntwurfSicherstellen() greift - so oeffnet der Link direkt den
- * gewuenschten Zwischenstand statt des zuletzt aktiven. */
+ * gewuenschten Zwischenstand statt des zuletzt aktiven.
+ *
+ * [Befund #4, Vollprüfungsbericht 6.1.0] Existiert die per URL angeforderte
+ * ID nicht im Index (z. B. ein veralteter/kaputter Link, oder der Entwurf
+ * wurde inzwischen geloescht/als PDF abgeschlossen), wurde bisher
+ * stillschweigend ein neues, leeres Formular geoeffnet - fuer die Nutzerin
+ * nicht von einem regulaeren "neuen Formular" zu unterscheiden. Jetzt wird
+ * das per showNotification() sichtbar gemeldet, bevor auf ein neues/aktives
+ * Formular ausgewichen wird. */
 function entwurfAusUrlUebernehmen(praefix) {
   try {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('entwurf');
-    if (id) entwurfWechseln(praefix, id);
+    if (!id) return;
+
+    const existiert = ladeEntwuerfeIndex().some(e => e.id === id && e.praefix === praefix);
+    if (existiert) {
+      entwurfWechseln(praefix, id);
+      return;
+    }
+
+    /* entwurfAusUrlUebernehmen() wird als Inline-Code ganz oben in
+     * pdf-generator.js/anschluss-generator.js/geraete-generator.js
+     * aufgerufen - diese <script>-Tags liegen im <head>, VOR <body>.
+     * document.body existiert an dieser Stelle noch nicht, und
+     * showNotification() (document.body.appendChild) wuerde deshalb
+     * lautlos fehlschlagen (Exception, vom try/catch hier verschluckt).
+     * Die Meldung wird deshalb auf DOMContentLoaded verschoben. */
+    const melden = function () {
+      if (typeof showNotification === 'function') {
+        showNotification('Dieser Entwurf wurde nicht gefunden. Er wurde eventuell bereits abgeschlossen oder gelöscht - es wird stattdessen das zuletzt aktive bzw. ein neues Formular angezeigt.', 'error');
+      }
+    };
+    if (document.body) {
+      melden();
+    } else {
+      document.addEventListener('DOMContentLoaded', melden, { once: true });
+    }
   } catch (e) {}
 }
 
@@ -186,7 +218,13 @@ function renderOffenePruefungen(containerId) {
   }
 
   el.innerHTML = alle.map(function (e) {
-    const datei = ENTWURF_DATEI[e.praefix] || '#';
+    /* [Befund #8, Vollprüfungsbericht 6.1.0] '#' als Fallback ergibt einen
+     * Link, der auf der aktuellen Seite bleibt, statt auf ein gültiges
+     * Formular zu verweisen. In der Praxis nicht erreichbar, da e.praefix
+     * ausschließlich intern aus PROTOKOLL_PRAEFIXE gesetzt wird - trotzdem
+     * ist 'index.html' ein sichereres Sicherheitsnetz, falls doch einmal ein
+     * unbekanntes Präfix auftaucht. */
+    const datei = ENTWURF_DATEI[e.praefix] || 'index.html';
     const typLabel = PROTOKOLL_PRAEFIXE[e.praefix] || e.praefix;
     const titel = e.protokollnummer ? (e.protokollnummer + (e.bezeichnung ? ' – ' + esc(e.bezeichnung) : '')) : esc(e.bezeichnung || typLabel);
     return (

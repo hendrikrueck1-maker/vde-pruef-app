@@ -21,7 +21,17 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '6.1.0';
+var APP_VERSION = '6.2.0';
+
+/* ---------------------------------------------------------------------------
+ * 1b. BETRIEBSNAME (Branding)
+ * ---------------------------------------------------------------------------
+ * Wird auf der Startseite (index.html) neben dem Haupttitel angezeigt.
+ * Rein kosmetisch - taucht in KEINEM PDF auf und beeinflusst keine
+ * Prüfdaten. Hier anpassen, wenn die App von einem anderen Betrieb
+ * genutzt wird (Befund #3, Vollprüfungsbericht 6.1.0).
+ */
+var APP_BETRIEB_NAME = 'Stadttheater Konstanz Prüfsystem';
 
 /* ---------------------------------------------------------------------------
  * 2. PROTOKOLLE
@@ -119,6 +129,20 @@ var CORE_ASSETS = [
   'js/pflichtfelder.js',
   'js/archiv.js',
   'js/pdf-utils.js',
+  /* 6.2.0: Infokarten/Fluke-Anleitung + Drehschalter-Icons - werden auf jeder
+   * Formularseite UND auf index.html (globaler Schalter) geladen. Ohne
+   * Eintrag hier waeren Icons/Erklaertexte beim ersten Offline-Aufruf leer. */
+  'js/infokarten.js',
+  /* 6.2.0: Stromkreis-Karussell (Feature D) - nur in vde0100.html
+   * eingebunden, aber hier zentral fuer den Offline-Cache gelistet wie die
+   * uebrigen js/*.js-Dateien. */
+  'js/karussell.js',
+  'img/drehschalter/Z_S_Schleifenimpedanz-Kurzschlussstrom.png',
+  'img/drehschalter/RCD_Ausloesezeit_deltaT.png',
+  'img/drehschalter/RCD_Ausloesestrom_I_deltaN.png',
+  'img/drehschalter/R_ISO_Isolationswiderstand.png',
+  'img/drehschalter/R_PE_Schutzleiterwiderstand.png',
+  'img/drehschalter/U_L_Netzspannung.png',
   'js/pwa.js',
   'js/vendor/jspdf.umd.min.js',
   'js/vendor/jspdf.plugin.autotable.min.js',

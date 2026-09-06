@@ -93,10 +93,6 @@ function addCircuitCard(data = {}) {
   card.innerHTML = `
     <div class="circuit-header">
       <span>Stromkreis #${cardCounter}</span>
-      <span>
-        <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
-        <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
-      </span>
     </div>
 
     <div class="grid">
@@ -155,15 +151,16 @@ function addCircuitCard(data = {}) {
       <div class="sub-title">1. Schutzleiter- & Isolationswiderstand</div>
       <div class="mess-gruppen">
         <div class="mess-gruppe">
-          <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
+          <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('rpe', 'fluke1663').icon}<span class="titel-text">Schutzleiter R<sub>PE</sub></span></div>
           <div class="form-group">
             <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
             <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,11" oninput="validateCardNorms(${cardCounter})">
             <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
           </div>
+          ${messgroesseBlock('rpe', 'fluke1663').karten}
         </div>
         <div class="mess-gruppe">
-          <div class="mess-gruppe-titel">Isolationswiderstand R<sub>ISO</sub></div>
+          <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('riso', 'fluke1663').icon}<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span></div>
           <div class="grid">
             <div class="form-group">
               <label>Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
@@ -179,13 +176,14 @@ function addCircuitCard(data = {}) {
               <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso)}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
             </div>
           </div>
+          ${messgroesseBlock('riso', 'fluke1663').karten}
         </div>
       </div>
     </div>
 
     <!-- MESSWERTE: ABSICHERUNG -->
     <div class="sub-section">
-      <div class="sub-title">2. Überstromschutzeinrichtung (Absicherung)</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('zs', 'fluke1663').icon}<span class="titel-text">2. Überstromschutzeinrichtung (Absicherung)</span></div>
       <div class="grid">
         <div class="form-group">
           <label>Absicherung (Typ / Nennstrom):</label>
@@ -217,11 +215,12 @@ function addCircuitCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-ik2" value="${attrEsc(data.ik2)}" placeholder="rechnet sich aus Z_L-N">
         </div>
       </div>
+      ${messgroesseBlock('zs', 'fluke1663').karten}
     </div>
 
     <!-- MESSWERTE: RCD -->
     <div class="sub-section">
-      <div class="sub-title">3. Fehlerstrom-Schutzeinrichtung (RCD / FI)</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('rcd', 'fluke1663').icon}<span class="titel-text">3. Fehlerstrom-Schutzeinrichtung (RCD / FI)</span></div>
       <div class="grid">
         <div class="form-group">
           <label>RCD Typ:</label>
@@ -235,6 +234,7 @@ function addCircuitCard(data = {}) {
           </div>
         </div>
       </div>
+      ${messgroesseBlock('rcd', 'fluke1663').karten}
       <!-- 4.7.1: Bei "Ohne RCD" sind die Ausloese-Messwerte nicht relevant
            (es gibt keinen RCD zu pruefen) - klappt automatisch ein, ueber die
            Kopfzeile jederzeit von Hand wieder aufklappbar (gleiches Muster wie
@@ -279,7 +279,7 @@ function addCircuitCard(data = {}) {
 
     <!-- MESSWERTE: BERÜHRUNGSSPANNUNG -->
     <div class="sub-section">
-      <div class="sub-title">4. Berührungsspannung & Netzart</div>
+      <div class="sub-title mess-karte-titel">${messgroesseBlock('ul', 'fluke1663').icon}<span class="titel-text">4. Berührungsspannung & Netzart</span></div>
       <div class="grid">
         <div class="form-group">
           <label>Spannungsart Netzeinspeisung:</label>
@@ -305,6 +305,7 @@ function addCircuitCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2,5 V" oninput="validateCardNorms(${cardCounter})">
         </div>
       </div>
+      ${messgroesseBlock('ul', 'fluke1663').karten}
     </div>
     </div>
 
@@ -327,6 +328,11 @@ function addCircuitCard(data = {}) {
         <label>Festgestellter Fehler / Grund der Totlegung:</label>
         <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
       </div>
+    </div>
+
+    <div class="circuit-footer-actions">
+      <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
+      <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
     </div>
   `;
   container.appendChild(card);

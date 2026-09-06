@@ -25,13 +25,23 @@
   <script src="js/entwuerfe.js"></script>
   <script src="js/archiv.js"></script>
   <script src="js/pdf-utils.js"></script>
+  <script src="js/infokarten.js"></script>
 </head>
 <body>
 
 <div class="app-container">
   <div class="header-bar">
     <h1>Prüfprotokoll Manager – Hauptübersicht</h1>
-    <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;">Stadttheater Konstanz Prüfsystem</span>
+    <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;" id="app_betrieb_name"></span>
+  </div>
+
+  <div class="infokarten-schalter-zeile">
+    <label class="infokarten-schalter">
+      <input type="checkbox" class="infokarten-schalter-checkbox" onchange="infokartenSchalterGeaendert(this)">
+      <span class="infokarten-schalter-slider"></span>
+    </label>
+    <span class="infokarten-schalter-label">Infokarten &amp; Geräte-Kurzanleitung anzeigen</span>
+    <span class="infokarten-schalter-desc">Betrifft die ausklappbaren Erklär-/Anleitungstexte in allen drei Formularen (Icons mit Kurzlabel bleiben davon unberührt).</span>
   </div>
 
   <h2 class="kat-messen">1. Protokoll starten</h2>
@@ -129,6 +139,7 @@
   renderProtokollKacheln();
   renderOffenePruefungen('offenePruefungenListe');
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
+  document.getElementById('app_betrieb_name').textContent = (typeof APP_BETRIEB_NAME !== 'undefined' && APP_BETRIEB_NAME) ? APP_BETRIEB_NAME : '';
   archivUebersichtLaden();
 
   /* Archiv-Kurzübersicht ---------------------------------------------------

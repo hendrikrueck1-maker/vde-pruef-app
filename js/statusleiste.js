@@ -1,29 +1,38 @@
 /* ============================================================================
  *  STATUS-KOPFLEISTE
  * ----------------------------------------------------------------------------
- *  Zeigt jederzeit sichtbar: Protokollnummer, Anlage/Gebäude/Bezeichnung und -
- *  welche Stromkreis-/Geräte-/Zuleitungskarte gerade aktuell ist. Ohne diese
- *  Leiste war bei einem langen Formular mit vielen Karten nach dem Scrollen
- *  nicht mehr auf den ersten Blick zu sehen, in welchem Protokoll und in
- *  welchem Stromkreis man sich gerade befindet.
+ *  Zeigt jederzeit sichtbar: Anlage/Gebäude/Bezeichnung sowie eine
+ *  Orientierung, in welchem ABSCHNITT des Gesamtprotokolls man sich gerade
+ *  befindet - z. B. "Stammdaten" ganz am Anfang, "Stromkreis 3 von 12"
+ *  waehrend man Kreise/Geraete/Zuleitungen bearbeitet, oder
+ *  "Gesamtbewertung" gegen Ende. Ohne diese Leiste war bei einem langen
+ *  Formular mit vielen Karten nach dem Scrollen nicht mehr auf den ersten
+ *  Blick zu sehen, wo man sich gerade befindet.
+ *
+ *  6.2.0 (Feature E): Die Prüfprotokollnummer wurde aus der Leiste entfernt -
+ *  sie bleibt ein ganz normales Formularfeld, ist aber nicht mehr staendig
+ *  sichtbar. Stattdessen zeigt die Leiste jetzt zusaetzlich die grobe
+ *  Abschnitts-Position im GESAMTEN Formular, nicht nur "Stromkreis X von Y"
+ *  waehrend man in den Karten ist: davor z. B. "Stammdaten", danach z. B.
+ *  "Gesamtbewertung" - ueber cfg.abschnitte (siehe initStatusleiste-Aufruf
+ *  in vde0100.html/anschlusspruefung.html/geraetepruefung.html), da die drei
+ *  Formulare unterschiedliche Abschnittsfolgen haben.
  *
  *  4.7.1: Die Karten-Anzeige folgt jetzt nicht mehr nur dem Tastaturfokus
  *  (Klick/Tab in ein Feld), sondern zusaetzlich einem IntersectionObserver,
- *  der beim reinen Scrollen erkennt, welche Karte gerade oben im sichtbaren
- *  Bereich steht - man sieht also jederzeit, "wo man ist", auch ohne
- *  irgendein Feld anzuklicken.
+ *  der beim reinen Scrollen erkennt, welche Karte bzw. welcher Abschnitt
+ *  gerade oben im sichtbaren Bereich steht - man sieht also jederzeit, "wo
+ *  man ist", auch ohne irgendein Feld anzuklicken.
  *
  *  initStatusleiste(cfg) wird von jeder Formularseite mit ihren eigenen
- *  Feld-IDs und ihrem Karten-Selektor aufgerufen - siehe Aufruf am Ende von
- *  vde0100.html / anschlusspruefung.html / geraetepruefung.html.
+ *  Feld-IDs und ihrem Karten-/Abschnitts-Selektor aufgerufen - siehe Aufruf
+ *  am Ende von vde0100.html / anschlusspruefung.html / geraetepruefung.html.
  * ========================================================================== */
 function initStatusleiste(cfg) {
   const leiste = document.createElement('div');
   leiste.className = 'status-leiste';
   leiste.innerHTML =
     '<span class="sl-typ">' + (cfg.typLabel || '') + '</span>' +
-    '<span class="sl-trenner">·</span>' +
-    '<span class="sl-nummer" id="sl_nummer">–</span>' +
     '<span class="sl-trenner" id="sl_trenner_bez">·</span>' +
     '<span class="sl-bez" id="sl_bez"></span>' +
     '<span class="sl-kreis" id="sl_kreis"></span>';
@@ -31,15 +40,11 @@ function initStatusleiste(cfg) {
   const form = document.querySelector('form') || document.body;
   form.parentNode.insertBefore(leiste, form);
 
-  const nummerEl = leiste.querySelector('#sl_nummer');
   const bezEl = leiste.querySelector('#sl_bez');
   const trennerBezEl = leiste.querySelector('#sl_trenner_bez');
   const kreisEl = leiste.querySelector('#sl_kreis');
 
   function aktualisiereKopf() {
-    const nr = (document.getElementById(cfg.nummerFeldId)?.value || '').trim();
-    nummerEl.textContent = nr || 'Neues Protokoll';
-
     const teile = (cfg.bezFeldIds || []).map(id => (document.getElementById(id)?.value || '').trim()).filter(Boolean);
     const bez = teile.join(' – ');
     bezEl.textContent = bez;
@@ -52,12 +57,112 @@ function initStatusleiste(cfg) {
     if (!karte) return; // Fokus ausserhalb einer Karte -> letzten Stand stehen lassen
     const label = karte.querySelector(cfg.kartenLabelSelector || '.circuit-header span, .feed-header span, .card-header span');
     kreisEl.textContent = label ? label.textContent.trim() : '';
+    kreisEl.dataset.quelle = 'karte';
+  }
+
+  /* ABSCHNITTS-ORIENTIERUNG (6.2.0, Feature E)
+   * ---------------------------------------------------------------------
+   * cfg.abschnitte: Liste von { selector, label }, in Reihenfolge des
+   * jeweiligen Formulars (die drei Formulare haben unterschiedliche
+   * Abschnittsfolgen, siehe initStatusleiste-Aufruf pro Formularseite).
+   * "selector" zeigt auf die <h2>-Ueberschrift jedes Abschnitts. Bei jedem
+   * Scroll-Ereignis wird neu bestimmt, welche Ueberschrift den oberen Rand
+   * des sichtbaren Bereichs zuletzt ueberschritten hat - das ist der
+   * "aktuelle Abschnitt" (Details siehe abschnittNeuBerechnen() unten).
+   * Zeigt die Leiste gerade eine konkrete Karte (Stromkreis/Geraet/
+   * Zuleitung) an, hat diese Anzeige Vorrang - der Abschnittsname erscheint
+   * nur ausserhalb von Karten. */
+  let aktuellerAbschnitt = '';
+  function abschnittAnzeigenFallsKeineKarte() {
+    if (kreisEl.dataset.quelle === 'karte' && kreisEl.textContent) return;
+    kreisEl.textContent = aktuellerAbschnitt;
+    kreisEl.dataset.quelle = 'abschnitt';
+  }
+
+  if (Array.isArray(cfg.abschnitte) && cfg.abschnitte.length) {
+    const eintraege = cfg.abschnitte
+      .map(a => ({ el: document.querySelector(a.selector), label: a.label }))
+      .filter(a => a.el);
+
+    if (eintraege.length) {
+      /* Von allen Abschnitts-Ueberschriften diejenige bestimmen, die den
+       * oberen Rand (knapp unter der fixen Leiste) zuletzt ueberschritten
+       * hat - das ist der "aktuelle" Abschnitt. Bewusst als einfache
+       * Neuberechnung ueber ALLE Ueberschriften bei jedem Scroll-Ereignis
+       * statt per IntersectionObserver-Delta: bei kurzen Formularen (wenige
+       * Karten, z. B. Anschlusspruefung/Geraetepruefung mit nur 1-2 Karten)
+       * liegen mehrere Ueberschriften nah beieinander und ein einzelner
+       * grosser Scroll-Sprung (scrollIntoView(), schnelles Wischen) kann
+       * mehrere davon in einem Schritt "uebergehen", ohne dass der
+       * IntersectionObserver fuer jede einzelne ein eigenes
+       * Sichtbarkeits-Wechsel-Ereignis liefert. Die Neuberechnung ist
+       * bewusst billig (ein paar getBoundingClientRect()-Aufrufe) und wird
+       * per requestAnimationFrame entprellt. */
+      function abschnittNeuBerechnen() {
+        // Ganz nach unten gescrollt (Ende des Formulars erreicht): der
+        // letzte Abschnitt gilt immer, auch wenn dessen Ueberschrift wegen
+        // wenig Restinhalt darunter (kurzes Formular, z. B. Anschluss-/
+        // Geraeteprüfung mit nur 1-2 Karten) rechnerisch nie ueber die
+        // Schwelle hinausscrollt.
+        const amEnde = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
+        if (amEnde) {
+          aktuellerAbschnitt = eintraege[eintraege.length - 1].label;
+          abschnittAnzeigenFallsKeineKarte();
+          return;
+        }
+        let aktuelle = eintraege[0];
+        eintraege.forEach(function (eintrag) {
+          if (eintrag.el.getBoundingClientRect().top <= 56) aktuelle = eintrag;
+        });
+        aktuellerAbschnitt = aktuelle.label;
+        abschnittAnzeigenFallsKeineKarte();
+      }
+
+      let abschnittTicking = false;
+      function abschnittTaktPlanen() {
+        if (abschnittTicking) return;
+        abschnittTicking = true;
+        requestAnimationFrame(function () {
+          abschnittNeuBerechnen();
+          abschnittTicking = false;
+        });
+      }
+      window.addEventListener('scroll', abschnittTaktPlanen, { passive: true });
+      window.addEventListener('resize', abschnittTaktPlanen);
+
+      // Anfangszustand direkt berechnen, bevor ueberhaupt gescrollt wurde.
+      abschnittNeuBerechnen();
+    }
+  }
+
+  // Sobald der Fokus eine Karte verlaesst (z. B. Klick in ein Stammdaten-Feld
+  // nach vorherigem Kartenfokus), soll wieder der Abschnittsname greifen
+  // statt der zuletzt angezeigten Karte.
+  function aktualisiereKreisOderAbschnitt(ziel) {
+    if (cfg.kartenSelector) {
+      const karte = ziel && ziel.closest ? ziel.closest(cfg.kartenSelector) : null;
+      if (karte) { aktualisiereKreis(ziel); return; }
+    }
+    kreisEl.dataset.quelle = '';
+    abschnittAnzeigenFallsKeineKarte();
   }
 
   aktualisiereKopf();
   document.addEventListener('input', aktualisiereKopf);
   document.addEventListener('change', aktualisiereKopf);
-  document.addEventListener('focusin', function (ev) { aktualisiereKreis(ev.target); });
+  document.addEventListener('focusin', function (ev) { aktualisiereKreisOderAbschnitt(ev.target); });
+
+  /* 6.2.0: Im Stromkreis-Karussell (vde0100.html) findet Navigation oft per
+   * Wisch-/Pfeil-Geste statt, OHNE dass dabei ein Feld fokussiert wird - der
+   * obige IntersectionObserver greift hier nicht zuverlaessig (er geht von
+   * vertikalem Seitenscroll aus, das Karussell scrollt aber horizontal
+   * innerhalb eines eigenen, schmalen Containers). js/karussell.js feuert
+   * deshalb bei jedem Kartenwechsel ein 'vde:karussell-wechsel'-Event mit der
+   * neu aktiven Karte im 'detail' - hier einfach denselben Kreis-Anzeige-Pfad
+   * wie beim Fokuswechsel nutzen. */
+  document.addEventListener('vde:karussell-wechsel', function (ev) {
+    if (ev.detail && ev.detail.karte) aktualisiereKreis(ev.detail.karte);
+  });
 
   /* [Nutzerwunsch] STATUSLEISTE VERSCHWINDET BEI GEOEFFNETER BILDSCHIRMTASTATUR
    * --------------------------------------------------------------------------
@@ -119,7 +224,16 @@ function initStatusleiste(cfg) {
         if (!entry.isIntersecting) return;
         if (!beste || entry.boundingClientRect.top < beste.boundingClientRect.top) beste = entry;
       });
-      if (beste) aktualisiereKreis(beste.target);
+      if (beste) {
+        aktualisiereKreis(beste.target);
+      } else {
+        // Keine Karte mehr im Beobachtungsstreifen sichtbar (6.2.0, Feature E):
+        // man hat den Kartenbereich beim Scrollen bereits verlassen (nach oben
+        // in die Stammdaten oder nach unten in die Gesamtbewertung) - dann soll
+        // wieder der Abschnittsname greifen statt der zuletzt gezeigten Karte.
+        kreisEl.dataset.quelle = '';
+        abschnittAnzeigenFallsKeineKarte();
+      }
     }, { root: null, rootMargin: '-56px 0px -70% 0px', threshold: 0 });
     document.querySelectorAll(cfg.kartenSelector).forEach(function (karte) {
       sichtbarkeitsObserver.observe(karte);

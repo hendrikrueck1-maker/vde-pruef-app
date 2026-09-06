@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vorschau: Infokarten &amp; Fluke-Anleitung – VDE-Prüf-App</title>
+<style>
+  :root {
+    --primary: #003366;
+    --secondary: #475569;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #94a3b8;
+    --accent: #2563eb;
+    --success: #16a34a;
+    --danger-bg: #fef2f2;
+    --danger-border: #ef4444;
+    --danger-text: #991b1b;
+    --fluke-accent: #b45309;
+    --fluke-bg: #fffbeb;
+    --fluke-border: #d97706;
+    --info-accent: #0369a1;
+    --info-bg: #f0f9ff;
+    --info-border: #7dd3fc;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: var(--bg);
+    color: #0f172a;
+    margin: 0;
+    padding: 20px 16px 60px;
+  }
+
+  .app-container {
+    max-width: 1050px;
+    margin: 0 auto;
+    background: var(--card);
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ---------- Kopfbereich der Vorschau ---------- */
+  .preview-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 4px; line-height: 1.3; }
+  .subtitle { color: var(--secondary); font-size: 0.9rem; margin: 0 0 18px; line-height: 1.5; }
+
+  .disclaimer {
+    background: #fef9c3;
+    border: 1px solid #ca8a04;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 22px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: #713f12;
+  }
+  .disclaimer strong { color: #422006; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #eaeef3;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 26px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .toggle-row .toggle-desc { font-weight: normal; color: var(--secondary); font-size: 0.78rem; flex: 1; min-width: 200px; }
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .2s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; }
+  .switch input:checked + .slider { background-color: var(--primary); }
+  .switch input:checked + .slider:before { transform: translateX(18px); }
+
+  h2 {
+    color: var(--primary); font-size: 0.95rem; margin-top: 28px; margin-bottom: 12px;
+    background: #f1f5f9; padding: 6px 10px; border-left: 4px solid var(--primary); border-radius: 2px;
+  }
+  h2:first-of-type { margin-top: 0; }
+
+  /* ---------- Nachgebaute Messgruppen-Karte (wie im echten Formular) ---------- */
+  .mess-karte {
+    background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 16px 16px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .mess-karte-titel {
+    font-weight: bold; color: var(--primary); font-size: 0.95rem;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #f1f5f9;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .mess-karte-titel .norm-tag {
+    font-size: 0.62rem; font-weight: bold; letter-spacing: 0.03em;
+    background: #f1f5f9; color: var(--secondary); padding: 2px 7px; border-radius: 10px;
+    text-transform: none;
+  }
+  .mess-karte-titel .titel-text { flex: 1; }
+
+  /* ---------- Eigene Prüfungs-Icons (Original-Zeichnungen, keine Fluke-Grafiken) ---------- */
+  .mess-icon {
+    flex: none; width: 38px; height: 38px; border-radius: 9px;
+    background: #eaeef3; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--primary);
+  }
+  .mess-icon svg { width: 23px; height: 23px; display: block; }
+  .mess-icon svg text { font-family: -apple-system, "Segoe UI", Arial, sans-serif; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: start; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; }
+  label { font-size: 0.78rem; font-weight: 600; margin-bottom: 3px; color: var(--secondary); }
+  input, select { padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.88rem; width: 100%; background: #fbfcfe; color: #94a3b8; }
+  .limit-hint { display: block; font-size: 0.68rem; font-weight: normal; color: var(--secondary); line-height: 1.35; margin-top: 2px; }
+
+  /* ---------- Infokarte: "Was wird geprüft?" ---------- */
+  details.infokarte {
+    background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 6px;
+    padding: 2px 12px; margin-top: 8px; transition: background-color .15s;
+  }
+  details.infokarte summary {
+    cursor: pointer; padding: 9px 0; font-size: 0.82rem; font-weight: 700; color: var(--info-accent);
+    display: flex; align-items: center; gap: 8px; list-style: none;
+  }
+  details.infokarte summary::-webkit-details-marker { display: none; }
+  details.infokarte summary::before { content: "▸"; transition: transform .15s; font-size: 0.75rem; }
+  details.infokarte[open] summary::before { transform: rotate(90deg); }
+  .infokarte-inhalt { padding: 0 0 12px; font-size: 0.82rem; line-height: 1.55; color: #0c4a6e; }
+  .infokarte-inhalt p { margin: 0 0 8px; }
+  .infokarte-inhalt p:last-child { margin-bottom: 0; }
+  .infokarte-inhalt .label-was { font-weight: 700; color: var(--info-accent); }
+  .infokarte-inhalt .label-warum { font-weight: 700; color: var(--info-accent); }
+
+  /* ---------- Fluke-Anleitung ---------- */
+  details.fluke {
+    background: var(--fluke-bg); border: 1px solid var(--fluke-border); border-radius: 6px;
+    padding: 2px 12px; margin-top: 8px;
+  }
+  details.fluke summary {
+    cursor: pointer; padding: 9px 0; font-size: 0.82rem; font-weight: 700; color: var(--fluke-accent);
+    display: flex; align-items: center; gap: 8px; list-style: none;
+  }
+  details.fluke summary::-webkit-details-marker { display: none; }
+  details.fluke summary::before { content: "▸"; transition: transform .15s; font-size: 0.75rem; }
+  details.fluke[open] summary::before { transform: rotate(90deg); }
+  .fluke-inhalt { padding: 0 0 14px; font-size: 0.82rem; line-height: 1.6; color: #78350f; }
+  .fluke-inhalt ol { margin: 6px 0 10px; padding-left: 20px; }
+  .fluke-inhalt li { margin-bottom: 6px; }
+  .fluke-inhalt .fluke-wichtig {
+    background: #fff; border: 1px dashed var(--fluke-border); border-radius: 4px;
+    padding: 8px 10px; margin-top: 8px; font-size: 0.78rem;
+  }
+  .fluke-inhalt .fluke-wichtig strong { color: var(--fluke-accent); }
+  .drehschalter {
+    display: inline-block; background: #1f2937; color: #fbbf24; font-family: 'Courier New', monospace;
+    font-size: 0.72rem; font-weight: bold; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.03em;
+  }
+
+  .infokarten-versteckt .infokarte { display: none; }
+
+  footer.fuss {
+    margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
+    font-size: 0.72rem; color: #94a3b8; line-height: 1.6;
+  }
+
+  @media (max-width: 600px) {
+    .app-container { padding: 16px; border-radius: 0; }
+    h1 { font-size: 1.2rem; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app-container" id="app">
+
+  <span class="preview-badge">Konzept-Vorschau · noch nicht im Formular integriert</span>
+  <h1>Infokarten &amp; Fluke-Bedienungsanleitung</h1>
+  <p class="subtitle">
+    Mockup zu Abschnitt 5.1 &amp; 5.2 aus dem Prüfbericht v6.1.0 – so könnten erklärende Infokarten,
+    kleine Prüfungs-Icons und eine geräteseitige Kurzanleitung direkt neben den Messfeldern der
+    VDE-Prüf-App aussehen. Diese Seite ist eine eigenständige Vorschau zum Anschauen und Bewerten,
+    sie verändert die echte App nicht.
+  </p>
+
+  <div class="disclaimer">
+    <strong>Wichtiger Hinweis:</strong> Die Texte in den Fluke-Anleitungen unten sind ein <strong>Entwurf</strong>
+    zur Diskussion, keine geprüfte Übersetzung der offiziellen Fluke-Bedienungsanleitung. Vor einer echten Integration
+    in die App bitte gegen die aktuelle Fluke-1663-Anleitung sowie die jeweils gültigen Normen (DIN VDE 0100,
+    DIN VDE 0105-100, DIN EN 50699/50678) gegenprüfen. Für andere Installationstester (z.&nbsp;B. Fluke 1662,
+    1664&nbsp;FC, 6500) gilt das gleiche Grundprinzip, aber Bezeichnungen am Drehschalter und Bedienschritte
+    können abweichen – das müsste je Gerät einmal nachgezogen werden.
+    <br><br>
+    <strong>Zu den Icons:</strong> Die kleinen Symbole links neben jeder Prüfung sind eigene, einfache
+    Zeichnungen (Ω-/V-Zeichen, ein generisches PE-Erdungssymbol nach IEC 60417 sowie selbst gezeichnete
+    Schleifen-/Schalter-Icons) – <strong>keine Grafiken aus der Fluke-Bedienungsanleitung</strong>. Fluke-eigene
+    Illustrationen und das Fluke-Logo sind urheberrechtlich geschützt und wurden bewusst nicht übernommen.
+  </div>
+
+  <div class="toggle-row">
+    <span>Infokarten anzeigen</span>
+    <span class="toggle-desc">So könnten erfahrene Prüfer/-innen die Zusatzinfos bei Bedarf ausblenden, ohne das Formular zu überladen.</span>
+    <label class="switch">
+      <input type="checkbox" id="toggleInfokarten" checked onchange="document.getElementById('app').classList.toggle('infokarten-versteckt', !this.checked)">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <h2 class="kat-messen">3. SCHUTZMASSNAHMEN PRÜFEN, MESSEN</h2>
+
+  <!-- ============================================================ -->
+  <!-- 1) SCHLEIFENIMPEDANZ Z_S / KURZSCHLUSSSTROM I_K -->
+  <!-- ============================================================ -->
+  <div class="mess-karte">
+    <div class="mess-karte-titel">
+      <span class="mess-icon" title="Icon: Schleife/Loop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.6 6.6A8 8 0 1 0 19 12"/>
+          <path d="M19 6.6h-3.4M19 6.6v3.4"/>
+        </svg>
+      </span>
+      <span class="titel-text">Schleifenimpedanz Z<sub>S</sub> / Kurzschlussstrom I<sub>K</sub></span>
+      <span class="norm-tag">DIN VDE 0100-410</span>
+    </div>
+    <div class="grid">
+      <div class="form-group">
+        <label>Z<sub>S</sub> (Ω):</label>
+        <input type="text" placeholder="z. B. 0,28" disabled>
+        <div class="limit-hint">Grenzwert abhängig von Sicherungscharakteristik &amp; -Nennstrom</div>
+      </div>
+      <div class="form-group">
+        <label>I<sub>K</sub> (A), berechnet:</label>
+        <input type="text" placeholder="wird berechnet" disabled>
+      </div>
+    </div>
+
+    <details class="infokarte" open>
+      <summary>ℹ️ Was wird hier geprüft und warum?</summary>
+      <div class="infokarte-inhalt">
+        <p><span class="label-was">Was:</span> Die Schleifenimpedanz Z<sub>S</sub> bestimmt, ob die vorgeschaltete
+        Sicherung im Fehlerfall schnell genug abschaltet – Grundlage des Schutzes durch automatische Abschaltung
+        nach DIN&nbsp;VDE&nbsp;0100-410.</p>
+        <p><span class="label-warum">Warum wichtig:</span> Bei zu hoher Impedanz löst die Sicherung im Fehlerfall
+        nicht rechtzeitig aus – die Berührungsspannung bleibt gefährlich lange anliegen.</p>
+      </div>
+    </details>
+
+    <details class="fluke">
+      <summary>🔧 So geht's mit dem Fluke 1663</summary>
+      <div class="fluke-inhalt">
+        <ol>
+          <li>Drehschalter auf <span class="drehschalter">Z-LOOP</span> bzw. <span class="drehschalter">LOOP</span> stellen.</li>
+          <li>Prüfspitzen/Adapter an Steckdose oder Klemme des betreffenden Stromkreises anschließen.</li>
+          <li><span class="drehschalter">TEST</span> drücken.</li>
+          <li>Messwert Z<sub>S</sub> (Ω) und errechneten Kurzschlussstrom I<sub>K</sub> (A) ablesen und ins Formular übertragen.</li>
+        </ol>
+        <div class="fluke-wichtig">
+          <strong>Hinweis:</strong> Der Fluke 1663 zeigt bei aktivierter „No-Trip"-Funktion einen strombegrenzten
+          Messwert. Für die Dokumentation ist der angezeigte Z<sub>S</sub>-Wert zu verwenden. No-Trip nur bei
+          RCD-geschützten Kreisen aktivieren, um ein Auslösen während der Messung zu vermeiden.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 2) RCD-PRÜFUNG -->
+  <!-- ============================================================ -->
+  <div class="mess-karte">
+    <div class="mess-karte-titel">
+      <span class="mess-icon" title="Icon: Fehlerstromschutzschalter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="3.5" width="12" height="17" rx="2.5"/>
+          <line x1="12" y1="6.5" x2="12" y2="10"/>
+          <circle cx="12" cy="11.6" r="1" fill="currentColor" stroke="none"/>
+          <path d="M12.4 13.2l-2.1 4.3h1.7l-1 3 3.4-4.6h-1.7z" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      <span class="titel-text">RCD-Prüfung (I<sub>Δn</sub>, I<sub>Δmess</sub>, t<sub>A</sub>)</span>
+      <span class="norm-tag">DIN VDE 0100-410 / -600</span>
+    </div>
+    <div class="grid">
+      <div class="form-group">
+        <label>RCD-Typ:</label>
+        <select disabled><option>AC / A / F / B</option></select>
+      </div>
+      <div class="form-group">
+        <label>Prüfstrom-Vielfaches:</label>
+        <select disabled><option>½× / 1× / 2× / 5× I<sub>Δn</sub></option></select>
+      </div>
+      <div class="form-group">
+        <label>Auslösezeit t<sub>A</sub> (ms):</label>
+        <input type="text" placeholder="z. B. 24" disabled>
+      </div>
+    </div>
+
+    <details class="infokarte">
+      <summary>ℹ️ Was wird hier geprüft und warum?</summary>
+      <div class="infokarte-inhalt">
+        <p><span class="label-was">Was:</span> Die RCD-Prüfung stellt sicher, dass der Fehlerstromschutzschalter
+        bei einem tatsächlichen Fehlerstrom innerhalb der normativ vorgeschriebenen Zeit auslöst (z.&nbsp;B.
+        300/150/40&nbsp;ms bzw. 500/200/150&nbsp;ms bei selektiven RCDs, je nach Prüfstrom-Vielfachem).</p>
+        <p><span class="label-warum">Warum wichtig:</span> Ein RCD, der nicht oder zu spät auslöst, bietet keinen
+        wirksamen Zusatzschutz gegen gefährliche Körperströme – die zentrale Schutzfunktion des Geräts wäre
+        praktisch wirkungslos, ohne dass das von außen erkennbar wäre.</p>
+      </div>
+    </details>
+
+    <details class="fluke">
+      <summary>🔧 So geht's mit dem Fluke 1663</summary>
+      <div class="fluke-inhalt">
+        <ol>
+          <li>Drehschalter auf <span class="drehschalter">RCD</span> stellen.</li>
+          <li>RCD-Typ (AC/A/F/B) und Nennfehlerstrom am Gerät einstellen.</li>
+          <li>Prüfstrom-Vielfaches wählen (½×, 1×, 2×, 5× I<sub>Δn</sub>).</li>
+          <li><span class="drehschalter">TEST</span> drücken – das Gerät zeigt Auslösezeit t<sub>A</sub> und
+          (bei Rampentest) den Auslösestrom I<sub>Δmess</sub> an.</li>
+        </ol>
+        <div class="fluke-wichtig">
+          <strong>Wichtig für die App:</strong> Der am Fluke gewählte Prüfstrom-Faktor muss exakt dem im Formular
+          ausgewählten Wert entsprechen, da die App den zulässigen Grenzwert daraus berechnet.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 3) ISOLATIONSWIDERSTAND R_ISO -->
+  <!-- ============================================================ -->
+  <div class="mess-karte">
+    <div class="mess-karte-titel">
+      <span class="mess-icon" title="Icon: Isolationswiderstand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <text x="12" y="15.5" font-size="13.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">&#937;</text>
+          <line x1="5.5" y1="19.5" x2="18.5" y2="19.5" stroke-width="1.6" stroke-dasharray="2.2 2.2"/>
+        </svg>
+      </span>
+      <span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span>
+      <span class="norm-tag">DIN VDE 0100-600</span>
+    </div>
+    <div class="grid">
+      <div class="form-group">
+        <label>Prüfspannung:</label>
+        <select disabled><option>500 V DC / 250 V DC (SELV-PELV) / 1000 V DC</option></select>
+      </div>
+      <div class="form-group">
+        <label>R<sub>ISO</sub> (MΩ):</label>
+        <input type="text" placeholder="z. B. > 200" disabled>
+      </div>
+    </div>
+
+    <details class="infokarte">
+      <summary>ℹ️ Was wird hier geprüft und warum?</summary>
+      <div class="infokarte-inhalt">
+        <p><span class="label-was">Was:</span> Der Isolationswiderstand prüft, ob die Isolierung zwischen
+        aktiven Leitern und Erde/PE ausreichend hoch ist, um einen unbeabsichtigten Stromfluss (Erd- oder
+        Körperschluss) zu verhindern.</p>
+        <p><span class="label-warum">Warum wichtig:</span> Eine zu niedrige Isolation kann zu schleichenden
+        Fehlerströmen, Erwärmung, Brandgefahr oder – im Fehlerfall an leitfähigen Teilen – zu einer echten
+        Berührungsgefahr führen, ohne dass eine Sicherung dabei zwangsläufig auslöst.</p>
+      </div>
+    </details>
+
+    <details class="fluke">
+      <summary>🔧 So geht's mit dem Fluke 1663</summary>
+      <div class="fluke-inhalt">
+        <ol>
+          <li>Anlage spannungsfrei schalten.</li>
+          <li>Drehschalter auf <span class="drehschalter">Ω INSULATION</span> stellen.</li>
+          <li>Prüfspannung passend zur Anlage wählen (üblich 500&nbsp;V DC, bei SELV/PELV 250&nbsp;V DC) – muss
+          mit der Formular-Auswahl „Prüfspannung" übereinstimmen.</li>
+          <li>Prüfspitzen zwischen Außenleiter und PE anschließen, <span class="drehschalter">TEST</span> gedrückt
+          halten, bis der Wert stabil ist.</li>
+        </ol>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 4) SCHUTZLEITERWIDERSTAND R_PE -->
+  <!-- ============================================================ -->
+  <div class="mess-karte">
+    <div class="mess-karte-titel">
+      <span class="mess-icon" title="Icon: Schutzleiterwiderstand (mit PE-Symbol)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <text x="12" y="12.5" font-size="10.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">&#937;</text>
+          <line x1="12" y1="13.6" x2="12" y2="15.8" stroke-width="1.5"/>
+          <line x1="7" y1="15.8" x2="17" y2="15.8" stroke-width="1.6"/>
+          <line x1="8.6" y1="17.8" x2="15.4" y2="17.8" stroke-width="1.6"/>
+          <line x1="10.2" y1="19.8" x2="13.8" y2="19.8" stroke-width="1.6"/>
+        </svg>
+      </span>
+      <span class="titel-text">Schutzleiterwiderstand R<sub>PE</sub></span>
+      <span class="norm-tag">DIN EN 50699</span>
+    </div>
+    <div class="grid">
+      <div class="form-group">
+        <label>R<sub>PE</sub> (Ω):</label>
+        <input type="text" placeholder="z. B. 0,18" disabled>
+        <div class="limit-hint">Grenzwert abhängig von Leitungslänge/-querschnitt</div>
+      </div>
+    </div>
+
+    <details class="infokarte">
+      <summary>ℹ️ Was wird hier geprüft und warum?</summary>
+      <div class="infokarte-inhalt">
+        <p><span class="label-was">Was:</span> Der Schutzleiterwiderstand stellt sicher, dass der PE-Leiter
+        einen niederohmigen, durchgängigen Verbindungspfad zum Erdungssystem bildet.</p>
+        <p><span class="label-warum">Warum wichtig:</span> Ein zu hoher oder unterbrochener Schutzleiterwiderstand
+        verhindert, dass im Fehlerfall der Fehlerstrom sicher abfließen und die vorgeschaltete Schutzeinrichtung
+        zuverlässig auslösen kann – ein Körper könnte dann selbst zum Strompfad werden.</p>
+      </div>
+    </details>
+
+    <details class="fluke">
+      <summary>🔧 So geht's mit dem Fluke 1663</summary>
+      <div class="fluke-inhalt">
+        <ol>
+          <li>Drehschalter auf <span class="drehschalter">Ω LOW OHM</span> bzw. <span class="drehschalter">R LOW Ω</span> stellen.</li>
+          <li>Vorher am Gerät nullen (Messleitungswiderstand kompensieren).</li>
+          <li>Messung zwischen Potenzialausgleichsschiene/PE-Sammelschiene und dem zu prüfenden Punkt durchführen.</li>
+          <li>Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).</li>
+        </ol>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 5) BERÜHRUNGSSPANNUNG U_L / NETZSPANNUNG -->
+  <!-- ============================================================ -->
+  <div class="mess-karte">
+    <div class="mess-karte-titel">
+      <span class="mess-icon" title="Icon: Spannungsmessung (AC)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <text x="12" y="13.5" font-size="11.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">V</text>
+          <path d="M6 19c1.1-2.3 2.3-2.3 3.4 0s2.3 2.3 3.4 0 2.3-2.3 3.4 0" stroke-width="1.6"/>
+        </svg>
+      </span>
+      <span class="titel-text">Berührungsspannung U<sub>L</sub> / Netzspannung</span>
+      <span class="norm-tag">DIN VDE 0100-410 / -600</span>
+    </div>
+    <div class="grid">
+      <div class="form-group">
+        <label>Gefährdung:</label>
+        <select disabled><option>Normal (50 V) / Erhöht, z. B. Bühne/Open-Air (25 V)</option></select>
+      </div>
+      <div class="form-group">
+        <label>U<sub>L</sub> gemessen (V):</label>
+        <input type="text" placeholder="z. B. 12" disabled>
+      </div>
+    </div>
+
+    <details class="infokarte">
+      <summary>ℹ️ Was wird hier geprüft und warum?</summary>
+      <div class="infokarte-inhalt">
+        <p><span class="label-was">Was:</span> Die Berührungsspannung U<sub>L</sub> ist die höchste Spannung, die
+        an einem leitfähigen Teil im Fehlerfall dauerhaft anstehen darf, ohne eine unzumutbare Gefährdung
+        darzustellen. Der zulässige Grenzwert hängt von der Umgebung ab (50&nbsp;V normal, 25&nbsp;V bei erhöhter
+        Gefährdung, z.&nbsp;B. Bühnen- oder Open-Air-Umgebung).</p>
+        <p><span class="label-warum">Warum wichtig:</span> Der strengere Grenzwert existiert genau für Umgebungen,
+        in denen Menschen mit schlechterem Erdungswiderstand (z.&nbsp;B. barfuß, nasser Boden) in Kontakt mit
+        Anlagenteilen kommen können – eine überschrittene Berührungsspannung ist ein unmittelbares Sicherheitsrisiko.</p>
+      </div>
+    </details>
+
+    <details class="fluke">
+      <summary>🔧 So geht's mit dem Fluke 1663</summary>
+      <div class="fluke-inhalt">
+        <ol>
+          <li>Drehschalter auf <span class="drehschalter">V AC</span> stellen.</li>
+          <li>Spannung an den geforderten Punkten messen (L-N, L-L, N-PE, je nach Prüfpunkt).</li>
+          <li>Bei Bühnen-/Open-Air-Umgebung mit erhöhter Gefährdung besonders auf den strengeren Grenzwert
+          (25&nbsp;V statt 50&nbsp;V) achten.</li>
+        </ol>
+        <div class="fluke-wichtig">
+          <strong>Hinweis:</strong> Dieser Grenzwert wird von der App bereits automatisch anhand der Auswahl
+          „Gefährdung" berechnet – die Fluke-Anzeige liefert nur den Messwert, die Bewertung übernimmt das Formular.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <footer class="fuss">
+    Diese Anleitungen sind als <strong>Empfehlung, nicht als Ersatz</strong> der offiziellen Fluke-Bedienungsanleitung
+    und der jeweils gültigen Normen gedacht. Die App macht keine Aussage zur korrekten Geräteeinstellung – sie
+    unterstützt nur bei der Dokumentation der Ergebnisse. Quelle: Abschnitt 5.1 &amp; 5.2, Prüfbericht
+    „VDE-Prüfprotokoll-App 6.1.0 – Vollprüfung" vom 04.09.2026.
+  </footer>
+
+</div>
+</body>
+</html>
