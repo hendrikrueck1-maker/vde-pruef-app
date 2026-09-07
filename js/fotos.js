@@ -130,6 +130,53 @@ function fotoLoeschen(id) {
   return fotosTx('readwrite', function (store) { store.delete(id); });
 }
 
+/* [7.1.0, Befund "Fotos in der PDF wirken verzerrt/in die Laenge gezogen"]
+ * Wandelt einen Foto-Blob in eine Data-URL UM UND liefert zusaetzlich die
+ * tatsaechlichen Bildmasse (naturalWidth/naturalHeight) mit. Vorher wurde
+ * beim PDF-Export jedes Foto unabhaengig von seinem echten Seitenverhaeltnis
+ * stur auf eine feste Breite x Hoehe gezeichnet (doc.addImage(..., B, H)) -
+ * ein Hochformat-Handyfoto (z. B. 3:4) wurde dadurch in ein festes
+ * Querformat-Rechteck gequetscht und wirkte gestreckt/verzerrt. Mit den hier
+ * gelieferten Massen kann der Aufrufer stattdessen "contain" rechnen (Bild
+ * unverzerrt einpassen, zentriert, ueberschuessigen Platz als Rand lassen) -
+ * siehe drawFotodokumentationSeite() in pdf-generator.js. */
+function fotoDataUrlMitMassen(blob) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var dataUrl = reader.result;
+      var img = new Image();
+      img.onload = function () {
+        resolve({ dataUrl: dataUrl, breite: img.naturalWidth || 0, hoehe: img.naturalHeight || 0 });
+      };
+      img.onerror = function () {
+        // Bildmasse nicht ermittelbar - dataUrl trotzdem liefern, Aufrufer
+        // faellt dann auf die alte feste Groesse zurueck.
+        resolve({ dataUrl: dataUrl, breite: 0, hoehe: 0 });
+      };
+      img.src = dataUrl;
+    };
+    reader.onerror = function () { reject(reader.error); };
+    reader.readAsDataURL(blob);
+  });
+}
+
+/* Berechnet fuer ein Bild mit gegebenen Massen (breite x hoehe) die groesste
+ * Darstellung, die unverzerrt in einen Rahmen (maxB x maxH) passt ("object-fit:
+ * contain"), zentriert darin. Liefert { x, y, b, h } RELATIV zur Rahmen-
+ * Ecke (0,0) - der Aufrufer addiert die eigene Rahmenposition dazu. Bei
+ * fehlenden/ungueltigen Massen (breite/hoehe <= 0) wird der volle Rahmen
+ * zurueckgegeben (bisheriges Verhalten als Fallback). */
+function fotoContainMasse(breite, hoehe, maxB, maxH) {
+  if (!breite || !hoehe || breite <= 0 || hoehe <= 0) {
+    return { x: 0, y: 0, b: maxB, h: maxH };
+  }
+  var skala = Math.min(maxB / breite, maxH / hoehe);
+  var b = breite * skala;
+  var h = hoehe * skala;
+  return { x: (maxB - b) / 2, y: (maxH - h) / 2, b: b, h: h };
+}
+
 /* Loescht ALLE Fotos einer Karte - wird beim Entfernen einer Stromkreis-/
  * Geraete-/Uebergabepunkt-Karte aufgerufen (siehe removeCard() in den
  * jeweiligen *-generator.js), damit keine verwaisten Fotos im IndexedDB
@@ -193,6 +240,126 @@ function fotosLeisteAktualisieren(kartenKey) {
  * dem ueblichen Ablauf mit dem Handy direkt vor Ort; FOTOS_MAX_PRO_KARTE
  * verhindert trotzdem ein versehentliches Massen-Anhaengen ueber mehrere
  * Aufrufe hinweg. */
+/* ---------------------------------------------------------------------------
+ *  PDF: ANHANGSEITE "FOTODOKUMENTATION" (verschoben aus pdf-generator.js,
+ *  7.1.0, damit sie auch von anschluss-generator.js/geraete-generator.js aus
+ *  genutzt werden kann - pdf-generator.js wird nur in vde0100.html geladen).
+ * ------------------------------------------------------------------------ */
+
+/* Zeichnet eine oder mehrere Anhangseiten "Fotodokumentation" mit den
+ * (bereits komprimierten) Fotos je Karte, 2 Spalten x 3 Zeilen pro Seite.
+ * Reine Dokumentation der als Blob vorliegenden JPEGs - keine Bewertung/
+ * Analyse, nur Bildnachweis mit Zuordnung zur jeweiligen Karte (Stromkreis/
+ * Übergabepunkt/Gerät).
+ *
+ * fotos: Array von { _dataUrl, _breite, _hoehe, stromkreisNr } (stromkreisNr
+ *   ist historisch benannt, wird aber generisch als "laufende Nummer der
+ *   Karte" verwendet - siehe kartenLabel).
+ * kapitelTitel: z. B. "5. FOTODOKUMENTATION".
+ * kartenLabel: Praefix vor der Kartennummer, z. B. "Stromkreis", "Übergabepunkt",
+ *   "Gerät" (Standard: "Stromkreis" fuer Rueckwaertskompatibilitaet). */
+function drawFotodokumentationSeite(doc, fotos, kapitelTitel, kartenLabel) {
+  kapitelTitel = kapitelTitel || '5. FOTODOKUMENTATION';
+  kartenLabel = kartenLabel || 'Stromkreis';
+  const SPALTEN = 2, ZEILEN = 3, PRO_SEITE = SPALTEN * ZEILEN;
+  const BILD_B = 82, BILD_H = 62, GAP_X = 8, GAP_Y = 10;
+  for (let i = 0; i < fotos.length; i++) {
+    if (i % PRO_SEITE === 0) {
+      doc.addPage();
+      let yy = PDF_CONTENT_TOP;
+      drawKategorieTitel(doc, kapitelTitel, yy, 'erdung');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.6);
+      doc.setTextColor(...PDF_MUTED);
+      doc.text('Optionale Fotos zu auffälligen Stellen/Mängeln, während der Prüfung mit der App aufgenommen.',
+                PDF_MARGIN_LEFT, yy + 3.4);
+      doc.setTextColor(...PDF_TEXT);
+    }
+    const posImSeite = i % PRO_SEITE;
+    const spalte = posImSeite % SPALTEN;
+    const zeile = Math.floor(posImSeite / SPALTEN);
+    const x = PDF_MARGIN_LEFT + spalte * (BILD_B + GAP_X);
+    const y = PDF_CONTENT_TOP + 8 + zeile * (BILD_H + GAP_Y);
+    try {
+      const dataUrl = fotos[i]._dataUrl;
+      if (dataUrl) {
+        // 7.1.0: unverzerrt einpassen ("object-fit: contain") statt stur auf
+        // BILD_B x BILD_H zu strecken (vorher wirkten Fotos im PDF verzerrt/
+        // in die Laenge gezogen). Der Rahmen (doc.rect unten) behaelt
+        // weiterhin die volle Zellengroesse, das Foto darin wird zentriert.
+        const masse = fotoContainMasse(fotos[i]._breite, fotos[i]._hoehe, BILD_B, BILD_H);
+        doc.addImage(dataUrl, 'JPEG', x + masse.x, y + masse.y, masse.b, masse.h, undefined, 'FAST');
+      }
+    } catch (e) {
+      doc.setDrawColor(...PDF_BOX_BORDER);
+      doc.rect(x, y, BILD_B, BILD_H);
+    }
+    doc.setDrawColor(...PDF_BOX_BORDER);
+    doc.rect(x, y, BILD_B, BILD_H);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.2);
+    doc.setTextColor(...PDF_MUTED);
+    // 7.1.0: ein Foto kann sein eigenes Label mitbringen (z. B. "Bemerkung"
+    // fuer Fotos am zentralen Bemerkungsfeld statt einer Stromkreis-Nummer,
+    // siehe fotosFuerEinzelkarteLaden()) - faellt sonst auf das gemeinsame
+    // kartenLabel + laufende Nummer zurueck.
+    const beschriftung = fotos[i]._label || `${kartenLabel} #${fotos[i].stromkreisNr}`;
+    doc.text(beschriftung, x, y + BILD_H + 4);
+    doc.setTextColor(...PDF_TEXT);
+  }
+}
+
+/* Laedt alle Fotos aller Karten eines Containers und bereitet sie fuer
+ * drawFotodokumentationSeite() auf (Data-URL + Bildmasse je Foto). Generischer
+ * Ersatz fuer den bisher nur in pdf-generator.js vorhandenen, dort fest auf
+ * '.circuit-card' zugeschnittenen Ladecode (7.1.0) - wird jetzt von allen drei
+ * Formularen (Stromkreis/Übergabepunkt/Gerät) gleich genutzt.
+ *
+ * kartenSelektor: z. B. '.circuit-card', '.feed-card', '.device-card'.
+ * isBlank: true beim Leerformular - liefert dann sofort eine leere Liste. */
+function fotosFuerPdfLaden(kartenSelektor, isBlank) {
+  if (isBlank || typeof fotosFuerKarteLaden !== 'function') return Promise.resolve([]);
+  return Promise.all(
+    Array.from(document.querySelectorAll(kartenSelektor)).map(function (card, idx) {
+      const leiste = card.querySelector('.fotos-leiste[data-karten-key]');
+      if (!leiste) return Promise.resolve([]);
+      return fotosFuerKarteLaden(leiste.getAttribute('data-karten-key'))
+        .then(function (eintraege) {
+          return Promise.all(eintraege.map(function (e) {
+            return fotoDataUrlMitMassen(e.blob)
+              .then(function (masse) {
+                return Object.assign({ stromkreisNr: idx + 1, _dataUrl: masse.dataUrl, _breite: masse.breite, _hoehe: masse.hoehe }, e);
+              })
+              .catch(function () { return null; });
+          }));
+        })
+        .then(function (liste) { return liste.filter(Boolean); })
+        .catch(function () { return []; });
+    })
+  ).then(function (gruppen) { return gruppen.reduce(function (a, b) { return a.concat(b); }, []); })
+    .catch(function () { return []; });
+}
+
+/* [7.1.0] Wie fotosFuerPdfLaden(), aber fuer EINEN einzelnen, fest bekannten
+ * Kartenschluessel statt eines Container-Selektors - fuer Fotos, die nicht an
+ * einer dynamisch erzeugten Karte haengen, sondern an einem festen Formular-
+ * feld (z. B. "Mängel / Bemerkungen / Auflagen"). labelNr wird als
+ * "stromkreisNr" mitgegeben, damit drawFotodokumentationSeite() dieselbe
+ * Beschriftungslogik verwenden kann. */
+function fotosFuerEinzelkarteLaden(kartenKey, isBlank, label) {
+  if (isBlank || typeof fotosFuerKarteLaden !== 'function') return Promise.resolve([]);
+  return fotosFuerKarteLaden(kartenKey).then(function (eintraege) {
+    return Promise.all(eintraege.map(function (e) {
+      return fotoDataUrlMitMassen(e.blob)
+        .then(function (masse) {
+          return Object.assign({ _label: label || '', _dataUrl: masse.dataUrl, _breite: masse.breite, _hoehe: masse.hoehe }, e);
+        })
+        .catch(function () { return null; });
+    }));
+  }).then(function (liste) { return liste.filter(Boolean); })
+    .catch(function () { return []; });
+}
+
 function fotosDateienAusgewaehlt(input, kartenKey) {
   var dateien = Array.from(input.files || []);
   input.value = ''; // erlaubt erneute Auswahl derselben Datei

@@ -79,6 +79,39 @@ function initStatusleiste(cfg) {
     kreisEl.dataset.quelle = 'abschnitt';
   }
 
+  /* [7.1.0 Bugfix "Statusleiste funktioniert nicht richtig"]
+   * ---------------------------------------------------------------------
+   * BEFUND: Nach einmaligem Kartenfokus/-sichtbarkeit (quelle === 'karte')
+   * blieb die Leiste bei reinem Scrollen (v. a. bei einem einzelnen groben
+   * Sprung wie scrollTo()/scrollIntoView() statt vieler kleiner Wheel-
+   * Events) dauerhaft auf der zuletzt gezeigten Karte haengen, obwohl man
+   * laengst in einem ganz anderen Abschnitt war (z. B. "Gesamtbewertung").
+   * URSACHE: Der IntersectionObserver meldet nur GRENZUEBERGAENGE
+   * (isIntersecting wechselt true/false). Landet ein Sprung-Scroll direkt
+   * auf einer Position, an der bereits (wie zuvor) keine Karte im schmalen
+   * Beobachtungsstreifen liegt, gibt es dort keinen erneuten Uebergang -
+   * der Observer feuert schlicht nicht erneut, und die alte 'karte'-Quelle
+   * blieb faelschlich stehen. abschnittNeuBerechnen() (die bei JEDEM
+   * Scroll-Event laeuft, nicht nur bei Grenzuebergaengen) prueft deshalb
+   * hier zusaetzlich aktiv nach, ob die aktuell als "quelle=karte"
+   * gefuehrte Karte ueberhaupt noch in der Naehe des sichtbaren Bereichs
+   * liegt - falls nicht, wird die Quelle zurueckgesetzt, damit der
+   * Abschnittsname wieder greifen kann. */
+  function karteNochImBlick() {
+    if (kreisEl.dataset.quelle !== 'karte') return true; // nichts zu pruefen
+    if (!cfg.kartenSelector) return true;
+    const karten = document.querySelectorAll(cfg.kartenSelector);
+    for (const karte of karten) {
+      const top = karte.getBoundingClientRect().top;
+      const bottom = karte.getBoundingClientRect().bottom;
+      // Grosszuegiger Toleranzbereich um den Viewport - reicht, um eine
+      // Karte als "noch relevant" zu werten, ohne so eng zu sein wie der
+      // IntersectionObserver-Streifen (der ja gerade das Problem ist).
+      if (bottom >= -100 && top <= window.innerHeight + 100) return true;
+    }
+    return false;
+  }
+
   if (Array.isArray(cfg.abschnitte) && cfg.abschnitte.length) {
     const eintraege = cfg.abschnitte
       .map(a => ({ el: document.querySelector(a.selector), label: a.label }))
@@ -104,6 +137,12 @@ function initStatusleiste(cfg) {
         // wenig Restinhalt darunter (kurzes Formular, z. B. Anschluss-/
         // Geraeteprüfung mit nur 1-2 Karten) rechnerisch nie ueber die
         // Schwelle hinausscrollt.
+        // Steht die Anzeige noch auf einer Karte, die laengst nicht mehr in
+        // Sichtweite ist (siehe Kommentar bei karteNochImBlick oben), die
+        // Quelle zuruecksetzen, DAMIT die folgenden Zweige den Abschnitts-
+        // namen ueberhaupt zeigen duerfen.
+        if (!karteNochImBlick()) kreisEl.dataset.quelle = '';
+
         const amEnde = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
         if (amEnde) {
           aktuellerAbschnitt = eintraege[eintraege.length - 1].label;

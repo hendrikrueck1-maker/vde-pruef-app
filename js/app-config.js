@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '7.0.0';
+var APP_VERSION = '7.1.0';
 
 /* ---------------------------------------------------------------------------
  * 1b. BETRIEBSNAME (Branding)
@@ -142,15 +142,18 @@ var CORE_ASSETS = [
    * eingebunden, aber hier zentral fuer den Offline-Cache gelistet wie die
    * uebrigen js/*.js-Dateien. */
   'js/karussell.js',
-  'img/drehschalter/Z_i_Loop.png',
+  'img/drehschalter/Z_S_Schleifenimpedanz-Kurzschlussstrom.png',
   'img/drehschalter/RCD_Ausloesezeit_deltaT.png',
   'img/drehschalter/RCD_Ausloesestrom_I_deltaN.png',
+  'img/drehschalter/RCD_Typ_AC.png',
+  'img/drehschalter/RCD_Typ_A.png',
+  'img/drehschalter/RCD_Typ_B.png',
+  'img/drehschalter/RCD_Typ_F.png',
   'img/drehschalter/R_ISO_Isolationswiderstand.png',
   'img/drehschalter/R_PE_Schutzleiterwiderstand.png',
-  'img/drehschalter/U_L_Netzspannung.png',
   'img/drehschalter/V_Hz_Netzspannung.png',
   'img/drehschalter/R_LO_Potenzialausgleich.png',
-  'img/drehschalter/Drehfeld_Phasendrehung.png',
+  'img/drehschalter/Phase_Drehfeldmessung.png',
   'js/pwa.js',
   'js/vendor/jspdf.umd.min.js',
   'js/vendor/jspdf.plugin.autotable.min.js',

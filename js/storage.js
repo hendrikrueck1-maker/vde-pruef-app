@@ -52,7 +52,7 @@ function sicherSetItem(key, value) {
  * Autosave-Stand (der diese Angabe noch nicht enthielt) restauriert wird.
  * Diese Liste wird von allen drei restore*State()-Funktionen genutzt, um
  * genau das zu verhindern - siehe dort. */
-const MASTERDATA_FIELD_IDS = ['auftraggeber', 'vnb', 'hausanschluss', 'pruefer', 'messgeraet', 'seriennummer', 'unterschrift_ort'];
+const MASTERDATA_FIELD_IDS = ['auftraggeber', 'vnb', 'hausanschluss', 'pruefer', 'pruefer_qualifikation', 'messgeraet', 'seriennummer', 'unterschrift_ort'];
 
 function getMasterData() {
   const saved = localStorage.getItem('vde_master_data');
@@ -70,6 +70,7 @@ function getMasterData() {
     vnb: "",
     hausanschluss: "",
     pruefer: "",
+    pruefer_qualifikation: "",
     messgeraet: "",
     seriennummer: "",
     ort: ""
@@ -87,6 +88,7 @@ function saveMasterData(erfolgMelden = false) {
     vnb: document.getElementById('m_vnb').value,
     hausanschluss: document.getElementById('m_hausanschluss')?.value || '',
     pruefer: document.getElementById('m_pruefer').value,
+    pruefer_qualifikation: document.getElementById('m_pruefer_qualifikation')?.value || '',
     messgeraet: document.getElementById('m_messgeraet').value,
     seriennummer: document.getElementById('m_seriennummer').value,
     ort: document.getElementById('m_ort').value
@@ -105,6 +107,7 @@ function loadMasterDataToDashboard() {
   document.getElementById('m_vnb').value = data.vnb || '';
   if (document.getElementById('m_hausanschluss')) document.getElementById('m_hausanschluss').value = data.hausanschluss || '';
   document.getElementById('m_pruefer').value = data.pruefer || '';
+  if (document.getElementById('m_pruefer_qualifikation')) document.getElementById('m_pruefer_qualifikation').value = data.pruefer_qualifikation || '';
   document.getElementById('m_messgeraet').value = data.messgeraet || '';
   document.getElementById('m_seriennummer').value = data.seriennummer || '';
   document.getElementById('m_ort').value = data.ort || '';
@@ -119,6 +122,7 @@ function applyMasterDataToForm() {
   setIfPresent('vnb', data.vnb || '');
   setIfPresent('hausanschluss', data.hausanschluss || '');
   setIfPresent('pruefer', data.pruefer || '');
+  setIfPresent('pruefer_qualifikation', data.pruefer_qualifikation || '');
   setIfPresent('messgeraet', data.messgeraet || '');
   setIfPresent('seriennummer', data.seriennummer || '');
   setIfPresent('unterschrift_ort', data.ort || '');

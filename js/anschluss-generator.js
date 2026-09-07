@@ -426,7 +426,34 @@ function leerBlattzahlAnschluss() {
  * für die ausführliche Begründung. */
 function generatePDFAnschluss(isBlank = false) {
   try {
-    generatePDFAnschlussInner(isBlank);
+    // [7.1.0] Fotos liegen im IndexedDB und muessen asynchron geladen werden
+    // (siehe js/fotos.js) - deshalb hier vor dem eigentlichen (synchronen)
+    // PDF-Aufbau geladen und als zusaetzliches Argument durchgereicht, analog
+    // zur Fotodokumentation in vde0100.html/pdf-generator.js.
+    // 7.1.0: zusaetzlich die Fotos am zentralen Bemerkungsfeld laden und mit
+    // Label "Bemerkung" anhaengen (siehe pdf-generator.js, gleiches Muster).
+    const fotoLadenPromise = Promise.all([
+      (typeof fotosFuerPdfLaden === 'function') ? fotosFuerPdfLaden('#feedsContainer .feed-card', isBlank) : Promise.resolve([]),
+      (typeof fotosFuerEinzelkarteLaden === 'function' && typeof fotoKartenKey === 'function')
+        ? fotosFuerEinzelkarteLaden(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1), isBlank, 'Bemerkung')
+        : Promise.resolve([])
+    ]).then(function (teile) { return teile[0].concat(teile[1]); });
+    fotoLadenPromise.then(function (fotos) {
+      try {
+        generatePDFAnschlussInner(isBlank, fotos);
+      } catch (err) {
+        console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
+        alert(
+          'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
+          'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
+          'bleiben erhalten (Autosave läuft weiter).\n\n' +
+          'Bitte versuche es erneut. Falls der Fehler wiederholt auftritt, hilft oft ' +
+          'ein Blick auf sehr lange Freitextfelder (Bemerkungen o.Ä.) - oder melde den ' +
+          'Fehler mit einer Beschreibung, was gerade im Formular stand.\n\n' +
+          'Technische Details: ' + (err && err.message ? err.message : String(err))
+        );
+      }
+    });
   } catch (err) {
     console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
     alert(
@@ -441,7 +468,7 @@ function generatePDFAnschluss(isBlank = false) {
   }
 }
 
-function generatePDFAnschlussInner(isBlank = false) {
+function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
@@ -974,21 +1001,25 @@ function generatePDFAnschlussInner(isBlank = false) {
   // "n.a." war im Formular waehlbar, im PDF aber nicht darstellbar
   drawCheckbox(doc, 158, finalY + offFreigabe, "n.a.", !isBlank && leistungVal === "n.a.");
 
-  /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
-   * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
-   * ueberhaupt etwas vermerkt wurde. Jetzt: sobald Text eingetragen wurde,
-   * wird der Bereich rot hinterlegt und in Fettschrift gedruckt (gleiche
-   * Rot-Palette wie bei einer rot markierten Messzelle). */
+  /* [7.1.0, Befund "Mängel/Bewertung immer rot hinterlegt"] Rot nur, wenn
+   * tatsaechlich "Mängel festgestellt" angekreuzt ist (hatMaengel) - vorher
+   * wurde JEDER eingetragene Text automatisch rot hinterlegt, auch ohne
+   * angekreuzten Mangel. Ist Text eingetragen, aber kein Mangel angekreuzt,
+   * wird stattdessen gelb hervorgehoben (siehe pdf-generator.js, gleiches
+   * Muster). */
+  const gelbCellBg = [254, 249, 195];
+  const gelbCellText = [113, 63, 6];
   const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
-  if (hatBemerkungstext) {
+  const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
+  if (bemerkungFarbe !== 'neutral') {
     const bemHighlightY = finalY + offBemLabel - 3.3;
     const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
-    doc.setFillColor(...redCellBg);
+    doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
     doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.setTextColor(...(hatBemerkungstext ? redCellText : textColor));
+  doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : textColor));
   doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
   doc.setFontSize(6.8);
@@ -1017,9 +1048,7 @@ function generatePDFAnschlussInner(isBlank = false) {
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : hasIssues
       ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei der Sichtprüfung, eine nicht ausreichende Anschlussleistung oder ein Sicherheitsrisiko festgestellt. Der Übergabepunkt ist in diesem Zustand NICHT freigegeben. Eine Nutzung ist erst nach Beseitigung der genannten Mängel und erneuter Prüfung zulässig."
-      : behobenOk
-        ? MAENGEL_BEHOBEN_TEXT_ANSCHLUSS
-        : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.";
+      : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.";
 
   // Fehlende Angaben anhaengen, statt sie nur rot in der Tabelle zu zeigen.
   const complianceGesamt = complianceText +
@@ -1118,6 +1147,13 @@ function generatePDFAnschlussInner(isBlank = false) {
       // 4.5.0 (C4): Legende auch auf dem Fortsetzungsblatt.
       drawLeerFuss(doc, [LEER_LEGENDE_AP]);
     }
+  }
+
+  // [7.1.0] G17-Nachtrag: Fotodokumentation auch in der Anschlussprüfung als
+  // eigene Anhangseite (Fotoaufnahme selbst gab es hier schon seit 7.0.0,
+  // die PDF-Einbindung stand noch aus - siehe Änderungsbericht 7.0.0).
+  if (fotos && fotos.length && typeof drawFotodokumentationSeite === 'function') {
+    drawFotodokumentationSeite(doc, fotos, 'FOTODOKUMENTATION', 'Übergabepunkt');
   }
 
   drawProtokollSeitenkoepfe(doc, {

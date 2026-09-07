@@ -46,9 +46,25 @@
  *                  die CSS-Vorrangregel (Rot vor Gruen) sorgt weiterhin
  *                  dafuer, dass ein falscher Wert nie gruen erscheint. */
 function initPflichtfelder(cfg) {
+  // [7.1.0, Befund "R_ISO erscheint gruen ohne Wert"] Felder wie R_ISO sind
+  // mit dem editierbaren Vergleichszeichen ">" vorbelegt (siehe z. B.
+  // js/pdf-generator.js, js/geraete-generator.js). Ein Wert, der NUR aus
+  // Vergleichszeichen/Leerzeichen besteht (">" , "< ", "≥" ...) OHNE
+  // tatsaechliche Ziffer dahinter, ist inhaltlich noch kein Messwert - das
+  // Feld wurde nur vorbelegt, aber nicht wirklich ausgefuellt. Vorher wertete
+  // markiereFeld() jeden nicht-leeren String als "ok" (gruen), wodurch ein
+  // unveraendertes ">" faelschlich gruen erschien, obwohl kein Wert
+  // eingetragen wurde.
+  function nurVergleichszeichenOhneZiffer(wert) {
+    const w = String(wert || '').trim();
+    if (w === '') return false;
+    return /^[<>≤≥~\s]+$/.test(w);
+  }
+
   function markiereFeld(el) {
     if (!el) return;
-    const leer = String(el.value || '').trim() === '';
+    const wert = String(el.value || '').trim();
+    const leer = wert === '' || nurVergleichszeichenOhneZiffer(wert);
     el.classList.toggle('pflichtfeld-leer', leer);
     el.classList.toggle('pflichtfeld-ok', !leer);
   }

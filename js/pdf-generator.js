@@ -282,8 +282,12 @@ function addCircuitCard(data = {}) {
     </div>
 
     <!-- MESSWERTE: BERÜHRUNGSSPANNUNG -->
+    <!-- 7.1.0: kein eigenes Icon/keine eigene Anleitung mehr hier - die
+         Berührungsspannung wird bei der RCD-Auslösezeitmessung automatisch
+         mitgemessen (siehe Abschnitt 3 oben bzw. MESSGROESSEN_INFO.rcd in
+         js/infokarten.js). Ein eigener Block hier waere eine Dopplung. -->
     <div class="sub-section">
-      <div class="sub-title mess-karte-titel">${messgroesseBlock('ul', 'fluke1663').icon}<span class="titel-text">4. Berührungsspannung & Netzart</span></div>
+      <div class="sub-title mess-karte-titel"><span class="titel-text">4. Berührungsspannung & Netzart</span></div>
       <div class="grid">
         <div class="form-group">
           <label for="art_${cardCounter}">Spannungsart Netzeinspeisung:</label>
@@ -309,7 +313,6 @@ function addCircuitCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2,5 V" oninput="validateCardNorms(${cardCounter})">
         </div>
       </div>
-      ${messgroesseBlock('ul', 'fluke1663').karten}
     </div>
     </div>
 
@@ -1614,9 +1617,7 @@ function generatePDFInner(isBlank = false) {
       ? `HINWEIS: ${totgelegtCount} Stromkreis wurde als n.i.O./freigeschaltet dokumentiert und ist nicht in Betrieb (siehe Kennzeichnung in der Messwerttabelle sowie den dokumentierten Fehlergrund). Die übrige elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch der übrigen, in Betrieb befindlichen Anlagenteile ist gewährleistet; der genannte Stromkreis bleibt bis zur Mängelbehebung und erneuten Prüfung außer Betrieb.`
       : hasIssues
         ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung oder ein Sicherheitsrisiko festgestellt. Die elektrische Anlage entspricht in diesem Zustand NICHT den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch ist NICHT gewährleistet, bis die genannten Mängel behoben und erneut geprüft wurden."
-        : behobenOk
-          ? MAENGEL_BEHOBEN_TEXT_ANLAGE
-          : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+        : "Die elektrische Anlage entspricht den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
   const complianceGesamt = complianceText +
     (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
   doc.setFont("helvetica", ampelStatus === 'rot' ? "bold" : (ampelStatus === 'gelb' ? "bold" : "italic"));
@@ -1681,24 +1682,34 @@ function generatePDFInner(isBlank = false) {
   drawCheckbox(doc, 150, finalY + offTermin, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
   drawCheckbox(doc, 162, finalY + offTermin, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
 
-  /* [Nutzerwunsch] Ein eingetragener Mangel/eine Bemerkung ging im PDF bisher
-   * in normaler Schrift unter - auf einen Blick war nicht erkennbar, ob dort
-   * ueberhaupt etwas vermerkt wurde, ohne die Zeile bewusst zu lesen. Jetzt:
-   * sobald tatsaechlich Text eingetragen wurde, wird der gesamte Bereich rot
-   * hinterlegt und in Fettschrift gedruckt (dieselbe Rot-Palette wie bei
-   * einem totgelegten Stromkreis, redCellBg/redCellText oben in dieser
-   * Funktion). Eine leere Bemerkung (Leerformular oder nichts eingetragen)
-   * bleibt unveraendert schwarz mit Schreiblinien. */
+  /* [7.1.0, Befund "Mängel/Bewertung immer rot hinterlegt"] Ein eingetragener
+   * Text im Bemerkungsfeld ging im PDF bisher in normaler Schrift unter - auf
+   * einen Blick war nicht erkennbar, ob dort ueberhaupt etwas vermerkt wurde.
+   * VORHER wurde deshalb JEDER eingetragene Text automatisch rot hinterlegt -
+   * das war irrefuehrend, weil "Bemerkung" nicht automatisch "Mangel"
+   * bedeutet (z. B. reine Stichprobenangabe oder ein Hinweis ohne Befund).
+   * JETZT: rot nur, wenn tatsaechlich "Mängel festgestellt" angekreuzt ist
+   * (hatMaengel) - das entspricht der bereits bestehenden Ampel-Logik bei den
+   * Ergebnis-Checkboxen weiter oben. Ist stattdessen nur Text eingetragen,
+   * ohne dass ein Mangel angekreuzt wurde (z. B. bei "behoben" oder "keine
+   * Mängel"), wird der Bereich gelb hervorgehoben (gleiche Farbe wie
+   * .missing-value/.pflichtfeld-leer in style.css) - auffaellig genug, um zu
+   * zeigen "hier steht etwas", ohne faelschlich einen Mangel zu suggerieren.
+   * Eine leere Bemerkung (Leerformular oder nichts eingetragen) bleibt
+   * unveraendert schwarz mit Schreiblinien. */
+  const gelbCellBg = [254, 249, 195];
+  const gelbCellText = [113, 63, 6];
   const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
-  if (hatBemerkungstext) {
+  const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
+  if (bemerkungFarbe !== 'neutral') {
     const bemHighlightY = finalY + offBemLabel - 3.3;
     const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
-    doc.setFillColor(...redCellBg);
+    doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
     doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.2);
-  doc.setTextColor(...(hatBemerkungstext ? redCellText : PDF_TEXT));
+  doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : PDF_TEXT));
   doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
   doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
   doc.setFontSize(6.8);
@@ -1856,40 +1867,26 @@ function generatePDFInner(isBlank = false) {
    * geladen werden - deshalb ab hier eine Promise-Kette statt des bisherigen
    * synchronen Funktionsendes. isBlank hat nie Fotos (Leerformular). Ein
    * Fehler beim Laden der Fotos (z. B. IndexedDB nicht verfuegbar) darf das
-   * eigentliche Protokoll NICHT verhindern - deshalb .catch(() => []) statt
-   * die Kette abbrechen zu lassen. */
-  // jsPDF.addImage() braucht eine Data-URL (oder ein <img>-Element), keinen
-  // rohen Blob - deshalb hier jedes gespeicherte Foto einmal per FileReader
-  // in eine Data-URL umwandeln, BEVOR es gezeichnet wird.
-  const blobZuDataUrl = (blob) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-  const fotoLadenPromise = (isBlank || typeof fotosFuerKarteLaden !== 'function')
-    ? Promise.resolve([])
-    : Promise.all(
-        Array.from(document.querySelectorAll('.circuit-card')).map(function (card, idx) {
-          const leiste = card.querySelector('.fotos-leiste[data-karten-key]');
-          if (!leiste) return Promise.resolve([]);
-          return fotosFuerKarteLaden(leiste.getAttribute('data-karten-key'))
-            .then(function (eintraege) {
-              return Promise.all(eintraege.map(function (e) {
-                return blobZuDataUrl(e.blob)
-                  .then(function (dataUrl) { return Object.assign({ stromkreisNr: idx + 1, _dataUrl: dataUrl }, e); })
-                  .catch(function () { return null; });
-              }));
-            })
-            .then(function (liste) { return liste.filter(Boolean); })
-            .catch(function () { return []; });
-        })
-      ).then(function (gruppen) { return gruppen.reduce(function (a, b) { return a.concat(b); }, []); })
-        .catch(function () { return []; });
+   * eigentliche Protokoll NICHT verhindern - siehe .catch() in
+   * fotosFuerPdfLaden() (js/fotos.js, 7.1.0 - vorher hier inline, jetzt
+   * zentral, damit anschluss-generator.js/geraete-generator.js denselben
+   * Ladecode nutzen koennen und Fotos dort ebenfalls unverzerrt eingepasst
+   * werden statt gestreckt). */
+  // 7.1.0: zusaetzlich die Fotos am zentralen Feld "Mängel / Bemerkungen /
+  // Auflagen" laden (eigener, fester Kartenschluessel - siehe HTML/Skript-
+  // Block direkt beim Textfeld oben im Formular) und mit dem Label
+  // "Bemerkung" statt einer Stromkreis-Nummer auf derselben Anhangseite
+  // anhaengen.
+  const fotoLadenPromise = Promise.all([
+    (typeof fotosFuerPdfLaden === 'function') ? fotosFuerPdfLaden('.circuit-card', isBlank) : Promise.resolve([]),
+    (typeof fotosFuerEinzelkarteLaden === 'function' && typeof fotoKartenKey === 'function')
+      ? fotosFuerEinzelkarteLaden(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1), isBlank, 'Bemerkung')
+      : Promise.resolve([])
+  ]).then(function (teile) { return teile[0].concat(teile[1]); });
 
   fotoLadenPromise.then(function (fotos) {
     if (fotos.length) {
-      drawFotodokumentationSeite(doc, fotos);
+      drawFotodokumentationSeite(doc, fotos, '5. FOTODOKUMENTATION', 'Stromkreis');
     }
 
     // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
@@ -1921,48 +1918,9 @@ function generatePDFInner(isBlank = false) {
   });
 }
 
-/* Zeichnet eine oder mehrere Anhangseiten "5. Fotodokumentation" mit den
- * (bereits komprimierten) Fotos je Stromkreis, 2 Spalten x 3 Zeilen pro
- * Seite. Reine Dokumentation der als Blob vorliegenden JPEGs - keine
- * Bewertung/Analyse, nur Bildnachweis mit Zuordnung zum Stromkreis. */
-function drawFotodokumentationSeite(doc, fotos) {
-  const SPALTEN = 2, ZEILEN = 3, PRO_SEITE = SPALTEN * ZEILEN;
-  const BILD_B = 82, BILD_H = 62, GAP_X = 8, GAP_Y = 10;
-  for (let i = 0; i < fotos.length; i++) {
-    if (i % PRO_SEITE === 0) {
-      doc.addPage();
-      let yy = PDF_CONTENT_TOP;
-      drawKategorieTitel(doc, "5. FOTODOKUMENTATION", yy, 'erdung');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(5.6);
-      doc.setTextColor(...PDF_MUTED);
-      doc.text('Optionale Fotos zu auffälligen Stellen/Mängeln, während der Prüfung mit der App aufgenommen.',
-                PDF_MARGIN_LEFT, yy + 3.4);
-      doc.setTextColor(...PDF_TEXT);
-    }
-    const posImSeite = i % PRO_SEITE;
-    const spalte = posImSeite % SPALTEN;
-    const zeile = Math.floor(posImSeite / SPALTEN);
-    const x = PDF_MARGIN_LEFT + spalte * (BILD_B + GAP_X);
-    const y = PDF_CONTENT_TOP + 8 + zeile * (BILD_H + GAP_Y);
-    try {
-      const dataUrl = fotos[i]._dataUrl;
-      if (dataUrl) {
-        doc.addImage(dataUrl, 'JPEG', x, y, BILD_B, BILD_H, undefined, 'FAST');
-      }
-    } catch (e) {
-      doc.setDrawColor(...PDF_BOX_BORDER);
-      doc.rect(x, y, BILD_B, BILD_H);
-    }
-    doc.setDrawColor(...PDF_BOX_BORDER);
-    doc.rect(x, y, BILD_B, BILD_H);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.2);
-    doc.setTextColor(...PDF_MUTED);
-    doc.text(`Stromkreis #${fotos[i].stromkreisNr}`, x, y + BILD_H + 4);
-    doc.setTextColor(...PDF_TEXT);
-  }
-}
+// [7.1.0] drawFotodokumentationSeite() ist nach js/fotos.js umgezogen, damit
+// sie auch von anschluss-generator.js und geraete-generator.js genutzt werden
+// kann (pdf-generator.js wird NUR in vde0100.html geladen) - siehe dort.
 
 function initSignaturePads() {
   return {

@@ -131,8 +131,11 @@
     </div>
 
     <!-- NETZMESSUNG AM ÜBERGABEPUNKT (neu in 4.5.0, Befund B1) -->
-    <div class="sub-section kat-block kat-messen" style="margin-top:10px;">
-      <div class="sub-title">Netzmessung am Übergabepunkt &ndash; Spannungen &amp; Frequenz</div>
+    <!-- [7.1.0] Icon+Anleitung ergänzt (Befund "Anleitungen teilweise fehlend") -
+         analog zu vde0100.html, dieselbe Messgröße (uv), siehe
+         zusatzIconsEinbinden() in js/infokarten.js. -->
+    <div class="sub-section kat-block kat-messen" id="netzmessung_block" style="margin-top:10px;">
+      <div class="sub-title mess-karte-titel"><span id="netzmessung_icon"></span><span class="titel-text">Netzmessung am Übergabepunkt &ndash; Spannungen &amp; Frequenz</span></div>
       <p class="limit-hint" style="margin:0 0 8px;">
         Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V · Frequenz 50 Hz.
         Nicht gemessene Werte bleiben leer. Die N&ndash;PE-Spannung wird je Übergabepunkt
@@ -141,12 +144,12 @@
         Genau diese Fehler liegen hinter einem fremden Übergabepunkt.
       </p>
       <div class="grid">
-        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
         <div class="form-group"><label for="netzfrequenz">Frequenz f (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="50"></div>
       </div>
     </div>
@@ -242,6 +245,7 @@
     <div class="form-group" style="margin-top: 8px;">
       <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      <div id="bemerkungen_fotos_platzhalter"></div>
     </div>
 
     <!-- 7. ÜBERGABE -->
@@ -297,6 +301,14 @@
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
 
   addFeedCard();
+
+  // [7.1.0] Foto-Anlage auch am zentralen Feld "Mängel / Bemerkungen /
+  // Auflagen" (siehe vde0100.html, gleiches Muster).
+  if (typeof fotosLeisteHtml === 'function') {
+    const bemerkungenFotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1);
+    document.getElementById('bemerkungen_fotos_platzhalter').innerHTML = fotosLeisteHtml(bemerkungenFotoKey);
+    fotosLeisteAktualisieren(bemerkungenFotoKey);
+  }
 
   restoreAnschlussState(loadAnschlussAutosave());
 

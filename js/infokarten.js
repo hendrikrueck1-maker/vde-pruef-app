@@ -20,39 +20,46 @@
 
 const MESSGROESSEN_INFO = {
   zs: {
-    icon: 'img/drehschalter/Z_i_Loop.png',
-    iconAlt: 'Drehschalter-Icon Schleifenimpedanz (Zi-Loop-Symbol)',
-    label: 'Z<sub>S</sub>',
+    icon: 'img/drehschalter/Z_S_Schleifenimpedanz-Kurzschlussstrom.png',
+    iconAlt: 'Drehschalter-Icon Schleifenimpedanz (Position Zi)',
+    label: 'Z<sub>i</sub>',
     was: 'Die Schleifenimpedanz Z<sub>S</sub> bestimmt, ob die vorgeschaltete Sicherung im Fehlerfall schnell genug abschaltet – Grundlage des Schutzes durch automatische Abschaltung nach DIN&nbsp;VDE&nbsp;0100-410. Aus Z<sub>S</sub> wird zusätzlich der zu erwartende Kurzschlussstrom I<sub>K</sub> berechnet.',
     warum: 'Bei zu hoher Impedanz löst die Sicherung im Fehlerfall nicht rechtzeitig aus – die Berührungsspannung bleibt gefährlich lange anliegen.',
     fluke1663: [
-      'Drehschalter auf die Position <span class="drehschalter">Z<sub>i</sub></span> (Schleifenimpedanz, Symbol Zi mit Schleifen-Pfeil) stellen – bei RCD-geschützten Stromkreisen die Einstellung <span class="drehschalter">NO TRIP</span> wählen, damit der RCD während der Messung nicht auslöst.',
+      'Drehschalter auf die Position <span class="drehschalter">Z<sub>i</sub></span> (Schleifenimpedanz, Symbol Z<sub>i</sub> mit Schleifen-Pfeil) stellen – bei RCD-geschützten Stromkreisen zusätzlich mit/ohne RCD passend zur Absicherung wählen, damit der RCD während der Messung nicht unbeabsichtigt auslöst.',
       'Prüfspitzen/Adapter an Steckdose oder Klemme des betreffenden Stromkreises anschließen (mindestens L und PE).',
       '<span class="drehschalter">TEST</span> drücken und loslassen.',
       'Messwert Z<sub>S</sub> (Ω, Hauptanzeige) und errechneten Kurzschlussstrom I<sub>K</sub> (A bzw. kA, Sekundäranzeige) ablesen und ins Formular übertragen.'
     ],
-    fluke1663Hinweis: 'Der Fluke 1663 zeigt bei aktivierter „No-Trip"-Funktion einen strombegrenzten Messwert. Für die Dokumentation ist der angezeigte Z<sub>S</sub>-Wert zu verwenden. No-Trip nur bei RCD-geschützten Kreisen aktivieren, um ein Auslösen während der Messung zu vermeiden.'
+    fluke1663Hinweis: 'Bei RCD-geschützten Stromkreisen die strombegrenzte Einstellung ("mit RCD") wählen, damit der RCD während der Messung nicht unbeabsichtigt auslöst – das Gerät zeigt dabei einen strombegrenzten Messwert. Für die Dokumentation ist der angezeigte Z<sub>S</sub>-Wert zu verwenden.'
   },
   rcd: {
     iconDual: [
       { icon: 'img/drehschalter/RCD_Ausloesezeit_deltaT.png', alt: 'Drehschalter-Icon RCD-Auslösezeit', label: 'ΔT' },
       { icon: 'img/drehschalter/RCD_Ausloesestrom_I_deltaN.png', alt: 'Drehschalter-Icon RCD-Auslösestrom', label: 'I<sub>ΔN</sub>' }
     ],
-    was: 'Die RCD-Prüfung stellt sicher, dass der Fehlerstrom-Schutzschalter bei einem tatsächlichen Fehlerstrom innerhalb der normativ vorgeschriebenen Zeit auslöst (z.&nbsp;B. 300/150/40&nbsp;ms bzw. 500/200/150&nbsp;ms bei selektiven RCDs, je nach Prüfstrom-Vielfachem). Der RCD-Typ steht als Symbol auf dem Gerät/Typenschild: <span class="rcd-typ-symbol" title="Typ AC – nur Wechselfehlerströme">AC ∿</span> <span class="rcd-typ-symbol" title="Typ A – Wechsel- und pulsierende Gleichfehlerströme">A ∿⌐</span> <span class="rcd-typ-symbol" title="Typ F – zusätzlich Mischfrequenzen (z. B. Frequenzumrichter)">F ⌇</span> <span class="rcd-typ-symbol" title="Typ B – zusätzlich glatte Gleichfehlerströme (allstromsensitiv)">B ≈</span> – der am Fluke eingestellte Typ muss dem Typenschild entsprechen, sonst ist das Prüfergebnis nicht aussagekräftig.',
-    warum: 'Ein RCD, der nicht oder zu spät auslöst, bietet keinen wirksamen Zusatzschutz gegen gefährliche Körperströme – die zentrale Schutzfunktion des Geräts wäre praktisch wirkungslos, ohne dass das von außen erkennbar wäre.',
+    // [7.1.0] Die Berührungsspannungsmessung (vormals eigener Block "ul" mit
+    // eigenem Icon) wird bei der RCD-Auslösezeitmessung automatisch
+    // mitgemessen - ist also KEINE eigenstaendige Pruefung mit eigenem
+    // Geraete-Schritt, sondern Teil dieser Messung. Auf Nutzerwunsch deshalb
+    // hier mit hinein genommen (kein eigenes Icon/keine eigene Anleitung
+    // mehr fuer "ul" - siehe zusammengefuehrter Text unten und
+    // Kommentar bei MESSGROESSEN_INFO.ul).
+    was: 'Die RCD-Prüfung stellt sicher, dass der Fehlerstrom-Schutzschalter bei einem tatsächlichen Fehlerstrom innerhalb der normativ vorgeschriebenen Zeit auslöst (z.&nbsp;B. 300/150/40&nbsp;ms bzw. 500/200/150&nbsp;ms bei selektiven RCDs, je nach Prüfstrom-Vielfachem). Der RCD-Typ steht als Symbol auf dem Gerät/Typenschild: <span class="rcd-typ-symbol" title="Typ AC – nur Wechselfehlerströme">AC ∿</span> <span class="rcd-typ-symbol" title="Typ A – Wechsel- und pulsierende Gleichfehlerströme">A ∿⌐</span> <span class="rcd-typ-symbol" title="Typ F – zusätzlich Mischfrequenzen (z. B. Frequenzumrichter)">F ⌇</span> <span class="rcd-typ-symbol" title="Typ B – zusätzlich glatte Gleichfehlerströme (allstromsensitiv)">B ≈</span> – der am Fluke eingestellte Typ muss dem Typenschild entsprechen, sonst ist das Prüfergebnis nicht aussagekräftig. Bei der Auslösezeitmessung wird zugleich die Berührungsspannung U<sub>F</sub> (Fehlerspannung am PE-Leiter) mitgemessen – eine eigene, separate Messung dafür ist nicht nötig.',
+    warum: 'Ein RCD, der nicht oder zu spät auslöst, bietet keinen wirksamen Zusatzschutz gegen gefährliche Körperströme – die zentrale Schutzfunktion des Geräts wäre praktisch wirkungslos, ohne dass das von außen erkennbar wäre. Die mitgemessene Berührungsspannung zeigt zusätzlich, ob im Fehlerfall die zulässige Grenze (50 V AC normal / 25 V AC bei erhöhter Gefährdung, z. B. Bühne/Open Air) eingehalten wird.',
     fluke1663: [
-      '<u>Auslösezeit t<sub>A</sub> (Drehschalter-Position <span class="drehschalter">ΔT</span>):</u>',
+      '<u>Auslösezeit t<sub>A</sub> und Berührungsspannung (Drehschalter-Position <span class="drehschalter">ΔT</span>):</u>',
       'Drehschalter auf <span class="drehschalter">ΔT</span> stellen, Nennfehlerstrom (10/30/100/300/500/1000 mA) einstellen.',
-      'Prüfstrom-Wellenform passend zum RCD-Typ wählen: <em>~</em> für Typ AC/A, <em>⌐⌐</em> (Halbwelle) für pulsstromsensitive Typ A, <em>=</em> (glatter Gleichstrom) für Typ B – bei zeitverzögerten/selektiven RCDs zusätzlich [S] wählen.',
+      'Prüfstrom-Wellenform passend zum RCD-Typ wählen (Symbole siehe unten): <img class="rcd-typ-icon" src="img/drehschalter/RCD_Typ_AC.png" alt="Symbol Typ AC" title="Typ AC"> für Typ AC/A, <img class="rcd-typ-icon" src="img/drehschalter/RCD_Typ_A.png" alt="Symbol Typ A (Halbwelle)" title="pulsstromsensitiv Typ A"> (Halbwelle) für pulsstromsensitive Typ A, <img class="rcd-typ-icon" src="img/drehschalter/RCD_Typ_B.png" alt="Symbol Typ B" title="Typ B"> (glatter Gleichstrom) für Typ B – bei zeitverzögerten/selektiven RCDs zusätzlich [S] wählen.',
       'Phasenwinkel 0° <em>und</em> 180° jeweils einzeln prüfen (Ansprechzeit kann abweichen) – bei Typ B/S-Typ B sind beide Winkel zwingend zu prüfen.',
       'Prüfstrom-Vielfaches wählen (typisch ½×, 1× I<sub>Δn</sub>; bei Bedarf auch 2×, 5×).',
       'Mindestens L und PE anschließen (bzw. Steckdosen-Prüfleitung einstecken) – bei Typ B/S-Typ B werden alle drei Messleitungen benötigt.',
-      '<span class="drehschalter">TEST</span> drücken und loslassen: Hauptanzeige zeigt Auslösezeit t<sub>A</sub>, Sekundäranzeige die Fehlerspannung U<sub>F</sub> (Spannungsabfall am PE-Leiter bezogen auf den Bemessungsfehlerstrom).',
+      '<span class="drehschalter">TEST</span> drücken und loslassen: Hauptanzeige zeigt Auslösezeit t<sub>A</sub>, Sekundäranzeige die Fehlerspannung U<sub>F</sub> (Spannungsabfall am PE-Leiter bezogen auf den Bemessungsfehlerstrom) – diesen Wert zusätzlich als „Gemessene Berührungsspannung U<sub>mess</sub>" ins Formular übertragen.',
       '<u>Auslösestrom I<sub>ΔN</sub> (Drehschalter-Position <span class="drehschalter">I<sub>ΔN</sub></span>):</u>',
       'Drehschalter auf <span class="drehschalter">I<sub>ΔN</sub></span> stellen, Nennfehlerstrom und Prüfstromform wie oben einstellen.',
       '<span class="drehschalter">TEST</span> drücken: Das Gerät erhöht den Prüfstrom stufenweise, bis der RCD auslöst – Hauptanzeige zeigt den Auslösestrom, Sekundäranzeige wieder die Fehlerspannung U<sub>F</sub>.'
     ],
-    fluke1663Hinweis: 'Der am Fluke gewählte Prüfstrom-Faktor und Nennfehlerstrom müssen exakt dem im Formular ausgewählten Wert entsprechen, da die App den zulässigen Grenzwert daraus berechnet. Vor der Messung die Verbindung zwischen Neutralleiter und Schutzleiter prüfen (eine Spannung dazwischen verfälscht die Messung) – siehe Warnhinweis im Handbuch. Für RCD Typ B/B+ wird glatter Gleichstrom verwendet; die kurze 10-ms-Verzögerung bei Typ G/K/R wird vom RCD-✓-Symbol des Geräts nicht berücksichtigt.'
+    fluke1663Hinweis: 'Der am Fluke gewählte Prüfstrom-Faktor und Nennfehlerstrom müssen exakt dem im Formular ausgewählten Wert entsprechen, da die App den zulässigen Grenzwert daraus berechnet. Vor der Messung die Verbindung zwischen Neutralleiter und Schutzleiter prüfen (eine Spannung dazwischen verfälscht die Messung) – siehe Warnhinweis im Handbuch. Für RCD Typ B/B+ wird glatter Gleichstrom verwendet; die kurze 10-ms-Verzögerung bei Typ G/K/R wird vom RCD-✓-Symbol des Geräts nicht berücksichtigt. Der Grenzwert der Berührungsspannung (≤ 50 V AC normal / ≤ 25 V AC bei erhöhter Gefährdung) wird von der App bereits automatisch anhand der Auswahl „Gefährdung" berechnet.'
   },
   riso: {
     icon: 'img/drehschalter/R_ISO_Isolationswiderstand.png',
@@ -62,8 +69,8 @@ const MESSGROESSEN_INFO = {
     warum: 'Eine zu niedrige Isolation kann zu schleichenden Fehlerströmen, Erwärmung, Brandgefahr oder – im Fehlerfall an leitfähigen Teilen – zu einer echten Berührungsgefahr führen, ohne dass eine Sicherung dabei zwangsläufig auslöst.',
     fluke1663: [
       'Anlage spannungsfrei schalten.',
-      'Drehschalter auf <span class="drehschalter">Ω INSULATION</span> stellen.',
-      'Prüfspannung passend zur Anlage wählen (üblich 500&nbsp;V DC, bei SELV/PELV 250&nbsp;V DC) – muss mit der Formular-Auswahl „Prüfspannung" übereinstimmen.',
+      'Drehschalter auf <span class="drehschalter">Riso</span> stellen.',
+      'Prüfspannung passend zur Anlage wählen (üblich 500&nbsp;V DC, bei SELV/PELV 250&nbsp;V DC) – muss mit der Formular-Auswahl „Prüfspannung" übereinstimmen. Sind Geräte/Verbraucher angeschlossen, wird stattdessen mit 250&nbsp;V DC gemessen (Praxismessung) – dieselbe Prüfspannung dann auch im Formular unter „Prüfspannung" auswählen.',
       'Prüfspitzen zwischen Außenleiter und PE anschließen, <span class="drehschalter">TEST</span> gedrückt halten, bis der Wert stabil ist.'
     ],
     fluke6500: [
@@ -76,15 +83,15 @@ const MESSGROESSEN_INFO = {
   },
   rpe: {
     icon: 'img/drehschalter/R_PE_Schutzleiterwiderstand.png',
-    iconAlt: 'Drehschalter-Icon Schutzleiterwiderstand',
-    label: 'R<sub>PE</sub>',
+    iconAlt: 'Drehschalter-Icon Niederohmmessung (Position Rlo)',
+    label: 'R<sub>LO</sub>',
     was: 'Der Schutzleiterwiderstand stellt sicher, dass der PE-Leiter einen niederohmigen, durchgängigen Verbindungspfad zum Erdungssystem bildet.',
     warum: 'Ein zu hoher oder unterbrochener Schutzleiterwiderstand verhindert, dass im Fehlerfall der Fehlerstrom sicher abfließen und die vorgeschaltete Schutzeinrichtung zuverlässig auslösen kann – ein Körper könnte dann selbst zum Strompfad werden.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">Ω LOW OHM</span> bzw. <span class="drehschalter">R LOW Ω</span> stellen.',
+      'Drehschalter auf <span class="drehschalter">Rlo</span> stellen.',
       'Vorher am Gerät nullen (Messleitungswiderstand kompensieren).',
-      'Messung zwischen Potenzialausgleichsschiene/PE-Sammelschiene und dem zu prüfenden Punkt durchführen.',
-      'Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
+      'Messung zwischen Stecker und PE-Anschluss oder zwischen Potenzialausgleichsschiene und PE-Anschluss durchführen.',
+      '<span class="drehschalter">TEST</span> drücken und Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
     ],
     fluke6500: [
       'Drehschalter auf die Niederohm-/Schutzleiterwiderstands-Messfunktion stellen.',
@@ -94,19 +101,12 @@ const MESSGROESSEN_INFO = {
     ],
     fluke6500Hinweis: 'Bei langen oder dünnen Anschlussleitungen steigt der zulässige Grenzwert – siehe Grenzwert-Hinweis im Formular direkt am Messfeld.'
   },
-  ul: {
-    icon: 'img/drehschalter/RCD_Ausloesezeit_deltaT.png',
-    iconAlt: 'Drehschalter-Icon RCD-Auslösezeit (Berührungsspannung wird hier mitgemessen)',
-    label: 'U<sub>F</sub>',
-    was: 'Die Berührungsspannung U<sub>L</sub> ist die höchste Spannung, die an einem leitfähigen Teil im Fehlerfall dauerhaft anstehen darf, ohne eine unzumutbare Gefährdung darzustellen. Der zulässige Grenzwert hängt von der Umgebung ab (50&nbsp;V normal, 25&nbsp;V bei erhöhter Gefährdung, z.&nbsp;B. Bühnen- oder Open-Air-Umgebung).',
-    warum: 'Der strengere Grenzwert existiert genau für Umgebungen, in denen Menschen mit schlechterem Erdungswiderstand (z.&nbsp;B. barfuß, nasser Boden) in Kontakt mit Anlagenteilen kommen können – eine überschrittene Berührungsspannung ist ein unmittelbares Sicherheitsrisiko.',
-    fluke1663: [
-      'Keine eigene Drehschalter-Position nötig – die Berührungsspannung (U<sub>F</sub>, „Fehlerspannung") wird bei der RCD-Auslösezeitmessung (Drehschalter-Position <span class="drehschalter">ΔT</span>) automatisch mitgemessen.',
-      'Nach der RCD-Auslösezeitmessung: Wert U<sub>F</sub> in der sekundären Anzeige des Fluke 1663 ablesen (Spannungsabfall am PE-Leiter im Verhältnis zum Bemessungsfehlerstrom).',
-      'Diesen Wert unten als „Gemessene Berührungsspannung U<sub>mess</sub>" eintragen.'
-    ],
-    fluke1663Hinweis: 'Der Grenzwert (≤ 50 V AC normal / ≤ 25 V AC bei erhöhter Gefährdung) wird von der App bereits automatisch anhand der Auswahl „Gefährdung" berechnet. Eine separate Spannungsmessung („Drehschalter auf V AC") ist für die Berührungsspannung nicht nötig – das war in einer früheren Version dieser Anleitung fälschlich als eigener Messschritt beschrieben.'
-  },
+  /* [7.1.0] Eintrag "ul" (Berührungsspannung) entfernt: die Prüfung ist keine
+   * eigenstaendige Messung mit eigenem Geraete-Schritt, sondern wird bei der
+   * RCD-Auslösezeitmessung automatisch mitgemessen (siehe MESSGROESSEN_INFO.rcd
+   * oben, wo Text und Anleitung jetzt zusammengefuehrt sind). Der Abschnitt
+   * "Berührungsspannung & Netzart" in der Stromkreis-Karte zeigt deshalb kein
+   * eigenes Icon und keine eigene Anleitung mehr - siehe js/pdf-generator.js. */
   uv: {
     icon: 'img/drehschalter/V_Hz_Netzspannung.png',
     iconAlt: 'Drehschalter-Icon Netzspannung/Frequenz (V, Hz)',
@@ -127,21 +127,45 @@ const MESSGROESSEN_INFO = {
     was: 'Die Potenzialausgleichsmessung prüft die Durchgängigkeit und den niederohmigen Widerstand zwischen der Potenzialausgleichsschiene/Erdungspunkt und den zu verbindenden leitfähigen Teilen der Anlage.',
     warum: 'Ein unterbrochener oder zu hochohmiger Potenzialausgleich verhindert, dass im Fehlerfall gefährliche Spannungsunterschiede zwischen berührbaren leitfähigen Teilen sicher ausgeglichen werden – ein zentraler Baustein des Schutzes gegen elektrischen Schlag.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">Ω LOW OHM</span> bzw. <span class="drehschalter">R LOW Ω</span> stellen (dieselbe Messfunktion wie bei R<sub>PE</sub>).',
+      'Drehschalter auf <span class="drehschalter">Rlo</span> stellen (dieselbe Messfunktion wie beim Schutzleiterwiderstand).',
       'Vorher am Gerät nullen (Messleitungswiderstand kompensieren).',
-      'Messung zwischen Potenzialausgleichsschiene und dem zu prüfenden Anlagenteil durchführen.',
-      'Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
+      'Messung zwischen Stecker und PE-Anschluss oder zwischen Potenzialausgleichsschiene und PE-Anschluss durchführen.',
+      '<span class="drehschalter">TEST</span> drücken und Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
     ],
-    fluke1663Hinweis: 'Gleiche Drehschalter-Position und Vorgehensweise wie beim Schutzleiterwiderstand R<sub>PE</sub> – nur der Messpunkt unterscheidet sich.'
+    fluke1663Hinweis: 'Gleiche Drehschalter-Position und Vorgehensweise wie beim Schutzleiterwiderstand – nur der Messpunkt unterscheidet sich.'
+  },
+  /* [7.1.0 Befund "Anleitungen teilweise fehlend"] Der Ableitstrom-Messblock
+   * in der Geraetepruefung (js/geraete-generator.js) bot bisher drei
+   * waehlbare Messmethoden (Ersatzableitstrom / Differenzstrommessung /
+   * Direktmessung Beruehrungsstrom) OHNE jede Anleitung dazu, im
+   * Unterschied zu R_PE und R_ISO direkt daneben, die beide eine
+   * vollstaendige Fluke-6500-Kurzanleitung haben. Kein Drehschalter-Icon
+   * (anders als beim Fluke 1663 gibt es am Fluke 6500-2 keine dem
+   * Ableitstrom entsprechende einzelne Schalterstellung, siehe Kommentar
+   * "I26" in geraete-generator.js) - deshalb ohne icon/iconAlt, die Karte
+   * wird ueber infokarteInhaltHtml()+flukeAnleitungHtml() direkt statt ueber
+   * messgroesseBlock() eingebunden (kein Icon-Badge noetig/sinnvoll). */
+  ableitstrom: {
+    label: 'Ableitstrom',
+    was: 'Der Ableitstrom (Schutzleiter-, Berührungs- oder Ersatzableitstrom, je nach gewählter Messmethode) erfasst den Strom, der im Betrieb über die Isolierung bzw. den Schutzleiter zu berührbaren leitfähigen Teilen fließen kann.',
+    warum: 'Ein zu hoher Ableitstrom weist auf eine verschlechterte oder überlastete Isolation hin und kann bei Berührung leitfähiger Gehäuseteile zu einem spürbaren bis gefährlichen Stromfluss durch den Körper führen – unabhängig davon, ob der Schutzleiter selbst noch niederohmig durchgängig ist (siehe R_LO).',
+    fluke6500: [
+      'Passende Messmethode am Gerät sowie im Formular auswählen (Ersatzableitstrom, Differenzstrommessung oder Direktmessung Berührungsstrom) – die Auswahl richtet sich nach Schutzklasse und Prüfsituation des Prüflings.',
+      '<strong>Ersatzableitstrom</strong> (Schutzklasse&nbsp;I, Prüfling spannungsfrei): Messleitungen gemäß Geräteanleitung zwischen Netzstecker-Kontakten (L+N gebrückt) und berührbaren leitfähigen Teilen/PE anschließen, Prüfspannung anlegen und Wert ablesen.',
+      '<strong>Differenzstrommessung</strong> (Prüfling im Betrieb, Funktionsprüfung gleichzeitig möglich): Prüfling über den Messadapter am Netz betreiben, Differenz aus Hin- und Rückstrom wird direkt angezeigt.',
+      '<strong>Direktmessung Berührungsstrom</strong> (v.&nbsp;a. Schutzklasse&nbsp;II, Prüfling im Betrieb): Antastspitze auf die berührbaren leitfähigen Teile aufsetzen, Prüfling einschalten/im Betrieb belassen und Wert ablesen.',
+      'Ergebnis in mA im Formularfeld „Ableitstrom" eintragen; die verwendete Methode ist im Feld „Messmethode Ableitstrom" bereits hinterlegt.'
+    ],
+    fluke6500Hinweis: 'Bei Geräten mit Heizelement (siehe Feld „Heizleistung" an der Karte) gilt nach DIN EN 50699 ein angehobener Grenzwert – siehe Grenzwert-Hinweis direkt am Messfeld.'
   },
   drehfeld: {
-    icon: 'img/drehschalter/Drehfeld_Phasendrehung.png',
-    iconAlt: 'Drehschalter-Icon Drehfeldprüfung (Phasendrehung)',
-    label: 'L1-L2-L3',
+    icon: 'img/drehschalter/Phase_Drehfeldmessung.png',
+    iconAlt: 'Drehschalter-Icon Drehfeldprüfung (Position Phase)',
+    label: 'Phase',
     was: 'Die Drehfeldprüfung stellt fest, ob die drei Außenleiter in der Reihenfolge L1-L2-L3 (Rechtsdrehfeld) oder vertauscht (L3-L2-L1, Linksdrehfeld) angeschlossen sind.',
     warum: 'Ein falsches Drehfeld lässt Drehstrommotoren rückwärts laufen (z.&nbsp;B. Bühnenzug, Lüfter, Pumpen) – bei CEE-Steckvorrichtungen 16–125&nbsp;A nach DIN VDE 0100-600 zwingend zu prüfen, bevor Verbraucher angeschlossen werden.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">Drehfeld</span> (Kreis-Pfeil-Symbol) stellen.',
+      'Drehschalter auf <span class="drehschalter">Phase</span> stellen.',
       'Alle drei Außenleiter (L1/L2/L3) an den zugehörigen Prüfspitzen/Adapter der CEE-Steckvorrichtung anschließen.',
       'Anzeige ablesen: <strong>1-2-3</strong> = korrektes (rechtsdrehendes) Drehfeld, <strong>3-2-1</strong> = umgekehrtes (linksdrehendes) Drehfeld, Striche (---) = keine ausreichende Spannung erkannt.',
       'Ergebnis als i.O. (1-2-3) bzw. n.i.O. (3-2-1, vertauscht) im Formular eintragen.'
@@ -183,6 +207,17 @@ function infokarteInhaltHtml(info, schluessel) {
   );
 }
 
+/* [7.1.0] RCD-Typ-Symbol-Legende: wird am Ende der RCD-Fluke-Anleitung
+ * ergaenzt (aus dem Typenschild-Tabellenbild extrahierte, selbst
+ * zugeschnittene Symbole - kein Fluke-Original). Nur fuer schluessel 'rcd'. */
+const RCD_TYP_LEGENDE_HTML =
+  '<div class="rcd-typ-legende">' +
+    '<span class="rcd-typ-legende-item"><img src="img/drehschalter/RCD_Typ_AC.png" alt="Symbol Typ AC (Wechselstrom)"> Typ AC/A (Wechselstrom)</span>' +
+    '<span class="rcd-typ-legende-item"><img src="img/drehschalter/RCD_Typ_A.png" alt="Symbol Typ A (Halbwelle, pulsstromsensitiv)"> Typ A, pulsstromsensitiv (Halbwelle)</span>' +
+    '<span class="rcd-typ-legende-item"><img src="img/drehschalter/RCD_Typ_B.png" alt="Symbol Typ B (glatter Gleichstrom)"> Typ B (glatter Gleichstrom)</span>' +
+    '<span class="rcd-typ-legende-item"><img src="img/drehschalter/RCD_Typ_F.png" alt="Symbol Typ F (Mischfrequenzen)"> Typ F (zusätzlich Mischfrequenzen)</span>' +
+  '</div>';
+
 /* Baut die ausklappbare Geraete-Kurzanleitung. geraet: 'fluke1663' (vde0100/
  * anschlusspruefung) oder 'fluke6500' (geraetepruefung, Fluke 6500-2).
  * schluessel: siehe infokarteInhaltHtml (F15, gleicher Mechanismus). */
@@ -191,17 +226,18 @@ function flukeAnleitungHtml(info, geraet, schluessel) {
   if (!schritte) return '';
   const hinweis = geraet === 'fluke6500' ? info.fluke6500Hinweis : info.fluke1663Hinweis;
   const geraetName = geraet === 'fluke6500' ? 'Fluke 6500-2' : 'Fluke 1663';
+  const legende = schluessel === 'rcd' ? RCD_TYP_LEGENDE_HTML : '';
+  // [7.1.0] Der Disclaimer stand bisher in JEDER einzelnen Anleitung (hier
+  // erzeugt). Auf Nutzerwunsch steht er jetzt nur noch EINMAL, global, in
+  // anleitung.html (siehe dort Abschnitt "Wichtiger Hinweis zu den
+  // Kurzanleitungen") - hier deshalb ersatzlos entfernt.
   return (
     '<details class="fluke" data-mg-key="' + (schluessel || '') + '">' +
       '<summary>🔧 So geht\'s mit dem ' + geraetName + '</summary>' +
       '<div class="fluke-inhalt">' +
         '<ol>' + schritte.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' +
         (hinweis ? '<div class="fluke-wichtig"><strong>Hinweis:</strong> ' + hinweis + '</div>' : '') +
-        '<p class="fluke-disclaimer">Inoffizielle, selbst erstellte Kurzanleitung – keine geprüfte Übersetzung der ' +
-        'offiziellen ' + geraetName + '-Bedienungsanleitung und nicht durch Fluke autorisiert. Vor der Nutzung bitte ' +
-        'gegen die aktuelle Geräte-Bedienungsanleitung sowie die jeweils gültigen Normen (DIN VDE 0100, DIN VDE 0105-100, ' +
-        'DIN EN 50699/50678) gegenprüfen. Die App macht keine Aussage zur korrekten Geräteeinstellung, sie unterstützt ' +
-        'nur bei der Dokumentation der Ergebnisse.</p>' +
+        legende +
       '</div>' +
     '</details>'
   );

@@ -159,7 +159,15 @@
           <option>IT</option>
         </select>
       </div>
-      <div class="form-group"><label for="netzspannung">Netzspannung (V):</label><input type="text" inputmode="decimal" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)"></div>
+      <div class="form-group">
+        <label for="netzspannung">Netzspannung (V):</label>
+        <input type="text" inputmode="decimal" pattern="[0-9 /]*" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
+        <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '230')">230 V</button>
+          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '230 / 400')">230 / 400 V</button>
+          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '400')">400 V</button>
+        </div>
+      </div>
       <div class="form-group">
         <label for="einspeisung">Art der Einspeisung:</label>
         <select id="einspeisung" onchange="updateEinspeisung()">
@@ -204,13 +212,13 @@
         <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.</div>
       </div>
       <div class="grid">
-        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
-        <div class="form-group"><label for="u_npe">U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
+        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div class="form-group"><label for="u_npe">U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
         <div class="form-group"><label for="netzfrequenz">Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
     </details>
@@ -387,6 +395,7 @@
     <div class="form-group" style="margin-top: 8px;">
       <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      <div id="bemerkungen_fotos_platzhalter"></div>
     </div>
 
     <!-- 8. UNTERSCHRIFTEN -->
@@ -449,6 +458,17 @@
 
   addCircuitCard();
   addCircuitCard();
+
+  // [7.1.0] Foto-Anlage auch am zentralen Feld "Mängel / Bemerkungen /
+  // Auflagen" (bisher nur je Stromkreis-Karte möglich, siehe G17/fotos.js).
+  // Fester, von der Karten-Nummerierung unabhängiger Schlüssel ("bemerkungen"
+  // statt "stromkreis"), damit ein Duplizieren/Löschen von Stromkreisen diese
+  // Fotos nicht versehentlich mit aufraeumt.
+  if (typeof fotosLeisteHtml === 'function') {
+    const bemerkungenFotoKey = fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1);
+    document.getElementById('bemerkungen_fotos_platzhalter').innerHTML = fotosLeisteHtml(bemerkungenFotoKey);
+    fotosLeisteAktualisieren(bemerkungenFotoKey);
+  }
 
   // AUTOSAVE WIEDERHERSTELLEN, FALLS VORHANDEN (verhindert Datenverlust bei versehentlichem Reload)
   restoreProtocolState(loadAutosave());

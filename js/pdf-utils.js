@@ -1106,14 +1106,14 @@ function getMaengelZustand(wert) {
   return MAENGEL_OFFEN;
 }
 
-// Text fuer den Zustand "behoben". Er darf nur erscheinen, wenn im Protokoll
-// KEINE offenen Beanstandungen mehr stehen - das wird beim Aufruf geprueft.
-const MAENGEL_BEHOBEN_TEXT_ANLAGE =
-  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Die elektrische Anlage entspricht im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.';
-const MAENGEL_BEHOBEN_TEXT_ANSCHLUSS =
-  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Der Übergabepunkt entspricht im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik und ist zur Nutzung durch den Veranstalter im genannten Rahmen freigegeben.';
-const MAENGEL_BEHOBEN_TEXT_GERAETE =
-  'Während der Prüfung festgestellte Mängel wurden unmittelbar behoben; die anschließende Nachmessung ergab zulässige Werte (Einzelheiten siehe Bemerkungen / Mängel). Die geprüften Geräte entsprechen im dokumentierten Endzustand den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.';
+// Hinweis 7.1.0: Die frueher hier fest hinterlegten MAENGEL_BEHOBEN_TEXT_*
+// Textbausteine ("...die anschließende Nachmessung ergab zulässige Werte...")
+// wurden ersatzlos entfernt. Der Pruefer haelt Mangel, Behebung und
+// Nachmessung ohnehin im Bemerkungsfeld fest (siehe maengelBehobenBemerkungFehlt
+// unten, die genau das erzwingt) - ein zusaetzlicher, automatisch generierter
+// Pauschalsatz im PDF war redundant und wurde auf Nutzerwunsch gestrichen.
+// Der Zustand "Mängel behoben" faellt PDF-seitig jetzt auf denselben
+// neutralen Konformitaetstext zurueck wie "keine Mängel".
 
 // Ohne Beschreibung, WAS behoben wurde, ist die Aussage "Mängel behoben"
 // wertlos und im Streitfall nicht belegbar. Gilt nur fuer ausgefuellte PDFs.

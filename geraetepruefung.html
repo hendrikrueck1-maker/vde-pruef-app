@@ -167,6 +167,7 @@
     <div class="form-group" style="margin-top: 8px;">
       <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
+      <div id="bemerkungen_fotos_platzhalter"></div>
     </div>
 
     <!-- 4. UNTERSCHRIFTEN -->
@@ -222,6 +223,14 @@
   initProtokollNummer('GP');
 
   addDeviceCard();
+
+  // [7.1.0] Foto-Anlage auch am zentralen Feld "Mängel / Bemerkungen /
+  // Auflagen" (siehe vde0100.html, gleiches Muster).
+  if (typeof fotosLeisteHtml === 'function') {
+    const bemerkungenFotoKey = fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1);
+    document.getElementById('bemerkungen_fotos_platzhalter').innerHTML = fotosLeisteHtml(bemerkungenFotoKey);
+    fotosLeisteAktualisieren(bemerkungenFotoKey);
+  }
 
   restoreGeraeteState(loadGeraeteAutosave());
 

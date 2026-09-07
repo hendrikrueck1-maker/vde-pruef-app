@@ -1,3 +1,9 @@
+/* Globales Box-Modell: verhindert, dass padding/border ungewollt zur
+ * Breite eines Elements hinzugerechnet werden (Ursache fuer Karten, die
+ * seitlich ueber ihren Container hinausragen - siehe .circuit-card/.feed-card
+ * weiter unten, 7.1.0 Befund "Stromkreisansicht zu breit"). */
+*, *::before, *::after { box-sizing: border-box; }
+
 :root {
   --primary: #003366;
   --secondary: #475569;
@@ -243,7 +249,7 @@ input::placeholder, textarea::placeholder { color: #94a3b8; font-style: italic; 
 }
 label .limit-hint { display: inline; margin-top: 0; }
 
-.circuit-card, .feed-card { background: #ffffff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.circuit-card, .feed-card { box-sizing: border-box; background: #ffffff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .circuit-header, .feed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; font-weight: bold; color: var(--primary); }
 
 /* Totlegung eines einzelnen Stromkreises (4.7.0) - siehe toggleTotlegung() */
@@ -710,6 +716,33 @@ details.fluke[open] summary::before { transform: rotate(90deg); }
   margin: 0 2px;
   cursor: help;
 }
+/* 7.1.0: kleine Wellenform-Symbole (Typenschild-Bildsymbole AC/A/B/F) inline
+ * im Anleitungstext bzw. in der Symbol-Legende am Ende der RCD-Anleitung. */
+.rcd-typ-icon {
+  height: 20px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  background: #fff;
+  border: 1px solid #c7d0dc;
+  border-radius: 2px;
+  padding: 1px 2px;
+}
+.rcd-typ-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--fluke-border);
+}
+.rcd-typ-legende-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+}
+.rcd-typ-legende-item img { height: 26px; width: auto; background: #fff; border: 1px solid #c7d0dc; border-radius: 2px; padding: 1px 2px; }
 
 /* Globaler Schalter (index.html, Befund C): Container-Klasse blendet alle
  * .infokarte/.fluke-Bloecke serienweise aus. Betrifft NICHT die Icons mit
