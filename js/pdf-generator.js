@@ -93,15 +93,19 @@ function addCircuitCard(data = {}) {
   card.innerHTML = `
     <div class="circuit-header">
       <span>Stromkreis #${cardCounter}</span>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('circuit_${cardCounter}')">Entfernen</button>
+      </span>
     </div>
 
     <div class="grid">
       <div class="form-group">
-        <label>Bezeichnung / Zweck:</label>
-        <input type="text" class="c-bez" value="${attrEsc(data.bez)}" placeholder="z. B. Schukosteckdose Tonregie">
+        <label for="bez_${cardCounter}">Bezeichnung / Zweck:</label>
+        <input type="text" class="c-bez" id="bez_${cardCounter}" value="${attrEsc(data.bez)}" placeholder="z. B. Schukosteckdose Tonregie">
       </div>
       <div class="form-group">
-        <label>Kabeltyp:</label>
+        <label for="kabel_typ_${cardCounter}">Kabeltyp:</label>
         <input type="text" class="c-kabel-typ" id="kabel_typ_${cardCounter}" value="${attrEsc(data.kabel)}" placeholder="z. B. NYM-J / UP">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'NYM-J')">NYM-J</button>
@@ -111,7 +115,7 @@ function addCircuitCard(data = {}) {
         </div>
       </div>
       <div class="form-group">
-        <label>Leiter-Anzahl:</label>
+        <label for="leiter_${cardCounter}">Leiter-Anzahl:</label>
         <input type="text" class="c-leiter" id="leiter_${cardCounter}" value="${attrEscOderVorgabe(data.leiter, '3G')}" placeholder="z. B. 3G">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('leiter_${cardCounter}', '3G')">3G</button>
@@ -120,7 +124,7 @@ function addCircuitCard(data = {}) {
         </div>
       </div>
       <div class="form-group">
-        <label>Querschnitt:</label>
+        <label for="qs_${cardCounter}">Querschnitt:</label>
         <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1,5 mm²')}" placeholder="z. B. 1,5 mm²">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1,5 mm²')">1,5 mm²</button>
@@ -163,8 +167,8 @@ function addCircuitCard(data = {}) {
           <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('riso', 'fluke1663').icon}<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span></div>
           <div class="grid">
             <div class="form-group">
-              <label>Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
-              <select class="c-riso-mode" onchange="validateCardNorms(${cardCounter})">
+              <label for="riso_mode_${cardCounter}">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
+              <select class="c-riso-mode" id="riso_mode_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
                 <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
                 <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
                 <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
@@ -173,7 +177,7 @@ function addCircuitCard(data = {}) {
             </div>
             <div class="form-group">
               <label>Messwert R<sub>ISO</sub> (M&Omega;):</label>
-              <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso)}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
+              <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso !== undefined && data.riso !== '' ? data.riso : '>')}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
             </div>
           </div>
           ${messgroesseBlock('riso', 'fluke1663').karten}
@@ -186,7 +190,7 @@ function addCircuitCard(data = {}) {
       <div class="sub-title mess-karte-titel">${messgroesseBlock('zs', 'fluke1663').icon}<span class="titel-text">2. Überstromschutzeinrichtung (Absicherung)</span></div>
       <div class="grid">
         <div class="form-group">
-          <label>Absicherung (Typ / Nennstrom):</label>
+          <label for="sich_${cardCounter}">Absicherung (Typ / Nennstrom):</label>
           <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${attrEsc(data.sich)}" placeholder="z. B. B 16A" oninput="validateCardNorms(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 16A'); validateCardNorms(${cardCounter})">B 16A</button>
@@ -223,7 +227,7 @@ function addCircuitCard(data = {}) {
       <div class="sub-title mess-karte-titel">${messgroesseBlock('rcd', 'fluke1663').icon}<span class="titel-text">3. Fehlerstrom-Schutzeinrichtung (RCD / FI)</span></div>
       <div class="grid">
         <div class="form-group">
-          <label>RCD Typ:</label>
+          <label for="rcd_typ_${cardCounter}">RCD Typ:</label>
           <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A" oninput="syncRcdMesswerteAnzeige(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A'); syncRcdMesswerteAnzeige(${cardCounter})">Typ A</button>
@@ -261,8 +265,8 @@ function addCircuitCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-rcd-imess" value="${attrEsc(data.rcd_imess)}" placeholder="z. B. 22" oninput="validateCardNorms(${cardCounter})">
         </div>
         <div class="form-group">
-          <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
-          <select class="c-rcd-pruefstrom" onchange="validateCardNorms(${cardCounter})">
+          <label for="rcd_pruefstrom_${cardCounter}">Prüfstrom für Auslösestrom / Auslösezeit:</label>
+          <select class="c-rcd-pruefstrom" id="rcd_pruefstrom_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
             <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
             <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
             <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
@@ -282,14 +286,14 @@ function addCircuitCard(data = {}) {
       <div class="sub-title mess-karte-titel">${messgroesseBlock('ul', 'fluke1663').icon}<span class="titel-text">4. Berührungsspannung & Netzart</span></div>
       <div class="grid">
         <div class="form-group">
-          <label>Spannungsart Netzeinspeisung:</label>
+          <label for="art_${cardCounter}">Spannungsart Netzeinspeisung:</label>
           <select class="c-spannung-art" id="art_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
             <option value="AC">AC (Wechselstrom)</option>
             <option value="DC">DC (Gleichstrom)</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Bereich / Gefährdung:</label>
+          <label for="gef_${cardCounter}">Bereich / Gefährdung:</label>
           <select class="c-gefaehrdung" id="gef_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
             <option value="normal">Normalbereich (50 V AC / 120 V DC)</option>
             <option value="erhoeht">Erhöhte Gefährdung (25 V AC / 60 V DC)</option>
@@ -318,17 +322,19 @@ function addCircuitCard(data = {}) {
          den festgestellten Fehler. */-->
     <div class="circuit-totlegung">
       <div class="form-group">
-        <label>Ergebnis Stromkreisprüfung:</label>
-        <select class="c-totgelegt" onchange="toggleTotlegung(this)">
+        <label for="totgelegt_${cardCounter}">Ergebnis Stromkreisprüfung:</label>
+        <select class="c-totgelegt" id="totgelegt_${cardCounter}" onchange="toggleTotlegung(this)">
           <option value="i.O."${data.totgelegt ? '' : ' selected'}>i.O.</option>
           <option value="n.i.O."${data.totgelegt ? ' selected' : ''}>n.i.O. – Mangel festgestellt (Stromkreis freigeschaltet/totgelegt, fließt nicht in die Gesamtbewertung ein)</option>
         </select>
       </div>
       <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
-        <label>Festgestellter Fehler / Grund der Totlegung:</label>
-        <textarea class="c-totlegung-grund auto-grow" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
+        <label for="totlegung_grund_${cardCounter}">Festgestellter Fehler / Grund der Totlegung:</label>
+        <textarea class="c-totlegung-grund auto-grow" id="totlegung_grund_${cardCounter}" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
       </div>
     </div>
+
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', cardCounter)) : ''}
 
     <div class="circuit-footer-actions">
       <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
@@ -341,6 +347,12 @@ function addCircuitCard(data = {}) {
   const totSelect = card.querySelector('.c-totgelegt');
   if (totSelect) syncTotlegungAnzeige(totSelect);
   nummeriereKartenNeu('#circuitsContainer', '.circuit-card', 'Stromkreis');
+  // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen
+  // aus Autosave/Archiv - eine NEUE Karte hat noch keine, der Aufruf findet
+  // dann einfach nichts).
+  if (typeof fotosLeisteAktualisieren === 'function') {
+    fotosLeisteAktualisieren(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', cardCounter));
+  }
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
   // Pruefstrom: bei einer neuen Karte (data.rcd_pruefstrom === undefined) ist
@@ -619,6 +631,24 @@ function updateEinspeisung() {
   }
 }
 
+/* B5: ART DES SPEISEPUNKTS (Fest verkabelt vs. Steckstelle).
+ * Bei "Steckstelle" ist die Steckverbindung selbst (Zustand/Verriegelung/
+ * Kontakt) zwingend mitzupruefen - die Spannungsmessung bleibt unveraendert
+ * am Speisepunkt (mit Hendrik geklaert: keine zusaetzliche Pflichtmessung an
+ * jeder einzelnen Steckdose). Die einfache "nur 230 V"-Messung (nur
+ * u_l1n ausgefuellt) bleibt in beiden Faellen weiterhin ohne Weiteres
+ * moeglich - diese Funktion macht daran nichts pflichtig. */
+function istSpeisepunktSteckstelle() {
+  const v = document.getElementById('netzmessung_speisepunkt_art')?.value || '';
+  return v === 'Steckstelle';
+}
+
+function updateNetzmessungArt() {
+  const gruppe = document.getElementById('netzmessung_steckstelle_gruppe');
+  if (!gruppe) return;
+  gruppe.style.display = istSpeisepunktSteckstelle() ? '' : 'none';
+}
+
 /* U_NPE_SCHWELLE und npeUeberschritten() liegen seit 4.5.0 zentral in
  * pdf-utils.js - die Anschlusspruefung braucht dieselbe Bewertung (Befund B1). */
 
@@ -703,6 +733,7 @@ function fillExampleDataStamm(auftraggeberPraefix) {
   document.getElementById('u_npe').value = "0,2";
   validateNetzmessung();
   updateEinspeisung();
+  updateNetzmessungArt();
   validateErdung();
 
   // Sicht-/Erprobungspruefung: alle Punkte i.O. setzen (Pflichtfelder ohne
@@ -975,6 +1006,18 @@ function generatePDFInner(isBlank = false) {
     return;
   }
 
+  /* B5: bei Versorgung ueber eine Steckstelle ist die Steckverbindung selbst
+   * (Zustand/Verriegelung/Kontakt) zwingend mitzupruefen - kein rein
+   * optionaler Hinweis mehr, sondern echte Abbruchbedingung wie bei der
+   * Frequenz bei Ersatzstromversorgung oben. */
+  if (!isBlank && istSpeisepunktSteckstelle() &&
+      String(document.getElementById('netzmessung_steckverbindung')?.value || '').trim() === '') {
+    const block = document.getElementById('netzmessung_block');
+    if (block) block.open = true;
+    pflichtfeldMelden({ el: document.getElementById('netzmessung_steckverbindung'), id: 'netzmessung_steckverbindung' });
+    return;
+  }
+
   /* Folgetermin in der Vergangenheit: meist ein Tippfehler im Jahr. Kein
    * harter Abbruch - es gibt Nachpruefungen mit rueckdatiertem Termin. */
   const terminRoh = String(document.getElementById('res_termin_date')?.value || '');
@@ -1107,7 +1150,13 @@ function generatePDFInner(isBlank = false) {
 
   drawFeldZeile(doc, "Prüfnorm:",            feldWert('pruefnorm'),  spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Grund der Prüfung:",   feldWert('pruefgrund'), spR, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - '), spR, z1(2), spB, isBlank);
+  // B5: Speisepunkt-Art nur anhaengen, wenn "Steckstelle" gewaehlt wurde (der
+  // Normalfall "Fest verkabelt" aendert diese Zeile bewusst nicht - schont
+  // den Platz im Hinblick auf die 1-Seiten-Vorgabe, siehe E14.1).
+  const speisepunktSuffix = (!isBlank && istSpeisepunktSteckstelle())
+    ? ` | Steckstelle, Steckverbindung ${feldWert('netzmessung_steckverbindung') || 'n. gepr.'}`
+    : '';
+  drawFeldZeile(doc, "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - ') + speisepunktSuffix, spR, z1(2), spB, isBlank);
   drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, z1(3), spB, isBlank);
   drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, z1(4), spB, isBlank);
   drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(5), spB, isBlank);
@@ -1802,32 +1851,117 @@ function generatePDFInner(isBlank = false) {
     }
   }
 
-  // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
-  drawProtokollSeitenkoepfe(doc, {
-    ...VDE0100_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: FORMULAR_REVISION
+  /* --- G17: FOTODOKUMENTATION (eigene Anhangseite) -----------------------
+   * Fotos liegen im IndexedDB (siehe fotos.js) und muessen daher ASYNCHRON
+   * geladen werden - deshalb ab hier eine Promise-Kette statt des bisherigen
+   * synchronen Funktionsendes. isBlank hat nie Fotos (Leerformular). Ein
+   * Fehler beim Laden der Fotos (z. B. IndexedDB nicht verfuegbar) darf das
+   * eigentliche Protokoll NICHT verhindern - deshalb .catch(() => []) statt
+   * die Kette abbrechen zu lassen. */
+  // jsPDF.addImage() braucht eine Data-URL (oder ein <img>-Element), keinen
+  // rohen Blob - deshalb hier jedes gespeicherte Foto einmal per FileReader
+  // in eine Data-URL umwandeln, BEVOR es gezeichnet wird.
+  const blobZuDataUrl = (blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
   });
+  const fotoLadenPromise = (isBlank || typeof fotosFuerKarteLaden !== 'function')
+    ? Promise.resolve([])
+    : Promise.all(
+        Array.from(document.querySelectorAll('.circuit-card')).map(function (card, idx) {
+          const leiste = card.querySelector('.fotos-leiste[data-karten-key]');
+          if (!leiste) return Promise.resolve([]);
+          return fotosFuerKarteLaden(leiste.getAttribute('data-karten-key'))
+            .then(function (eintraege) {
+              return Promise.all(eintraege.map(function (e) {
+                return blobZuDataUrl(e.blob)
+                  .then(function (dataUrl) { return Object.assign({ stromkreisNr: idx + 1, _dataUrl: dataUrl }, e); })
+                  .catch(function () { return null; });
+              }));
+            })
+            .then(function (liste) { return liste.filter(Boolean); })
+            .catch(function () { return []; });
+        })
+      ).then(function (gruppen) { return gruppen.reduce(function (a, b) { return a.concat(b); }, []); })
+        .catch(function () { return []; });
 
-  const filename = isBlank
-    ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
-    : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
+  fotoLadenPromise.then(function (fotos) {
+    if (fotos.length) {
+      drawFotodokumentationSeite(doc, fotos);
+    }
 
-  /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
-   * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
-   * ein Leerformular ebenfalls nicht. */
-  Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
-    .then(function (gespeichert) {
-    if (isBlank || gespeichert === false) return;
-    // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
-    // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
-    // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
-    // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
-    // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
-    // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
-    verbraucheProtokollNummer(nummerRoh, 'PR');
-    nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
-      AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+    // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
+    drawProtokollSeitenkoepfe(doc, {
+      ...VDE0100_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: FORMULAR_REVISION
+    });
+
+    const filename = isBlank
+      ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
+      : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
+
+    /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
+     * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
+     * ein Leerformular ebenfalls nicht. */
+    Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
+      .then(function (gespeichert) {
+      if (isBlank || gespeichert === false) return;
+      // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
+      // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
+      // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
+      // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
+      // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
+      // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
+      verbraucheProtokollNummer(nummerRoh, 'PR');
+      nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
+        AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+      });
     });
   });
+}
+
+/* Zeichnet eine oder mehrere Anhangseiten "5. Fotodokumentation" mit den
+ * (bereits komprimierten) Fotos je Stromkreis, 2 Spalten x 3 Zeilen pro
+ * Seite. Reine Dokumentation der als Blob vorliegenden JPEGs - keine
+ * Bewertung/Analyse, nur Bildnachweis mit Zuordnung zum Stromkreis. */
+function drawFotodokumentationSeite(doc, fotos) {
+  const SPALTEN = 2, ZEILEN = 3, PRO_SEITE = SPALTEN * ZEILEN;
+  const BILD_B = 82, BILD_H = 62, GAP_X = 8, GAP_Y = 10;
+  for (let i = 0; i < fotos.length; i++) {
+    if (i % PRO_SEITE === 0) {
+      doc.addPage();
+      let yy = PDF_CONTENT_TOP;
+      drawKategorieTitel(doc, "5. FOTODOKUMENTATION", yy, 'erdung');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.6);
+      doc.setTextColor(...PDF_MUTED);
+      doc.text('Optionale Fotos zu auffälligen Stellen/Mängeln, während der Prüfung mit der App aufgenommen.',
+                PDF_MARGIN_LEFT, yy + 3.4);
+      doc.setTextColor(...PDF_TEXT);
+    }
+    const posImSeite = i % PRO_SEITE;
+    const spalte = posImSeite % SPALTEN;
+    const zeile = Math.floor(posImSeite / SPALTEN);
+    const x = PDF_MARGIN_LEFT + spalte * (BILD_B + GAP_X);
+    const y = PDF_CONTENT_TOP + 8 + zeile * (BILD_H + GAP_Y);
+    try {
+      const dataUrl = fotos[i]._dataUrl;
+      if (dataUrl) {
+        doc.addImage(dataUrl, 'JPEG', x, y, BILD_B, BILD_H, undefined, 'FAST');
+      }
+    } catch (e) {
+      doc.setDrawColor(...PDF_BOX_BORDER);
+      doc.rect(x, y, BILD_B, BILD_H);
+    }
+    doc.setDrawColor(...PDF_BOX_BORDER);
+    doc.rect(x, y, BILD_B, BILD_H);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.2);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text(`Stromkreis #${fotos[i].stromkreisNr}`, x, y + BILD_H + 4);
+    doc.setTextColor(...PDF_TEXT);
+  }
 }
 
 function initSignaturePads() {
@@ -1856,6 +1990,7 @@ function AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('PR', AKTUELLER_
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
   'netzspannung', 'netzfrequenz', 'einspeisung', 'hausanschluss', 'vnb', 'messgeraet', 'seriennummer',
+  'netzmessung_speisepunkt_art', 'netzmessung_steckverbindung',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erdung_re', 'erdung_messpunkt',
@@ -1959,6 +2094,7 @@ function restoreProtocolState(state) {
     if (el && el.classList.contains('erp-item')) el.value = val;
   });
   updateEinspeisung();
+  updateNetzmessungArt();
   validateNetzmessung();
 
   if (state.circuits && state.circuits.length) {

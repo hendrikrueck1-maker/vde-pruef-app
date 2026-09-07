@@ -2,7 +2,7 @@
   "name": "VDE Prüfprotokoll Manager",
   "short_name": "VDE Protokoll",
   "description": "Prüfprotokolle nach DIN VDE 0100-600, 0105-100, 0701/0702 erstellen und als PDF ausgeben – offline nutzbar.",
-  "id": "./",
+  "id": "https://hendrikrueck1-maker.github.io/vde-pruef-app/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

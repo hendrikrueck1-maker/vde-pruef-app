@@ -32,6 +32,7 @@
   <script src="js/statusleiste.js"></script>
   <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
+  <script src="js/fotos.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/infokarten.js"></script>
   <script src="js/karussell.js"></script>
@@ -53,8 +54,9 @@
 
 <div class="app-container">
   <div class="header-bar">
-    <div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+      <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
     </div>
     <h1>VDE 0100 / 0105 Prüfprotokoll</h1>
     <div>
@@ -74,12 +76,12 @@
     <div class="grid">
       <!-- AUFTRAGGEBER LESBAR IN VOLLBREITE -->
       <div class="form-group grid-full">
-        <label>Auftraggeber / Prüfort:</label>
+        <label for="auftraggeber">Auftraggeber / Prüfort:</label>
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
       <div class="form-group">
-        <label>Gebäude / Bereich:</label>
+        <label for="gebaeude_select">Gebäude / Bereich:</label>
         <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
           <option value="Gr. Haus">Gr. Haus</option>
           <option value="Werkstatt">Werkstatt</option>
@@ -94,27 +96,27 @@
 
       <!-- MITWACHSENDES FELD ANLAGE -->
       <div class="form-group grid-full">
-        <label>Anlage (Bezeichnung):</label>
+        <label for="anlage_bez">Anlage (Bezeichnung):</label>
         <textarea id="anlage_bez" class="auto-grow" rows="1" placeholder="z. B. Hauptverteilung Unterbühne UV-1" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
 
-      <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. PR-2026-001"></div>
+      <div class="form-group"><label for="pruefungsnummer">Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. PR-2026-001"></div>
       <div class="form-group">
-        <label>Protokoll-Nr.:</label>
+        <label for="protokollnummer">Protokoll-Nr.:</label>
         <input type="text" id="protokollnummer" placeholder="z. B. PR-2026-08-11-001">
         <div class="limit-hint">Wird automatisch vergeben, kann aber überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
-      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Qualifikation der prüfenden Person:</label>
+      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label for="pruefer_qualifikation">Qualifikation der prüfenden Person:</label>
         <select id="pruefer_qualifikation">
           <option value="">– bitte wählen –</option>
           <option value="Elektrofachkraft (EFK)">Elektrofachkraft (EFK)</option>
           <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
         </select>
       </div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum"></div>
       <div class="form-group grid-full">
-        <label>Hausanschluss / Speisepunkt (Vorsicherung):</label>
+        <label for="hausanschluss">Hausanschluss / Speisepunkt (Vorsicherung):</label>
         <input type="text" id="hausanschluss" placeholder="z. B. NH 3x100 A gL – HAK Keller / CEE 63 A Einspeisung Open Air">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'NH 3x100 A gL (HAK)')">NH 3x100 A</button>
@@ -131,14 +133,14 @@
     <h2 class="kat-stamm" id="abschnitt-stammdaten-2">2. Netzsystem, Netzbetreiber & Prüfgeräte</h2>
     <div class="grid">
       <div class="form-group">
-        <label>Prüfart / Norm:</label>
+        <label for="pruefnorm">Prüfart / Norm:</label>
         <select id="pruefnorm">
           <option>DIN VDE 0100-600 (Erstprüfung)</option>
           <option selected>DIN VDE 0105-100 (Wiederholungsprüfung)</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Grund der Prüfung:</label>
+        <label for="pruefgrund">Grund der Prüfung:</label>
         <select id="pruefgrund">
           <option selected>Wiederholungsprüfung</option>
           <option>Neuanlage</option>
@@ -148,7 +150,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Netzsystem:</label>
+        <label for="netzsystem">Netzsystem:</label>
         <select id="netzsystem">
           <option selected>TN-S</option>
           <option>TN-C-S</option>
@@ -157,23 +159,26 @@
           <option>IT</option>
         </select>
       </div>
-      <div class="form-group"><label>Netzspannung (V):</label><input type="text" inputmode="decimal" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)"></div>
+      <div class="form-group"><label for="netzspannung">Netzspannung (V):</label><input type="text" inputmode="decimal" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)"></div>
       <div class="form-group">
-        <label>Art der Einspeisung:</label>
+        <label for="einspeisung">Art der Einspeisung:</label>
         <select id="einspeisung" onchange="updateEinspeisung()">
           <option selected>Netz (VNB)</option>
           <option>Netzersatzanlage (NEA / Aggregat)</option>
           <option>Wechselrichter / Batteriespeicher</option>
         </select>
-        <div class="limit-hint">Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten.</div>
+        <div class="limit-hint">
+          <strong>VNB</strong> = Verteilnetzbetreiber (das öffentliche Stromnetz vor Ort, z. B. Stadtwerke).
+          Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten.
+        </div>
       </div>
-      <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="vnb"></div>
-      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <div class="form-group"><label for="vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="vnb" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
+      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
     <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
-    <details class="sub-section" id="netzmessung_block" style="margin-top:10px;">
+    <details class="sub-section" id="netzmessung_block" style="margin-top:10px;" open>
       <summary class="sub-title mess-karte-titel" style="cursor:pointer;"><span id="netzmessung_icon"></span>Netzmessung (optional) – Spannungen &amp; Frequenz am Speisepunkt</summary>
       <p class="limit-hint" style="margin:6px 0 8px;">
         Sollwerte: L gegen N je 230 V · L gegen L je 400 V · N gegen PE 0 V · Frequenz 50 Hz.
@@ -181,15 +186,32 @@
         der eigenständig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung). Die Frequenz ist
         bei Netzersatzanlage/Wechselrichter Pflichtangabe (siehe „Art der Einspeisung“ oben).
       </p>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label for="netzmessung_speisepunkt_art">Art des Speisepunkts:</label>
+        <select id="netzmessung_speisepunkt_art" onchange="updateNetzmessungArt()">
+          <option value="Fest verkabelt" selected>Fest verkabelt (Klemme/Verteiler)</option>
+          <option value="Steckstelle">Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
+        </select>
+        <div class="limit-hint" id="netzmessung_art_hint">Messung wie gehabt am Speisepunkt – die einfache Messung nur der 230-V-Werte bleibt jederzeit möglich, eine volle 400-V-Drehstrommessung ist nicht zwingend.</div>
+      </div>
+      <div class="form-group" id="netzmessung_steckstelle_gruppe" style="display:none; margin-bottom:10px;">
+        <label for="netzmessung_steckverbindung">Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt):</label>
+        <select id="netzmessung_steckverbindung">
+          <option value="" selected>– bitte wählen –</option>
+          <option>i.O.</option>
+          <option>n.i.O.</option>
+        </select>
+        <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.</div>
+      </div>
       <div class="grid">
-        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
-        <div class="form-group"><label>U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
-        <div class="form-group"><label>Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
+        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div class="form-group"><label for="u_npe">U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
+        <div class="form-group"><label for="netzfrequenz">Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
     </details>
 
@@ -200,18 +222,18 @@
       keine Gebäudesystemtechnik an einer mobilen Verteilung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>1. Betriebsmittel:</label><select class="sicht-item" id="sicht_betriebsmittel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>2. Kabel & Leitungen:</label><select class="sicht-item" id="sicht_kabel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>3. Zugänglichkeit:</label><select class="sicht-item" id="sicht_zugang" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>6. Doku / Warnung:</label><select class="sicht-item" id="sicht_doku" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>8. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>9. Typenschild:</label><select class="sicht-item" id="sicht_typenschild" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>10. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>11. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>12. Gebäudesystemtechnik:</label><select class="sicht-item" id="sicht_gst" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_betriebsmittel">1. Betriebsmittel:</label><select class="sicht-item" id="sicht_betriebsmittel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_kabel">2. Kabel & Leitungen:</label><select class="sicht-item" id="sicht_kabel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_zugang">3. Zugänglichkeit:</label><select class="sicht-item" id="sicht_zugang" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_schaltgeraete">4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_kennzeichnung">5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_doku">6. Doku / Warnung:</label><select class="sicht-item" id="sicht_doku" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_pa">7. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_basisschutz">8. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_typenschild">9. Typenschild:</label><select class="sicht-item" id="sicht_typenschild" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_brandschott">10. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_leiterverb">11. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_gst">12. Gebäudesystemtechnik:</label><select class="sicht-item" id="sicht_gst" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- ANSCHLUSSKABEL DER ANLAGE (TEXT KORRIGIERT & MIT BUTTONS) -->
@@ -219,7 +241,7 @@
       <div class="sub-title">Anschlusskabel der Anlage</div>
       <div class="grid">
         <div class="form-group">
-          <label>Kabeltyp:</label>
+          <label for="anschluss_typ">Kabeltyp:</label>
           <input type="text" id="anschluss_typ" placeholder="z. B. H07RN-F">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'NYM-J')">NYM-J</button>
@@ -229,7 +251,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Leiter-Anzahl:</label>
+          <label for="anschluss_leiter">Leiter-Anzahl:</label>
           <input type="text" id="anschluss_leiter" placeholder="z. B. 5G">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '5G')">5G</button>
@@ -238,7 +260,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Querschnitt:</label>
+          <label for="anschluss_qs">Querschnitt:</label>
           <input type="text" inputmode="decimal" id="anschluss_qs" placeholder="z. B. 6 mm²">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1,5 mm²')">1,5 mm²</button>
@@ -252,27 +274,8 @@
       </div>
     </div>
 
-    <!-- 4. ERPROBEN -->
-    <h2 class="kat-sicht" id="abschnitt-sicht-2">4. Erproben (Funktionsprüfung)</h2>
-    <p class="limit-hint" style="margin:-4px 0 8px;">
-      Drehfeld gilt für CEE 16&ndash;125 A. Die Polaritätsprüfung (L/N vertauscht, PE oder N offen) ist das
-      Gegenstück bei einphasigen Steckdosen und nach DIN VDE 0100-600 gefordert. Die RCD-Prüftaste prüft die
-      Mechanik und ist ein anderer Nachweis als die Messung von I<sub>&Delta;mess</sub>/t<sub>A</sub>.
-      Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.“.
-    </p>
-    <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>Funktion Anlage:</label><select class="erp-item" id="erp_anlage" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label>Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-    </div>
-
-    <!-- 5. MESSWERTE PRO STROMKREIS -->
-    <h2 class="kat-messen" id="abschnitt-messen">5. Messtechnische Prüfungen (Stromkreise)</h2>
+    <!-- 4. MESSWERTE PRO STROMKREIS -->
+    <h2 class="kat-messen" id="abschnitt-messen">4. Messtechnische Prüfungen (Stromkreise)</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Richtwerte: R<sub>PE</sub> &le; 0,30 &Omega; · R<sub>ISO</sub> &ge; 1,0 M&Omega; (SELV/PELV &ge; 0,5 M&Omega;) ·
       I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) / 20&times;I<sub>n</sub> (D) · RCD: I<sub>&Delta;mess</sub> 0,5–1,0&times;I<sub>&Delta;n</sub>,
@@ -293,16 +296,36 @@
     <div class="karussell-indikator" id="circuitsContainer_indikator" aria-live="polite"></div>
     <button type="button" class="btn btn-secondary" onclick="addCircuitCard()">+ Stromkreis hinzufügen</button>
 
+    <!-- 5. ERPROBEN -->
+    <h2 class="kat-sicht" id="abschnitt-sicht-2">5. Erproben (Funktionsprüfung)</h2>
+    <p class="limit-hint" style="margin:-4px 0 8px;">
+      Drehfeld gilt für CEE 16&ndash;125 A. Die Polaritätsprüfung (L/N vertauscht, PE oder N offen) ist das
+      Gegenstück bei einphasigen Steckdosen und nach DIN VDE 0100-600 gefordert. Die RCD-Prüftaste prüft die
+      Mechanik und ist ein anderer Nachweis als die Messung von I<sub>&Delta;mess</sub>/t<sub>A</sub>.
+      Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.“.
+    </p>
+    <div class="grid kat-block kat-sicht">
+      <div class="form-group"><label for="erp_anlage">Funktion Anlage:</label><select class="erp-item" id="erp_anlage" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_drehfeld"><span id="drehfeld_icon"></span>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group" id="drehfeld_infokarten" style="grid-column: 1 / -1;"></div>
+      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_sicherheitsbel">Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_gst">Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+    </div>
+
     <!-- 6. ERDUNG & POTENZIALAUSGLEICH -->
     <h2 class="kat-erdung mess-karte-titel" id="abschnitt-erdung"><span id="erdung_icon"></span>6. Durchgängigkeit Potenzialausgleich / Erdung</h2>
     <div class="kat-block kat-erdung">
     <div class="grid" style="margin-bottom: 8px;">
       <div class="form-group">
-        <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
+        <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
         <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdung()">
       </div>
       <div class="form-group grid-full">
-        <label>Messpunkt / Bezugspunkt der Messung:</label>
+        <label for="erdung_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
         <input type="text" id="erdung_messpunkt" placeholder="z. B. HES im Keller / PA-Schiene UV-1">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
@@ -329,7 +352,7 @@
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">7. Gesamtbeurteilung, Gewährleistung & Prüftermin</h2>
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Prüfumfang:</label>
+        <label for="pruefumfang">Prüfumfang:</label>
         <select id="pruefumfang">
           <option>Vollprüfung (100 % der Anlage)</option>
           <option>Stichprobe – siehe Bemerkung für Umfang</option>
@@ -337,7 +360,7 @@
         <div class="limit-hint">Nach DIN VDE 0105-100 bei Wiederholungsprüfungen anzugeben. Bei „Stichprobe" bitte den geprüften Umfang (z. B. Anteil, Auswahlkriterium) unten in den Bemerkungen benennen.</div>
       </div>
       <div class="form-group">
-        <label>Gesamtbewertung Mängel:</label>
+        <label for="res_maengel">Gesamtbewertung Mängel:</label>
         <select id="res_maengel">
           <option>Keine Mängel festgestellt</option>
           <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
@@ -345,15 +368,15 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Prüfplakette erteilt:</label>
+        <label for="res_plakette">Prüfplakette erteilt:</label>
         <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
       </div>
       <div class="form-group">
-        <label>Nächster Prüftermin (Monat/Jahr):</label>
+        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr):</label>
         <input type="month" id="res_termin_date">
       </div>
       <div class="form-group">
-        <label>Sicherer Gebrauch gewährleistet:</label>
+        <label for="res_gewaehrleistung">Sicherer Gebrauch gewährleistet:</label>
         <select id="res_gewaehrleistung">
           <option value="Ja">Ja (Anlage entspricht VDE-Regeln)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
@@ -362,16 +385,16 @@
     </div>
 
     <div class="form-group" style="margin-top: 8px;">
-      <label>Mängel / Bemerkungen / Auflagen:</label>
+      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
     </div>
 
     <!-- 8. UNTERSCHRIFTEN -->
     <h2 class="kat-ergebnis">8. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
       <div class="form-group">
-        <label>Datum der Unterzeichnung:</label>
+        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
         <input type="date" id="unterschrift_datum">
         <div class="limit-hint">Wird unter beide Unterschriften gedruckt (bisher stand dort eine leere Linie).</div>
       </div>
@@ -379,20 +402,20 @@
 
     <div class="sig-block">
       <div class="sig-card">
-        <label>Unterschrift Prüfer/-in:</label>
-        <canvas id="sigPruefer"></canvas>
+        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
+        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
       </div>
       <div class="sig-card">
-        <label>Unterschrift Auftraggeber / Betreiber:</label>
-        <canvas id="sigKunde"></canvas>
+        <label id="sigKunde_label">Unterschrift Auftraggeber / Betreiber:</label>
+        <canvas id="sigKunde" role="img" aria-labelledby="sigKunde_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padKunde.clear()">Löschen</button>
       </div>
     </div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
       <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
+        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
         <select id="leer_blaetter">
           <option value="1" selected>1 Blatt</option>
           <option value="2">2 Blätter</option>
@@ -422,6 +445,7 @@
   applyMasterDataToForm();
   initProtokollNummer('PR');
   updateEinspeisung();
+  updateNetzmessungArt();
 
   addCircuitCard();
   addCircuitCard();
@@ -462,7 +486,10 @@
   // bewusst gewaehlt). Markiert werden nur echte Frei-/Datumsfelder.
   initPflichtfelder({
     ids: ['datum', 'pruefer', 'anlage_bez'],
-    bedingt: () => (istErsatzstromversorgung() ? ['netzfrequenz'] : []),
+    bedingt: () => [
+      ...(istErsatzstromversorgung() ? ['netzfrequenz'] : []),
+      ...(istSpeisepunktSteckstelle() ? ['netzmessung_steckverbindung'] : [])
+    ],
     // 4.7.1: nicht mehr nur die export-kritischen Felder, sondern das ganze
     // Formular gelb/gruen markieren - reine Fortschrittsanzeige, damit auf
     // einen Blick zu sehen ist, wo schon etwas eingetragen wurde und wo

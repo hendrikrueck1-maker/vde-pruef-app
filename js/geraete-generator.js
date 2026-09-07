@@ -40,19 +40,19 @@ function addDeviceCard(data = {}) {
 
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Bezeichnung / Verwendungszweck:</label>
-        <input type="text" class="c-bez" value="${attrEsc(data.bez)}" placeholder="z. B. PAR-Scheinwerfer Lichtregie">
+        <label for="bez_${cardCounter}">Bezeichnung / Verwendungszweck:</label>
+        <input type="text" class="c-bez" id="bez_${cardCounter}" value="${attrEsc(data.bez)}" placeholder="z. B. PAR-Scheinwerfer Lichtregie">
       </div>
       <div class="form-group">
-        <label>Hersteller / Typ:</label>
-        <input type="text" class="c-typ" value="${attrEsc(data.typ)}" placeholder="z. B. ADB, PAR64">
+        <label for="typ_${cardCounter}">Hersteller / Typ:</label>
+        <input type="text" class="c-typ" id="typ_${cardCounter}" value="${attrEsc(data.typ)}" placeholder="z. B. ADB, PAR64">
       </div>
       <div class="form-group">
-        <label>Inventar- / Seriennummer:</label>
-        <input type="text" class="c-invnr" value="${attrEsc(data.invnr)}" placeholder="z. B. INV-0231">
+        <label for="invnr_${cardCounter}">Inventar- / Seriennummer:</label>
+        <input type="text" class="c-invnr" id="invnr_${cardCounter}" value="${attrEsc(data.invnr)}" placeholder="z. B. INV-0231">
       </div>
       <div class="form-group">
-        <label>Schutzklasse:</label>
+        <label for="sk_${cardCounter}">Schutzklasse:</label>
         <select class="c-schutzklasse" id="sk_${cardCounter}" onchange="validateDeviceNorms(${cardCounter})">
           <option value="I"${!data.schutzklasse || data.schutzklasse === 'I' ? ' selected' : ''}>I (Schutzleiter)</option>
           <option value="II"${data.schutzklasse === 'II' ? ' selected' : ''}>II (Schutzisoliert)</option>
@@ -60,8 +60,8 @@ function addDeviceCard(data = {}) {
         </select>
       </div>
       <div class="form-group">
-        <label>Anschlussleitung Länge (m):</label>
-        <input type="text" inputmode="decimal" class="c-laenge" value="${attrEsc(data.laenge)}" placeholder="z. B. 10" oninput="validateDeviceNorms(${cardCounter})">
+        <label for="laenge_${cardCounter}">Anschlussleitung Länge (m):</label>
+        <input type="text" inputmode="decimal" class="c-laenge" id="laenge_${cardCounter}" value="${attrEsc(data.laenge)}" placeholder="z. B. 10" oninput="validateDeviceNorms(${cardCounter})">
       </div>
       <div class="form-group">
         <label class="checkbox-item" style="margin-top: 20px;">
@@ -69,8 +69,8 @@ function addDeviceCard(data = {}) {
         </label>
       </div>
       <div class="form-group">
-        <label>Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2,0" oninput="heizleistungGeaendert(${cardCounter})">
+        <label for="heizleistung_${cardCounter}">Heizleistung (kW), falls Heizelement:</label>
+        <input type="text" inputmode="decimal" class="c-heizleistung" id="heizleistung_${cardCounter}" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2,0" oninput="heizleistungGeaendert(${cardCounter})">
         <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
       </div>
     </div>
@@ -78,22 +78,28 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label>Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label>Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_gehaeuse_${cardCounter}">Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" id="sicht_gehaeuse_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_leitung_${cardCounter}">Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" id="sicht_leitung_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_kennz_${cardCounter}">Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" id="sicht_kennz_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_reparatur_${cardCounter}">Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" id="sicht_reparatur_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       </div>
     </div>
 
     <div class="sub-section">
       <div class="sub-title">2. Erproben</div>
       <div class="grid">
-        <div class="form-group"><label>Funktionsprüfung:</label><select class="c-funktion erp-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option></select></div>
+        <div class="form-group"><label for="funktion_${cardCounter}">Funktionsprüfung:</label><select class="c-funktion erp-item" id="funktion_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option></select></div>
       </div>
     </div>
 
     <div class="sub-section">
-      <div class="sub-title mess-karte-titel">${messgroesseBlock('rpe', 'fluke6500').icon}${messgroesseBlock('riso', 'fluke6500').icon}<span class="titel-text">3. Messen</span></div>
+      <!-- I26: Drehschalter-Icons hier bewusst NICHT eingebunden (anders als
+           in vde0100.html/anschlusspruefung.html) - das Fluke 6500-2 fuer die
+           Geraetepruefung hat keinen vergleichbaren Drehschalter, die
+           1663er-Icons waeren hier irrefuehrend. Infokarte + Fluke-6500-
+           Kurzanleitung (messgroesseBlock(...).karten weiter unten) bleiben
+           unveraendert bestehen. -->
+      <div class="sub-title mess-karte-titel"><span class="titel-text">3. Messen</span></div>
       <div class="grid">
         <div class="form-group">
           <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
@@ -101,15 +107,15 @@ function addDeviceCard(data = {}) {
         </div>
         <div class="form-group">
           <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso)}" placeholder="z. B. > 100" oninput="validateDeviceNorms(${cardCounter})">
+          <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso !== undefined && data.riso !== '' ? data.riso : '>')}" placeholder="z. B. > 100" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
           <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_${cardCounter}"></span>:</label>
           <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0,3" oninput="validateDeviceNorms(${cardCounter})">
         </div>
         <div class="form-group">
-          <label>Messmethode Ableitstrom:</label>
-          <select class="c-ableit-methode" onchange="ableitMethodeGeaendert(${cardCounter})">
+          <label for="ableit_methode_${cardCounter}">Messmethode Ableitstrom:</label>
+          <select class="c-ableit-methode" id="ableit_methode_${cardCounter}" onchange="ableitMethodeGeaendert(${cardCounter})">
             <option>Ersatzableitstrom</option>
             <option>Differenzstrommessung</option>
             <option>Direktmessung Berührungsstrom</option>
@@ -120,6 +126,13 @@ function addDeviceCard(data = {}) {
       ${messgroesseBlock('rpe', 'fluke6500').karten}
       ${messgroesseBlock('riso', 'fluke6500').karten}
     </div>
+
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', cardCounter)) : ''}
+
+    <div class="circuit-footer-actions">
+      <button type="button" class="btn btn-secondary" onclick="dupliziereGeraet('device_${cardCounter}')" title="Neue Karte mit derselben Schutzklasse, Leitungslänge und Messmethode. Messwerte und Inventarnummer bleiben leer.">⧉ Duplizieren</button>
+      <button type="button" class="btn-danger" onclick="removeCard('device_${cardCounter}')">Entfernen</button>
+    </div>
   `;
   if (data.ableit_methode) {
     const m = card.querySelector('.c-ableit-methode');
@@ -129,6 +142,11 @@ function addDeviceCard(data = {}) {
   nummeriereKartenNeu('#devicesContainer', '.feed-card', 'Gerät');
   validateDeviceNorms(cardCounter);
   ableitMethodeGeaendert(cardCounter);
+  // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen
+  // aus Autosave/Archiv).
+  if (typeof fotosLeisteAktualisieren === 'function') {
+    fotosLeisteAktualisieren(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', cardCounter));
+  }
 }
 
 /* Karte duplizieren - ohne Messwerte und ohne Inventarnummer.
@@ -216,7 +234,7 @@ function validateDeviceNorms(cardId) {
   const card = document.getElementById(`device_${cardId}`);
   if (!card) return;
 
-  const schutzklasse = card.querySelector('.c-schutzklasse').value;
+  const schutzklasse = card.querySelector('.c-schutzklasse')?.value;
   const hatHeizelement = card.querySelector('.c-heizelement').checked;
   const laenge = card.querySelector('.c-laenge').value;
   const heizleistung = card.querySelector('.c-heizleistung')?.value;

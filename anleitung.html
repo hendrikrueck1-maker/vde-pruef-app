@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Anleitung für Erstanwender – VDE Prüfprotokoll Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <meta name="description" content="Erste Schritte mit dem VDE Prüfprotokoll Manager – Anleitung für Erstanwender.">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VDE Anleitung">
+  <meta name="format-detection" content="telephone=no">
+
+  <script src="js/app-config.js"></script>
+  <script src="js/pwa.js" defer></script>
+  <style>
+    .anleitung-toc { background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:12px 16px; margin:14px 0 20px; }
+    .anleitung-toc summary { cursor:pointer; font-weight:bold; color:var(--primary); font-size:0.9rem; }
+    .anleitung-toc ol { margin:10px 0 2px; padding-left:22px; font-size:0.85rem; line-height:1.9; }
+    .anleitung-toc a { color:var(--primary); text-decoration:none; }
+    .anleitung-toc a:hover { text-decoration:underline; }
+    .anleitung-block { margin-bottom:26px; }
+    .anleitung-block p, .anleitung-block li { font-size:0.88rem; line-height:1.55; color:#1e293b; }
+    .anleitung-block ul, .anleitung-block ol { padding-left:22px; margin:8px 0; }
+    .schritt-liste { counter-reset: schritt; list-style:none; padding-left:0; }
+    .schritt-liste > li { counter-increment: schritt; position:relative; padding-left:38px; margin-bottom:14px; }
+    .schritt-liste > li::before {
+      content: counter(schritt); position:absolute; left:0; top:0;
+      width:26px; height:26px; border-radius:50%; background:var(--primary); color:#fff;
+      font-weight:bold; font-size:0.82rem; display:flex; align-items:center; justify-content:center;
+    }
+    .ampel-erklaerung { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; }
+    .ampel-chip { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:0.82rem; flex:1 1 220px; }
+    .ampel-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+    .ampel-gruen { background:#16a34a; }
+    .ampel-gelb { background:#eab308; }
+    .ampel-rot { background:#dc2626; }
+    .hinweis-box { background:#eff6ff; border-left:4px solid var(--primary); border-radius:4px; padding:10px 14px; font-size:0.85rem; margin:10px 0; }
+    .warn-box { background:#fef2f2; border-left:4px solid #dc2626; border-radius:4px; padding:10px 14px; font-size:0.85rem; margin:10px 0; }
+    .protokoll-typen { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+    .protokoll-typ-karte { background:#fff; border:1px solid var(--border); border-radius:6px; padding:12px 14px; }
+    .protokoll-typ-karte h4 { margin:0 0 6px; color:var(--primary); font-size:0.9rem; }
+    .protokoll-typ-karte p { margin:0; font-size:0.8rem; color:var(--secondary); }
+    kbd { background:#e2e8f0; border-radius:3px; padding:1px 6px; font-size:0.78rem; font-family:inherit; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <div>
+      <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+    </div>
+    <h1>Anleitung für Erstanwender</h1>
+    <div></div>
+  </div>
+
+  <p style="font-size:0.9rem; color:var(--secondary); margin-top:-4px;">
+    Diese Seite erklärt die Bedienung des VDE Prüfprotokoll Managers Schritt für Schritt –
+    gedacht für den ersten Einstieg. Wer die App schon kennt, findet über das Inhaltsverzeichnis
+    schnell zum jeweiligen Thema.
+  </p>
+
+  <details class="anleitung-toc" open>
+    <summary>Inhaltsverzeichnis</summary>
+    <ol>
+      <li><a href="#was-ist-das">Was macht diese App?</a></li>
+      <li><a href="#protokolltypen">Die drei Protokolltypen</a></li>
+      <li><a href="#erster-start">Erster Start: Stammdaten hinterlegen</a></li>
+      <li><a href="#neues-protokoll">Ein neues Protokoll starten</a></li>
+      <li><a href="#formular-ausfuellen">Formular ausfüllen</a></li>
+      <li><a href="#stromkreise">Stromkreise / Geräte hinzufügen, duplizieren, löschen</a></li>
+      <li><a href="#ampel">Die Ampel-Farben verstehen</a></li>
+      <li><a href="#fluke">Fluke-Kurzanleitungen &amp; Infokarten</a></li>
+      <li><a href="#abschluss">Protokoll abschließen &amp; PDF erzeugen</a></li>
+      <li><a href="#offene-archiv">Offene Prüfungen &amp; Archiv</a></li>
+      <li><a href="#offline">Offline-Nutzung &amp; Installation auf dem Gerät</a></li>
+      <li><a href="#grenzen">Wichtiger Hinweis zu den Grenzen der App</a></li>
+    </ol>
+  </details>
+
+  <div class="anleitung-block" id="was-ist-das">
+    <h2 class="kat-stamm">Was macht diese App?</h2>
+    <p>
+      Der VDE Prüfprotokoll Manager unterstützt bei der Erstellung von Prüfprotokollen nach
+      DIN VDE 0100-600, 0105-100 sowie 0701/0702 – also bei der Prüfung elektrischer Anlagen,
+      Anschlussübergabepunkten (z. B. bei Veranstaltungen) und ortsveränderlichen Geräten.
+      Sie führt durch Sichtprüfung, Erproben und die messtechnischen Prüfungen, prüft eingegebene
+      Messwerte automatisch gegen die einschlägigen Grenzwerte und erzeugt am Ende ein fertiges,
+      unterschriebenes PDF-Protokoll.
+    </p>
+    <p>
+      Die App läuft vollständig im Browser, speichert alle Daten nur auf dem verwendeten Gerät
+      und funktioniert nach dem ersten Laden auch ohne Internetverbindung.
+    </p>
+  </div>
+
+  <div class="anleitung-block" id="protokolltypen">
+    <h2 class="kat-stamm">Die drei Protokolltypen</h2>
+    <p>Auf der Hauptübersicht stehen drei Formulare zur Auswahl – je nach Prüfgegenstand:</p>
+    <div class="protokoll-typen">
+      <div class="protokoll-typ-karte">
+        <h4>VDE 0100 / 0105 – Elektrische Anlage</h4>
+        <p>Für die Erstprüfung oder wiederkehrende Prüfung einer kompletten Anlage bzw. Verteilung, inkl. Stromkreisen, Erdung/Potenzialausgleich und Netzmessung.</p>
+      </div>
+      <div class="protokoll-typ-karte">
+        <h4>Anschlussprüfung Übergabepunkt</h4>
+        <p>Für die Übergabe eines Stromanschlusses (z. B. Hausanschluss/CEE-Einspeisung bei einer Veranstaltung) zwischen Netzbetreiber/Bereitsteller und Veranstalter.</p>
+      </div>
+      <div class="protokoll-typ-karte">
+        <h4>Prüfung elektrischer Geräte</h4>
+        <p>Für die wiederkehrende Prüfung ortsveränderlicher Geräte nach DIN VDE 0701/0702 (Scheinwerfer, Verlängerungen, Verteiler etc.), geräteweise mit eigener Prüfplakette.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="anleitung-block" id="erster-start">
+    <h2 class="kat-stamm">Erster Start: Stammdaten hinterlegen</h2>
+    <p>
+      Bevor das erste Protokoll erstellt wird, lohnt es sich, auf der Hauptübersicht unter
+      <strong>„1. Zentrale Stammdaten"</strong> die immer gleichen Angaben einmalig einzutragen –
+      etwa Auftraggeber/Betrieb, Verteilnetzbetreiber, Prüfer/-in und verwendetes Prüfgerät.
+      Diese Angaben werden für jedes neue Protokoll automatisch vorausgefüllt und müssen nicht
+      jedes Mal neu eingegeben werden.
+    </p>
+    <div class="hinweis-box">
+      Nicht vergessen: unten mit <strong>„💾 Stammdaten Speichern"</strong> bestätigen.
+    </div>
+  </div>
+
+  <div class="anleitung-block" id="neues-protokoll">
+    <h2 class="kat-stamm">Ein neues Protokoll starten</h2>
+    <ol class="schritt-liste">
+      <li>Auf der Hauptübersicht im Abschnitt <strong>„Protokoll starten"</strong> die passende Kachel wählen (siehe Protokolltypen oben).</li>
+      <li>Das leere Formular öffnet sich – die Stammdaten sind bereits vorausgefüllt.</li>
+      <li>Angefangene, aber noch nicht abgeschlossene Protokolle bleiben automatisch als Entwurf erhalten und erscheinen im Abschnitt <strong>„Offene Prüfungen"</strong>, bis das Formular über „Neues Formular" zurückgesetzt wird – auch nach dem Erzeugen eines PDFs. So können mehrere Prüfungen parallel offen bleiben, z. B. zwei Anschlussstellen gleichzeitig.</li>
+    </ol>
+  </div>
+
+  <div class="anleitung-block" id="formular-ausfuellen">
+    <h2 class="kat-stamm">Formular ausfüllen</h2>
+    <p>Jedes Formular folgt demselben Grundaufbau, von oben nach unten:</p>
+    <ul>
+      <li><strong>Allgemeine Angaben &amp; Stammdaten:</strong> Auftraggeber, Prüfer/-in samt Qualifikation, Prüfdatum, Netzsystem.</li>
+      <li><strong>Netzmessung (optional):</strong> Spannungen und Frequenz am Speisepunkt – freiwillig, aber empfohlen; leere Felder werden im PDF einfach nicht gedruckt.</li>
+      <li><strong>Besichtigen:</strong> Sichtprüfung anhand einer Punkteliste (i.O. / n.i.O. / n.a.). „n.a." für Punkte, die an dieser Anlage gar nicht vorkommen – sie fließen dann nicht in die Gesamtbewertung ein.</li>
+      <li><strong>Erproben (Funktionsprüfung):</strong> z. B. Drehfeld, Polarität, RCD-Prüftaste.</li>
+      <li><strong>Messtechnische Prüfungen:</strong> die eigentlichen Messwerte je Stromkreis/Gerät (siehe nächster Abschnitt).</li>
+      <li><strong>Gesamtbeurteilung &amp; Unterschriften:</strong> Abschluss des Protokolls.</li>
+    </ul>
+    <p>
+      Pflichtfelder werden farblich markiert, solange sie leer sind. Felder mit einem eingetragenen,
+      aber normwidrigen Wert werden automatisch rot hervorgehoben (siehe Ampel-Erklärung weiter unten).
+    </p>
+  </div>
+
+  <div class="anleitung-block" id="stromkreise">
+    <h2 class="kat-stamm">Stromkreise / Geräte hinzufügen, duplizieren, löschen</h2>
+    <p>
+      Über den Button <strong>„+ Stromkreis hinzufügen"</strong> (bzw. „+ Gerät hinzufügen") entsteht
+      eine neue Karte mit allen Messfeldern. Bei vielen Stromkreisen helfen zwei Funktionen an jeder Karte:
+    </p>
+    <ul>
+      <li><strong>Duplizieren</strong> – legt eine Kopie der Karte an, praktisch bei mehreren ähnlichen Stromkreisen (z. B. gleiche Absicherung, gleicher RCD-Typ).</li>
+      <li><strong>Löschen</strong> – entfernt die Karte wieder vollständig.</li>
+    </ul>
+    <p>Beide Buttons stehen am Kopf <em>und</em> am Ende jeder Karte zur Verfügung, damit bei langen Listen nicht immer gescrollt werden muss.</p>
+  </div>
+
+  <div class="anleitung-block" id="ampel">
+    <h2 class="kat-stamm">Die Ampel-Farben verstehen</h2>
+    <p>Eingegebene Messwerte werden automatisch mit den einschlägigen Grenzwerten verglichen:</p>
+    <div class="ampel-erklaerung">
+      <div class="ampel-chip"><span class="ampel-dot ampel-gruen"></span> Alle Werte im Sollbereich – Prüfung bestanden.</div>
+      <div class="ampel-chip"><span class="ampel-dot ampel-gelb"></span> Einzelner Stromkreis/Punkt außerhalb der Norm, Rest in Ordnung.</div>
+      <div class="ampel-chip"><span class="ampel-dot ampel-rot"></span> Wert außerhalb des zulässigen Bereichs – wird im Feld selbst und im PDF rot markiert.</div>
+    </div>
+    <p>
+      Die farbliche Markierung ist eine Rechenhilfe und ersetzt nicht die fachliche Bewertung durch
+      die prüfende Person (siehe Hinweis am Ende dieser Seite).
+    </p>
+  </div>
+
+  <div class="anleitung-block" id="fluke">
+    <h2 class="kat-stamm">Fluke-Kurzanleitungen &amp; Infokarten</h2>
+    <p>
+      Zu vielen Messgrößen gibt es ein kleines Drehschalter-Icon, das die passende Stellung am
+      Installationstester (Fluke 1663) zeigt. Über den Schalter <strong>„Infokarten &amp; Geräte-Kurzanleitung
+      anzeigen"</strong> oben auf der Hauptübersicht lassen sich zusätzlich ausklappbare Kurzanleitungen
+      pro Messgröße ein- oder ausblenden – hilfreich beim Einarbeiten, störend bei täglicher Routine.
+      Die Icons mit Kurzlabel bleiben davon unabhängig immer sichtbar.
+    </p>
+    <div class="hinweis-box">
+      Diese Kurzanleitungen sind eigene, an der Fluke-Originalanleitung orientierte Zusammenfassungen –
+      keine autorisierten Fluke-Inhalte. Im Zweifel gilt immer die Original-Bedienungsanleitung des
+      verwendeten Messgeräts.
+    </div>
+  </div>
+
+  <div class="anleitung-block" id="abschluss">
+    <h2 class="kat-stamm">Protokoll abschließen &amp; PDF erzeugen</h2>
+    <ol class="schritt-liste">
+      <li>Im Abschnitt „Gesamtbeurteilung" den Prüfumfang und das Ergebnis festhalten.</li>
+      <li>Unterschriften direkt auf dem Bildschirm/Tablet mit dem Finger oder Stift leisten (bei Bedarf über „Löschen" neu ansetzen).</li>
+      <li>PDF erzeugen – das fertige Protokoll wird als Datei gespeichert und zusätzlich automatisch im Archiv der App abgelegt.</li>
+    </ol>
+  </div>
+
+  <div class="anleitung-block" id="offene-archiv">
+    <h2 class="kat-stamm">Offene Prüfungen &amp; Archiv</h2>
+    <p>
+      <strong>Offene Prüfungen</strong> sind Formulare, die begonnen, aber noch nicht mit „Neues Formular"
+      zurückgesetzt wurden – auch nach einem PDF-Export bleiben sie hier bearbeitbar.
+      Das <strong>Archiv</strong> enthält dagegen jedes bereits fertig erzeugte PDF, durchsuchbar nach
+      Nummer, Gebäude, Prüfer oder Dateiname – auch dann noch, wenn der ursprüngliche Download-Ordner
+      längst aufgeräumt wurde. Leerformulare werden nicht ins Archiv aufgenommen.
+    </p>
+  </div>
+
+  <div class="anleitung-block" id="offline">
+    <h2 class="kat-stamm">Offline-Nutzung &amp; Installation auf dem Gerät</h2>
+    <p>
+      Nach dem ersten Laden merkt sich der Browser alle App-Dateien und funktioniert danach auch ohne
+      Internetverbindung – ideal für Prüfungen in Kellern, auf Bühnen oder Open-Air-Gelände ohne
+      Netzempfang. Auf Android und iPad lässt sich die App zusätzlich wie eine normale App auf dem
+      Startbildschirm installieren („Zum Startbildschirm hinzufügen" im Browsermenü).
+    </p>
+  </div>
+
+  <div class="anleitung-block" id="grenzen">
+    <h2 class="kat-ergebnis">Wichtiger Hinweis zu den Grenzen der App</h2>
+    <div class="warn-box">
+      Die App unterstützt bei der Dokumentation und beim Abgleich eingegebener Werte mit den
+      einschlägigen Grenzwerten der DIN VDE-Normen. Sie ersetzt weder die fachliche Beurteilung
+      durch eine Elektrofachkraft noch die tatsächliche Messung mit einem normkonformen Messgerät.
+      Die Verantwortung für die korrekte Durchführung der Prüfung und die Richtigkeit der eingetragenen
+      Werte liegt bei der prüfenden Person.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

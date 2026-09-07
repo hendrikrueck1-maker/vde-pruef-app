@@ -32,6 +32,7 @@
   <script src="js/statusleiste.js"></script>
   <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
+  <script src="js/fotos.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/infokarten.js"></script>
   <script src="js/geraete-generator.js"></script>
@@ -45,8 +46,9 @@
 
 <div class="app-container">
   <div class="header-bar">
-    <div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+      <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
     </div>
     <h1>Prüfung elektrischer Geräte</h1>
     <div>
@@ -60,12 +62,12 @@
     <h2 class="kat-stamm" id="abschnitt-stammdaten">1. Allgemeine Angaben & Stammdaten</h2>
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Auftraggeber / Prüfort:</label>
+        <label for="auftraggeber">Auftraggeber / Prüfort:</label>
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
       <div class="form-group">
-        <label>Gebäude / Bereich:</label>
+        <label for="gebaeude_select">Gebäude / Bereich:</label>
         <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
           <option value="Gr. Haus">Gr. Haus</option>
           <option value="Werkstatt">Werkstatt</option>
@@ -78,14 +80,14 @@
       </div>
 
       <div class="form-group">
-        <label>Prüfart:</label>
+        <label for="pruefart">Prüfart:</label>
         <select id="pruefart">
           <option>Wiederholungsprüfung (DIN EN 50699 / VDE 0702)</option>
           <option>Prüfung nach Reparatur (DIN EN 50678 / VDE 0701)</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Prüffrist:</label>
+        <label for="pruefintervall">Prüffrist:</label>
         <select id="pruefintervall" onchange="updateNaechsterTermin()">
           <option value="1">1 Monat</option>
           <option value="3">3 Monate</option>
@@ -95,28 +97,28 @@
         </select>
       </div>
 
-      <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. GP-2026-001"></div>
+      <div class="form-group"><label for="pruefungsnummer">Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. GP-2026-001"></div>
       <div class="form-group">
-        <label>Protokoll-Nr.:</label>
+        <label for="protokollnummer">Protokoll-Nr.:</label>
         <input type="text" id="protokollnummer" placeholder="z. B. GP-2026-08-11-001">
         <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
-      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Qualifikation der prüfenden Person:</label>
+      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label for="pruefer_qualifikation">Qualifikation der prüfenden Person:</label>
         <select id="pruefer_qualifikation">
           <option value="">– bitte wählen –</option>
           <option value="Elektrofachkraft (EFK)">Elektrofachkraft (EFK)</option>
           <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
         </select>
       </div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum"></div>
       <div class="form-group">
-        <label>Nächster Prüftermin (Monat/Jahr, automatisch):</label>
+        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
         <input type="month" id="res_termin_date">
         <div class="limit-hint">Ergibt sich aus der Prüffrist, kann überschrieben werden.</div>
       </div>
-      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
     <!-- 2. GERÄTE -->
@@ -134,7 +136,7 @@
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">3. Gesamtbeurteilung & Prüfplakette</h2>
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Prüfumfang:</label>
+        <label for="pruefumfang">Prüfumfang:</label>
         <select id="pruefumfang">
           <option>Vollprüfung (alle Geräte)</option>
           <option>Stichprobe – siehe Bemerkung für Umfang</option>
@@ -142,7 +144,7 @@
         <div class="limit-hint">Nach DIN VDE 0105-100 bei Wiederholungsprüfungen anzugeben. Bei „Stichprobe" bitte den geprüften Umfang (z. B. Anteil, Auswahlkriterium) unten in den Bemerkungen benennen.</div>
       </div>
       <div class="form-group">
-        <label>Gesamtbewertung Mängel:</label>
+        <label for="res_maengel">Gesamtbewertung Mängel:</label>
         <select id="res_maengel">
           <option>Keine Mängel festgestellt</option>
           <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
@@ -150,11 +152,11 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Prüfplakette erteilt:</label>
+        <label for="res_plakette">Prüfplakette erteilt:</label>
         <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
       </div>
       <div class="form-group">
-        <label>Sicherer Gebrauch gewährleistet:</label>
+        <label for="res_gewaehrleistung">Sicherer Gebrauch gewährleistet:</label>
         <select id="res_gewaehrleistung">
           <option value="Ja">Ja (Geräte entsprechen den Normen)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
@@ -163,16 +165,16 @@
     </div>
 
     <div class="form-group" style="margin-top: 8px;">
-      <label>Mängel / Bemerkungen / Auflagen:</label>
+      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
     </div>
 
     <!-- 4. UNTERSCHRIFTEN -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">4. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
       <div class="form-group">
-        <label>Datum der Unterzeichnung:</label>
+        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
         <input type="date" id="unterschrift_datum">
         <div class="limit-hint">Wird unter beide Unterschriften gedruckt.</div>
       </div>
@@ -180,20 +182,20 @@
 
     <div class="sig-block">
       <div class="sig-card">
-        <label>Unterschrift Prüfer/-in:</label>
-        <canvas id="sigPruefer"></canvas>
+        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
+        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
       </div>
       <div class="sig-card">
-        <label>Unterschrift Auftraggeber / Betreiber:</label>
-        <canvas id="sigKunde"></canvas>
+        <label id="sigKunde_label">Unterschrift Auftraggeber / Betreiber:</label>
+        <canvas id="sigKunde" role="img" aria-labelledby="sigKunde_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padKunde.clear()">Löschen</button>
       </div>
     </div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
       <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
+        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
         <select id="leer_blaetter">
           <option value="1" selected>1 Blatt (13 Geräte)</option>
           <option value="2">2 Blätter (43 Geräte)</option>

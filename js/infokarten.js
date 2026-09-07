@@ -20,16 +20,16 @@
 
 const MESSGROESSEN_INFO = {
   zs: {
-    icon: 'img/drehschalter/Z_S_Schleifenimpedanz-Kurzschlussstrom.png',
-    iconAlt: 'Drehschalter-Icon Schleifenimpedanz',
+    icon: 'img/drehschalter/Z_i_Loop.png',
+    iconAlt: 'Drehschalter-Icon Schleifenimpedanz (Zi-Loop-Symbol)',
     label: 'Z<sub>S</sub>',
     was: 'Die Schleifenimpedanz Z<sub>S</sub> bestimmt, ob die vorgeschaltete Sicherung im Fehlerfall schnell genug abschaltet – Grundlage des Schutzes durch automatische Abschaltung nach DIN&nbsp;VDE&nbsp;0100-410. Aus Z<sub>S</sub> wird zusätzlich der zu erwartende Kurzschlussstrom I<sub>K</sub> berechnet.',
     warum: 'Bei zu hoher Impedanz löst die Sicherung im Fehlerfall nicht rechtzeitig aus – die Berührungsspannung bleibt gefährlich lange anliegen.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">Z-LOOP</span> bzw. <span class="drehschalter">LOOP</span> stellen.',
-      'Prüfspitzen/Adapter an Steckdose oder Klemme des betreffenden Stromkreises anschließen.',
-      '<span class="drehschalter">TEST</span> drücken.',
-      'Messwert Z<sub>S</sub> (Ω) und errechneten Kurzschlussstrom I<sub>K</sub> (A) ablesen und ins Formular übertragen.'
+      'Drehschalter auf die Position <span class="drehschalter">Z<sub>i</sub></span> (Schleifenimpedanz, Symbol Zi mit Schleifen-Pfeil) stellen – bei RCD-geschützten Stromkreisen die Einstellung <span class="drehschalter">NO TRIP</span> wählen, damit der RCD während der Messung nicht auslöst.',
+      'Prüfspitzen/Adapter an Steckdose oder Klemme des betreffenden Stromkreises anschließen (mindestens L und PE).',
+      '<span class="drehschalter">TEST</span> drücken und loslassen.',
+      'Messwert Z<sub>S</sub> (Ω, Hauptanzeige) und errechneten Kurzschlussstrom I<sub>K</sub> (A bzw. kA, Sekundäranzeige) ablesen und ins Formular übertragen.'
     ],
     fluke1663Hinweis: 'Der Fluke 1663 zeigt bei aktivierter „No-Trip"-Funktion einen strombegrenzten Messwert. Für die Dokumentation ist der angezeigte Z<sub>S</sub>-Wert zu verwenden. No-Trip nur bei RCD-geschützten Kreisen aktivieren, um ein Auslösen während der Messung zu vermeiden.'
   },
@@ -38,15 +38,21 @@ const MESSGROESSEN_INFO = {
       { icon: 'img/drehschalter/RCD_Ausloesezeit_deltaT.png', alt: 'Drehschalter-Icon RCD-Auslösezeit', label: 'ΔT' },
       { icon: 'img/drehschalter/RCD_Ausloesestrom_I_deltaN.png', alt: 'Drehschalter-Icon RCD-Auslösestrom', label: 'I<sub>ΔN</sub>' }
     ],
-    was: 'Die RCD-Prüfung stellt sicher, dass der Fehlerstrom-Schutzschalter bei einem tatsächlichen Fehlerstrom innerhalb der normativ vorgeschriebenen Zeit auslöst (z.&nbsp;B. 300/150/40&nbsp;ms bzw. 500/200/150&nbsp;ms bei selektiven RCDs, je nach Prüfstrom-Vielfachem).',
+    was: 'Die RCD-Prüfung stellt sicher, dass der Fehlerstrom-Schutzschalter bei einem tatsächlichen Fehlerstrom innerhalb der normativ vorgeschriebenen Zeit auslöst (z.&nbsp;B. 300/150/40&nbsp;ms bzw. 500/200/150&nbsp;ms bei selektiven RCDs, je nach Prüfstrom-Vielfachem). Der RCD-Typ steht als Symbol auf dem Gerät/Typenschild: <span class="rcd-typ-symbol" title="Typ AC – nur Wechselfehlerströme">AC ∿</span> <span class="rcd-typ-symbol" title="Typ A – Wechsel- und pulsierende Gleichfehlerströme">A ∿⌐</span> <span class="rcd-typ-symbol" title="Typ F – zusätzlich Mischfrequenzen (z. B. Frequenzumrichter)">F ⌇</span> <span class="rcd-typ-symbol" title="Typ B – zusätzlich glatte Gleichfehlerströme (allstromsensitiv)">B ≈</span> – der am Fluke eingestellte Typ muss dem Typenschild entsprechen, sonst ist das Prüfergebnis nicht aussagekräftig.',
     warum: 'Ein RCD, der nicht oder zu spät auslöst, bietet keinen wirksamen Zusatzschutz gegen gefährliche Körperströme – die zentrale Schutzfunktion des Geräts wäre praktisch wirkungslos, ohne dass das von außen erkennbar wäre.',
     fluke1663: [
-      'Drehschalter auf <span class="drehschalter">RCD</span> stellen.',
-      'RCD-Typ (AC/A/F/B) und Nennfehlerstrom am Gerät einstellen.',
-      'Prüfstrom-Vielfaches wählen (½×, 1×, 2×, 5× I<sub>Δn</sub>).',
-      '<span class="drehschalter">TEST</span> drücken – das Gerät zeigt Auslösezeit t<sub>A</sub> und (bei Rampentest) den Auslösestrom I<sub>Δmess</sub> an.'
+      '<u>Auslösezeit t<sub>A</sub> (Drehschalter-Position <span class="drehschalter">ΔT</span>):</u>',
+      'Drehschalter auf <span class="drehschalter">ΔT</span> stellen, Nennfehlerstrom (10/30/100/300/500/1000 mA) einstellen.',
+      'Prüfstrom-Wellenform passend zum RCD-Typ wählen: <em>~</em> für Typ AC/A, <em>⌐⌐</em> (Halbwelle) für pulsstromsensitive Typ A, <em>=</em> (glatter Gleichstrom) für Typ B – bei zeitverzögerten/selektiven RCDs zusätzlich [S] wählen.',
+      'Phasenwinkel 0° <em>und</em> 180° jeweils einzeln prüfen (Ansprechzeit kann abweichen) – bei Typ B/S-Typ B sind beide Winkel zwingend zu prüfen.',
+      'Prüfstrom-Vielfaches wählen (typisch ½×, 1× I<sub>Δn</sub>; bei Bedarf auch 2×, 5×).',
+      'Mindestens L und PE anschließen (bzw. Steckdosen-Prüfleitung einstecken) – bei Typ B/S-Typ B werden alle drei Messleitungen benötigt.',
+      '<span class="drehschalter">TEST</span> drücken und loslassen: Hauptanzeige zeigt Auslösezeit t<sub>A</sub>, Sekundäranzeige die Fehlerspannung U<sub>F</sub> (Spannungsabfall am PE-Leiter bezogen auf den Bemessungsfehlerstrom).',
+      '<u>Auslösestrom I<sub>ΔN</sub> (Drehschalter-Position <span class="drehschalter">I<sub>ΔN</sub></span>):</u>',
+      'Drehschalter auf <span class="drehschalter">I<sub>ΔN</sub></span> stellen, Nennfehlerstrom und Prüfstromform wie oben einstellen.',
+      '<span class="drehschalter">TEST</span> drücken: Das Gerät erhöht den Prüfstrom stufenweise, bis der RCD auslöst – Hauptanzeige zeigt den Auslösestrom, Sekundäranzeige wieder die Fehlerspannung U<sub>F</sub>.'
     ],
-    fluke1663Hinweis: 'Der am Fluke gewählte Prüfstrom-Faktor muss exakt dem im Formular ausgewählten Wert entsprechen, da die App den zulässigen Grenzwert daraus berechnet.'
+    fluke1663Hinweis: 'Der am Fluke gewählte Prüfstrom-Faktor und Nennfehlerstrom müssen exakt dem im Formular ausgewählten Wert entsprechen, da die App den zulässigen Grenzwert daraus berechnet. Vor der Messung die Verbindung zwischen Neutralleiter und Schutzleiter prüfen (eine Spannung dazwischen verfälscht die Messung) – siehe Warnhinweis im Handbuch. Für RCD Typ B/B+ wird glatter Gleichstrom verwendet; die kurze 10-ms-Verzögerung bei Typ G/K/R wird vom RCD-✓-Symbol des Geräts nicht berücksichtigt.'
   },
   riso: {
     icon: 'img/drehschalter/R_ISO_Isolationswiderstand.png',
@@ -117,7 +123,7 @@ const MESSGROESSEN_INFO = {
   rlo: {
     icon: 'img/drehschalter/R_LO_Potenzialausgleich.png',
     iconAlt: 'Drehschalter-Icon Potenzialausgleich (R LOW Ω)',
-    label: 'R<sub>PA</sub>',
+    label: 'R<sub>LO</sub>',
     was: 'Die Potenzialausgleichsmessung prüft die Durchgängigkeit und den niederohmigen Widerstand zwischen der Potenzialausgleichsschiene/Erdungspunkt und den zu verbindenden leitfähigen Teilen der Anlage.',
     warum: 'Ein unterbrochener oder zu hochohmiger Potenzialausgleich verhindert, dass im Fehlerfall gefährliche Spannungsunterschiede zwischen berührbaren leitfähigen Teilen sicher ausgeglichen werden – ein zentraler Baustein des Schutzes gegen elektrischen Schlag.',
     fluke1663: [
@@ -127,6 +133,20 @@ const MESSGROESSEN_INFO = {
       'Leitung während der Messung leicht bewegen (Wackelkontakt-Prüfung nach DIN EN 50699).'
     ],
     fluke1663Hinweis: 'Gleiche Drehschalter-Position und Vorgehensweise wie beim Schutzleiterwiderstand R<sub>PE</sub> – nur der Messpunkt unterscheidet sich.'
+  },
+  drehfeld: {
+    icon: 'img/drehschalter/Drehfeld_Phasendrehung.png',
+    iconAlt: 'Drehschalter-Icon Drehfeldprüfung (Phasendrehung)',
+    label: 'L1-L2-L3',
+    was: 'Die Drehfeldprüfung stellt fest, ob die drei Außenleiter in der Reihenfolge L1-L2-L3 (Rechtsdrehfeld) oder vertauscht (L3-L2-L1, Linksdrehfeld) angeschlossen sind.',
+    warum: 'Ein falsches Drehfeld lässt Drehstrommotoren rückwärts laufen (z.&nbsp;B. Bühnenzug, Lüfter, Pumpen) – bei CEE-Steckvorrichtungen 16–125&nbsp;A nach DIN VDE 0100-600 zwingend zu prüfen, bevor Verbraucher angeschlossen werden.',
+    fluke1663: [
+      'Drehschalter auf <span class="drehschalter">Drehfeld</span> (Kreis-Pfeil-Symbol) stellen.',
+      'Alle drei Außenleiter (L1/L2/L3) an den zugehörigen Prüfspitzen/Adapter der CEE-Steckvorrichtung anschließen.',
+      'Anzeige ablesen: <strong>1-2-3</strong> = korrektes (rechtsdrehendes) Drehfeld, <strong>3-2-1</strong> = umgekehrtes (linksdrehendes) Drehfeld, Striche (---) = keine ausreichende Spannung erkannt.',
+      'Ergebnis als i.O. (1-2-3) bzw. n.i.O. (3-2-1, vertauscht) im Formular eintragen.'
+    ],
+    fluke1663Hinweis: 'Bei vertauschtem Drehfeld zwei der drei Außenleiter am Adapter/Prüfling tauschen und erneut prüfen, bis 1-2-3 angezeigt wird – nicht einfach als Mangel dokumentieren, wenn eine Korrektur vor Ort möglich und vorgesehen ist.'
   }
 };
 
@@ -145,10 +165,15 @@ function infokarteIconHtml(info) {
     '</span>';
 }
 
-/* Baut die ausklappbare Infokarte "Was wird hier geprüft und warum?". */
-function infokarteInhaltHtml(info) {
+/* Baut die ausklappbare Infokarte "Was wird hier geprüft und warum?".
+ * schluessel (z.B. 'rpe','riso','zs','rcd','uv','rlo') wird als
+ * data-mg-key ins <details> geschrieben - Grundlage fuer F15: der
+ * Aufklapp-Zustand wird je Messgroesse fuer die laufende Sitzung
+ * geteilt, damit z.B. eine beim Stromkreis #1 aufgeklappte R_PE-Infokarte
+ * beim Wechsel zu Stromkreis #2 dort ebenfalls aufgeklappt erscheint. */
+function infokarteInhaltHtml(info, schluessel) {
   return (
-    '<details class="infokarte">' +
+    '<details class="infokarte" data-mg-key="' + (schluessel || '') + '">' +
       '<summary>ℹ️ Was wird hier geprüft und warum?</summary>' +
       '<div class="infokarte-inhalt">' +
         '<p><span class="label-was">Was:</span> ' + info.was + '</p>' +
@@ -159,14 +184,15 @@ function infokarteInhaltHtml(info) {
 }
 
 /* Baut die ausklappbare Geraete-Kurzanleitung. geraet: 'fluke1663' (vde0100/
- * anschlusspruefung) oder 'fluke6500' (geraetepruefung, Fluke 6500-2). */
-function flukeAnleitungHtml(info, geraet) {
+ * anschlusspruefung) oder 'fluke6500' (geraetepruefung, Fluke 6500-2).
+ * schluessel: siehe infokarteInhaltHtml (F15, gleicher Mechanismus). */
+function flukeAnleitungHtml(info, geraet, schluessel) {
   const schritte = geraet === 'fluke6500' ? info.fluke6500 : info.fluke1663;
   if (!schritte) return '';
   const hinweis = geraet === 'fluke6500' ? info.fluke6500Hinweis : info.fluke1663Hinweis;
   const geraetName = geraet === 'fluke6500' ? 'Fluke 6500-2' : 'Fluke 1663';
   return (
-    '<details class="fluke">' +
+    '<details class="fluke" data-mg-key="' + (schluessel || '') + '">' +
       '<summary>🔧 So geht\'s mit dem ' + geraetName + '</summary>' +
       '<div class="fluke-inhalt">' +
         '<ol>' + schritte.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' +
@@ -189,7 +215,7 @@ function messgroesseBlock(schluessel, geraet) {
   if (!info) return { icon: '', karten: '' };
   return {
     icon: infokarteIconHtml(info),
-    karten: infokarteInhaltHtml(info) + flukeAnleitungHtml(info, geraet)
+    karten: infokarteInhaltHtml(info, schluessel) + flukeAnleitungHtml(info, geraet, schluessel)
   };
 }
 
@@ -264,9 +290,128 @@ function zusatzIconsEinbinden() {
       if (!wrapper.parentNode) erdungBlock.appendChild(wrapper);
     }
   }
+
+  // Drehfeld-Icon + Infokarte/Fluke-Anleitung (D8, 7.0): nur vorhanden in
+  // vde0100.html (dort existieren #drehfeld_icon / #drehfeld_infokarten
+  // im Abschnitt "5. Erproben").
+  const drehfeldIcon = document.getElementById('drehfeld_icon');
+  if (drehfeldIcon) {
+    const block = messgroesseBlock('drehfeld', 'fluke1663');
+    drehfeldIcon.innerHTML = block.icon;
+    const drehfeldWrapper = document.getElementById('drehfeld_infokarten');
+    if (drehfeldWrapper && !drehfeldWrapper.innerHTML) {
+      drehfeldWrapper.innerHTML = block.karten;
+    }
+  }
 }
 
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', infokartenSichtbarkeitAnwenden);
   document.addEventListener('DOMContentLoaded', zusatzIconsEinbinden);
+}
+
+/* ============================================================================
+ *  F15: AUFKLAPP-ZUSTAND DER INFOKARTEN/FLUKE-ANLEITUNGEN JE MESSGROESSE
+ *       FUER DIE LAUFENDE SITZUNG TEILEN
+ * ----------------------------------------------------------------------------
+ *  Bisher hatte jede <details class="infokarte"|"fluke"> ihren eigenen,
+ *  rein lokalen Aufklapp-Zustand im DOM. Wurde z.B. bei Stromkreis #1 die
+ *  R_PE-Infokarte aufgeklappt, blieb sie bei Stromkreis #2 (eigene, separate
+ *  <details>-Instanz) trotzdem zu. Ab hier wird der Zustand je Messgroesse
+ *  (data-mg-key, siehe infokarteInhaltHtml/flukeAnleitungHtml) gemeinsam
+ *  ueber sessionStorage gehalten:
+ *    - beim Aufklappen/Zuklappen EINER Karte werden alle anderen bereits im
+ *      DOM vorhandenen Karten mit demselben Schluessel + Typ sofort
+ *      mitgezogen,
+ *    - neu erzeugte Karten (addCircuitCard/addDeviceCard/addFeedCard, auch
+ *      beim Wiederherstellen aus Autosave/Archiv) uebernehmen beim Einfuegen
+ *      ins DOM automatisch den zuletzt gesetzten Zustand.
+ *  Ausdruecklich NUR fuer die laufende Sitzung (sessionStorage, kein
+ *  localStorage) - kein Bezug zum permanenten, globalen Infokarten-Ein/Aus-
+ *  Schalter (VDE_INFOKARTEN_KEY) aus fruaheren Versionen, der die Sichtbarkeit
+ *  als Ganzes steuert, nicht den Aufklapp-Zustand einzelner Karten.
+ * ========================================================================== */
+const VDE_MG_ZUSTAND_KEY = 'vde_mg_details_zustand';
+
+function mgZustandLesen() {
+  try {
+    const raw = sessionStorage.getItem(VDE_MG_ZUSTAND_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function mgZustandSchreiben(zustand) {
+  try { sessionStorage.setItem(VDE_MG_ZUSTAND_KEY, JSON.stringify(zustand)); } catch (e) {}
+}
+
+function mgDetailsSchluessel(details) {
+  const key = details.getAttribute('data-mg-key');
+  if (!key) return null;
+  const typ = details.classList.contains('fluke') ? 'fluke' : 'infokarte';
+  return typ + ':' + key;
+}
+
+/* Wendet den gespeicherten Zustand auf ein einzelnes <details>-Element an -
+ * genutzt sowohl beim initialen Einbinden neuer Karten als auch beim
+ * Live-Abgleich aller anderen Karten nach einem Toggle. */
+function mgZustandAufElementAnwenden(details, zustand) {
+  const combKey = mgDetailsSchluessel(details);
+  if (!combKey) return;
+  if (Object.prototype.hasOwnProperty.call(zustand, combKey)) {
+    const soll = !!zustand[combKey];
+    if (details.open !== soll) details.open = soll;
+  }
+}
+
+/* Durchsucht ein Wurzelelement (Default: ganzes Dokument) nach allen
+ * data-mg-key-Details und gleicht sie mit dem gespeicherten Zustand ab. */
+function mgZustandAufBereichAnwenden(root) {
+  const zustand = mgZustandLesen();
+  const scope = root || document;
+  scope.querySelectorAll('details.infokarte[data-mg-key], details.fluke[data-mg-key]')
+    .forEach(function (d) { mgZustandAufElementAnwenden(d, zustand); });
+}
+
+/* Toggle-Event: 'toggle' bubbelt nicht, daher Listener in der Capturing-
+ * Phase auf document - dort kommt das Event trotzdem an, weil Capturing
+ * unabhaengig vom Bubbling beim Weg zum Ziel ausgeloest wird. */
+if (typeof document !== 'undefined') {
+  document.addEventListener('toggle', function (ev) {
+    const details = ev.target;
+    if (!details || !details.matches || !details.matches('details.infokarte[data-mg-key], details.fluke[data-mg-key]')) return;
+    const combKey = mgDetailsSchluessel(details);
+    if (!combKey) return;
+    const zustand = mgZustandLesen();
+    zustand[combKey] = details.open;
+    mgZustandSchreiben(zustand);
+    // alle anderen bereits vorhandenen Karten mit demselben Schluessel sofort mitziehen
+    mgZustandAufBereichAnwenden(document);
+  }, true);
+
+  // Neu eingefuegte Karten (Stromkreis/Geraet/Uebergabepunkt, auch beim
+  // Wiederherstellen aus Autosave/Archiv) automatisch auf den aktuellen
+  // Zustand bringen - MutationObserver statt Aenderung an jeder einzelnen
+  // addXCard()-Funktion, damit auch kuenftige Kartentypen automatisch
+  // erfasst werden.
+  document.addEventListener('DOMContentLoaded', function () {
+    mgZustandAufBereichAnwenden(document);
+    const beobachtbareContainer = [
+      document.getElementById('circuitsContainer'),
+      document.getElementById('devicesContainer'),
+      document.getElementById('feedsContainer')
+    ].filter(Boolean);
+    if (!beobachtbareContainer.length || typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        m.addedNodes.forEach(function (node) {
+          if (node.nodeType !== 1) return;
+          mgZustandAufBereichAnwenden(node);
+          if (node.matches && node.matches('details.infokarte[data-mg-key], details.fluke[data-mg-key]')) {
+            mgZustandAufElementAnwenden(node, mgZustandLesen());
+          }
+        });
+      });
+    });
+    beobachtbareContainer.forEach(function (c) { observer.observe(c, { childList: true, subtree: true }); });
+  });
 }

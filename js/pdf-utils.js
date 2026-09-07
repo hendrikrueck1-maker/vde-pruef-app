@@ -572,6 +572,13 @@ function removeCard(id) {
   const el = document.getElementById(id);
   if (!el) return;
   const container = el.parentElement;
+  // G17: Fotos dieser Karte aus dem IndexedDB entfernen, BEVOR die Karte aus
+  // dem DOM verschwindet - sonst blieben verwaiste Fotos zurueck, die zu
+  // keiner Karte mehr gehoeren und im Formular nie wieder sichtbar waeren.
+  if (typeof fotosFuerKarteLoeschen === 'function') {
+    const fotosLeiste = el.querySelector('.fotos-leiste[data-karten-key]');
+    if (fotosLeiste) fotosFuerKarteLoeschen(fotosLeiste.getAttribute('data-karten-key'));
+  }
   el.remove();
   if (container && typeof KARTEN_NUMMERIERUNG !== 'undefined') {
     const cfg = KARTEN_NUMMERIERUNG['#' + container.id];
@@ -1824,7 +1831,8 @@ const PFLICHTFELD_NAMEN = {
   veranstaltung: 'Veranstaltung / Anlass',
   uebergabe_standort: 'Standort / Bezeichnung Übergabepunkt',
   auftraggeber: 'Auftraggeber',
-  netzfrequenz: 'Frequenz (Hz)'
+  netzfrequenz: 'Frequenz (Hz)',
+  netzmessung_steckverbindung: 'Steckverbindung mitgeprüft (Netzmessung)'
 };
 
 function pflichtfeldMelden(treffer) {

@@ -32,7 +32,10 @@
 <div class="app-container">
   <div class="header-bar">
     <h1>Prüfprotokoll Manager – Hauptübersicht</h1>
-    <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;" id="app_betrieb_name"></span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size: 0.82rem; color: var(--secondary); font-weight: bold;" id="app_betrieb_name"></span>
+      <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung für Erstanwender</a>
+    </div>
   </div>
 
   <div class="infokarten-schalter-zeile">
@@ -44,15 +47,42 @@
     <span class="infokarten-schalter-desc">Betrifft die ausklappbaren Erklär-/Anleitungstexte in allen drei Formularen (Icons mit Kurzlabel bleiben davon unberührt).</span>
   </div>
 
-  <h2 class="kat-messen">1. Protokoll starten</h2>
-  <div class="protocol-grid" id="protocolGrid"></div>
-
-  <h2 class="kat-sicht" id="offene-pruefungen">2. Offene Prüfungen</h2>
+  <h2 class="kat-stamm">1. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
-    Eine Prüfung bleibt hier bearbeitbar, bis Sie ausdrücklich "Neues Formular" anfordern –
-    auch nach dem Speichern eines PDF. So können mehrere Prüfungen (z. B. zwei Anschlussstellen) parallel offen sein.
+    Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
   </p>
-  <div id="offenePruefungenListe"></div>
+
+  <form id="masterDataForm">
+    <div class="grid">
+      <div class="form-group"><label for="m_auftraggeber">Auftraggeber / Betrieb:</label><input type="text" id="m_auftraggeber"></div>
+      <div class="form-group"><label for="m_gebaeude">Standard-Gebäude / Bereich:</label><input type="text" id="m_gebaeude"></div>
+      <div class="form-group"><label for="m_vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="m_vnb" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
+      <div class="form-group">
+        <label for="m_hausanschluss">Hausanschluss / Speisepunkt (Vorsicherung):</label>
+        <input type="text" id="m_hausanschluss" placeholder="z. B. NH 3x100 A gL / CEE 63 A Einspeisung">
+        <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH00 3x63 A gL')">NH00 3x63 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH1 3x100 A gL')">NH1 3x100 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH1 3x160 A gL')">NH1 3x160 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH2 3x250 A gL')">NH2 3x250 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'CEE 32 A Einspeisung')">CEE 32 A</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'CEE 63 A Einspeisung')">CEE 63 A</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'CEE 125 A Einspeisung')">CEE 125 A</button>
+        </div>
+      </div>
+      <div class="form-group"><label for="m_pruefer">Prüfer/-in (Name):</label><input type="text" id="m_pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label for="m_messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="m_messgeraet"></div>
+      <div class="form-group"><label for="m_seriennummer">Seriennummer Messgerät:</label><input type="text" id="m_seriennummer"></div>
+      <div class="form-group"><label for="m_ort">Ort der Unterzeichnung:</label><input type="text" id="m_ort"></div>
+    </div>
+    
+    <div style="text-align: right; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary" onclick="saveMasterData(true)">💾 Stammdaten Speichern</button>
+    </div>
+  </form>
+
+  <h2 class="kat-messen">2. Protokoll starten</h2>
+  <div class="protocol-grid" id="protocolGrid"></div>
 
   <h2 class="kat-ergebnis">3. Archiv – erstellte Protokolle</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
@@ -65,27 +95,12 @@
     <a href="archiv.html" class="btn">Archiv öffnen</a>
   </div>
 
-  <h2 class="kat-stamm">4. Zentrale Stammdaten (Für alle Protokolle gültig)</h2>
+  <h2 class="kat-sicht" id="offene-pruefungen">4. Offene Prüfungen</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
-    Legen Sie hier die Basisdaten fest. Diese bleiben beim Ausfüllen mehrerer Protokolle im selben Betrieb automatisch erhalten.
+    Eine Prüfung bleibt hier bearbeitbar, bis Sie ausdrücklich "Neues Formular" anfordern –
+    auch nach dem Speichern eines PDF. So können mehrere Prüfungen (z. B. zwei Anschlussstellen) parallel offen sein.
   </p>
-
-  <form id="masterDataForm">
-    <div class="grid">
-      <div class="form-group"><label>Auftraggeber / Betrieb:</label><input type="text" id="m_auftraggeber"></div>
-      <div class="form-group"><label>Standard-Gebäude / Bereich:</label><input type="text" id="m_gebaeude"></div>
-      <div class="form-group"><label>Verteilungsnetzbetreiber (VNB):</label><input type="text" id="m_vnb"></div>
-      <div class="form-group"><label>Hausanschluss / Speisepunkt (Vorsicherung):</label><input type="text" id="m_hausanschluss" placeholder="z. B. NH 3x100 A gL / CEE 63 A Einspeisung"></div>
-      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="m_pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="m_messgeraet"></div>
-      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="m_seriennummer"></div>
-      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="m_ort"></div>
-    </div>
-    
-    <div style="text-align: right; margin-top: 12px;">
-      <button type="button" class="btn btn-secondary" onclick="saveMasterData(true)">💾 Stammdaten Speichern</button>
-    </div>
-  </form>
+  <div id="offenePruefungenListe"></div>
 
   <h2 class="kat-stamm">5. PDF-Speicherort</h2>
   <p style="font-size: 0.82rem; color: var(--secondary); margin-top: -5px;">
@@ -94,7 +109,7 @@
   </p>
   <div class="grid">
     <div class="form-group">
-      <label>Speichern als:</label>
+      <label for="pdf_speichern_modus">Speichern als:</label>
       <select id="pdf_speichern_modus" onchange="pdfModusGeaendert(this.value)">
         <option value="download">Download-Ordner (Standard, ohne Rückfrage)</option>
         <option value="ordner">Fester Ordner (Chrome/Edge am PC)</option>
@@ -102,8 +117,8 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Ziel-Ordner:</label>
-      <button type="button" class="btn btn-secondary" onclick="ordnerWaehlen()">📁 Ordner auswählen</button>
+      <label id="ziel_ordner_label">Ziel-Ordner:</label>
+      <button type="button" class="btn btn-secondary" onclick="ordnerWaehlen()" aria-labelledby="ziel_ordner_label">📁 Ordner auswählen</button>
       <span id="ordnerHinweis" style="font-size:0.72rem; color:var(--secondary); margin-top:4px;"></span>
     </div>
   </div>

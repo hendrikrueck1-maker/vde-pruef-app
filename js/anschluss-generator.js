@@ -35,12 +35,12 @@ function addFeedCard(data = {}) {
 
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Bezeichnung Übergabepunkt:</label>
-        <input type="text" class="c-bez" value="${attrEsc(data.bez)}" placeholder="z. B. Bühnenversorgung Haupthaus">
+        <label for="bez_${cardCounter}">Bezeichnung Übergabepunkt:</label>
+        <input type="text" class="c-bez" id="bez_${cardCounter}" value="${attrEsc(data.bez)}" placeholder="z. B. Bühnenversorgung Haupthaus">
       </div>
       <div class="form-group">
-        <label>Netzsystem:</label>
-        <select class="c-netzsystem">
+        <label for="netzsystem_${cardCounter}">Netzsystem:</label>
+        <select class="c-netzsystem" id="netzsystem_${cardCounter}">
           <option${!data.netzsystem || data.netzsystem === 'TN-S' ? ' selected' : ''}>TN-S</option>
           <option${data.netzsystem === 'TN-C-S' ? ' selected' : ''}>TN-C-S</option>
           <option${data.netzsystem === 'TN-C' ? ' selected' : ''}>TN-C</option>
@@ -49,18 +49,21 @@ function addFeedCard(data = {}) {
         </select>
       </div>
       <div class="form-group">
-        <label>Netzspannung (V):</label>
-        <input type="text" inputmode="decimal" class="c-spannung" value="${attrEsc(data.spannung)}" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
+        <label for="spannung_${cardCounter}">Netzspannung (V):</label>
+        <input type="text" inputmode="decimal" class="c-spannung" id="spannung_${cardCounter}" value="${attrEsc(data.spannung)}" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
       </div>
       <div class="form-group">
-        <label>Frequenz (Hz):</label>
-        <input type="text" inputmode="decimal" class="c-frequenz" value="${attrEsc(data.frequenz)}" placeholder="z. B. 50 Hz">
+        <label for="frequenz_${cardCounter}">Frequenz (Hz):</label>
+        <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz_${cardCounter}" value="${attrEsc(data.frequenz)}" placeholder="z. B. 50 Hz">
       </div>
       <div class="form-group">
-        <label>Rechtsdrehfeld (bei Drehstrom):</label>
-        <select class="c-drehfeld"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select>
+        <label for="drehfeld_${cardCounter}">${messgroesseBlock('drehfeld', 'fluke1663').icon}Rechtsdrehfeld (bei Drehstrom):</label>
+        <select class="c-drehfeld" id="drehfeld_${cardCounter}"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select>
       </div>
+      <div class="form-group grid-full">${messgroesseBlock('drehfeld', 'fluke1663').karten}</div>
     </div>
+
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', cardCounter)) : ''}
 
     <div class="sub-section">
       <div class="sub-title mess-karte-titel">${messgroesseBlock('rpe', 'fluke1663').icon}<span class="titel-text">1. Schutzleiter & Spannung N–PE</span></div>
@@ -84,7 +87,7 @@ function addFeedCard(data = {}) {
       <div class="sub-title mess-karte-titel">${messgroesseBlock('zs', 'fluke1663').icon}<span class="titel-text">2. Absicherung & Schleifenimpedanz am Übergabepunkt</span></div>
       <div class="grid">
         <div class="form-group">
-          <label>Absicherung (Typ / Nennstrom):</label>
+          <label for="sich_${cardCounter}">Absicherung (Typ / Nennstrom):</label>
           <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${attrEsc(data.sich)}" placeholder="z. B. B 32A" oninput="validateFeedNorms(${cardCounter})" autocomplete="off">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 16A'); validateFeedNorms(${cardCounter})">B 16A</button>
@@ -111,7 +114,7 @@ function addFeedCard(data = {}) {
       <div class="sub-title mess-karte-titel">${messgroesseBlock('rcd', 'fluke1663').icon}<span class="titel-text">3. Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
       <div class="grid">
         <div class="form-group">
-          <label>RCD Typ:</label>
+          <label for="rcd_typ_${cardCounter}">RCD Typ:</label>
           <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A')">Typ A</button>
@@ -133,8 +136,8 @@ function addFeedCard(data = {}) {
           <input type="text" inputmode="decimal" class="c-rcd-imess" value="${attrEsc(data.rcd_imess)}" placeholder="z. B. 22" oninput="validateFeedNorms(${cardCounter})">
         </div>
         <div class="form-group">
-          <label>Prüfstrom für Auslösestrom / Auslösezeit:</label>
-          <select class="c-rcd-pruefstrom" onchange="validateFeedNorms(${cardCounter})">
+          <label for="rcd_pruefstrom_${cardCounter}">Prüfstrom für Auslösestrom / Auslösezeit:</label>
+          <select class="c-rcd-pruefstrom" id="rcd_pruefstrom_${cardCounter}" onchange="validateFeedNorms(${cardCounter})">
             <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
             <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
             <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
@@ -148,15 +151,25 @@ function addFeedCard(data = {}) {
       </div>
       ${messgroesseBlock('rcd', 'fluke1663').karten}
     </div>
+
+    <div class="circuit-footer-actions">
+      <button type="button" class="btn btn-secondary" onclick="dupliziereUebergabepunkt('feed_${cardCounter}')" title="Neue Karte mit denselben Netz- und Schutzdaten. Messwerte bleiben leer.">⧉ Duplizieren</button>
+      <button type="button" class="btn-danger" onclick="removeCard('feed_${cardCounter}')">Entfernen</button>
+    </div>
   `;
   // Pruefstrom: bei einer neuen Karte ist "5" bereits per <option selected>
   // vorbelegt (siehe pruefstromSel oben) - das darf hier nicht ueberschrieben
   // werden. Ein wiederhergestellter, auch bewusst leerer Wert wird weiterhin
   // exakt uebernommen.
-  if (data.rcd_pruefstrom !== undefined) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
+  if (data.rcd_pruefstrom !== undefined) { const pruefstromElem = card.querySelector('.c-rcd-pruefstrom'); if (pruefstromElem) pruefstromElem.value = data.rcd_pruefstrom; }
   container.appendChild(card);
   nummeriereKartenNeu('#feedsContainer', '.feed-card', 'Übergabepunkt');
   validateFeedNorms(cardCounter);
+  // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen
+  // aus Autosave/Archiv).
+  if (typeof fotosLeisteAktualisieren === 'function') {
+    fotosLeisteAktualisieren(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', cardCounter));
+  }
 }
 
 /* Karte duplizieren - ohne Messwerte. Begruendung siehe pdf-generator.js:
@@ -1182,7 +1195,7 @@ function collectAnschlussState() {
     rcd_idn: card.querySelector('.c-rcd-idn').value,
     rcd_imess: card.querySelector('.c-rcd-imess').value,
     rcd_ta: card.querySelector('.c-rcd-ta').value,
-    rcd_pruefstrom: card.querySelector('.c-rcd-pruefstrom').value
+    rcd_pruefstrom: card.querySelector('.c-rcd-pruefstrom')?.value
   }));
 
   return state;

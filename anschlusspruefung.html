@@ -32,6 +32,7 @@
   <script src="js/statusleiste.js"></script>
   <script src="js/pflichtfelder.js"></script>
   <script src="js/archiv.js"></script>
+  <script src="js/fotos.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/infokarten.js"></script>
   <script src="js/anschluss-generator.js"></script>
@@ -45,8 +46,9 @@
 
 <div class="app-container">
   <div class="header-bar">
-    <div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+      <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
     </div>
     <h1>Anschlussprüfung Übergabepunkt</h1>
     <div>
@@ -60,12 +62,12 @@
     <h2 class="kat-stamm" id="abschnitt-stammdaten-1">1. Allgemeine Angaben & Stammdaten</h2>
     <div class="grid">
       <div class="form-group grid-full">
-        <label>Auftraggeber / Veranstaltungsort:</label>
+        <label for="auftraggeber">Auftraggeber / Veranstaltungsort:</label>
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
       <div class="form-group">
-        <label>Gebäude / Bereich:</label>
+        <label for="gebaeude_select">Gebäude / Bereich:</label>
         <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
           <option value="Gr. Haus">Gr. Haus</option>
           <option value="Werkstatt">Werkstatt</option>
@@ -78,27 +80,27 @@
       </div>
 
       <div class="form-group grid-full">
-        <label>Veranstaltung / Anlass:</label>
+        <label for="veranstaltung">Veranstaltung / Anlass:</label>
         <textarea id="veranstaltung" class="auto-grow" rows="1" placeholder="z. B. Gastspiel Ballett XY, Freilichtaufführung Münsterplatz" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
 
-      <div class="form-group"><label>Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. AP-2026-001"></div>
+      <div class="form-group"><label for="pruefungsnummer">Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. AP-2026-001"></div>
       <div class="form-group">
-        <label>Protokoll-Nr.:</label>
+        <label for="protokollnummer">Protokoll-Nr.:</label>
         <input type="text" id="protokollnummer" placeholder="z. B. AP-2026-08-11-001">
         <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
-      <div class="form-group"><label>Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label>Qualifikation der prüfenden Person:</label>
+      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
+      <div class="form-group"><label for="pruefer_qualifikation">Qualifikation der prüfenden Person:</label>
         <select id="pruefer_qualifikation">
           <option value="">– bitte wählen –</option>
           <option value="Elektrofachkraft (EFK)">Elektrofachkraft (EFK)</option>
           <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
         </select>
       </div>
-      <div class="form-group"><label>Prüfdatum:</label><input type="date" id="datum"></div>
-      <div class="form-group"><label>Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label>Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
     <!-- 2. BEREITSTELLER / NETZBETREIBER DER EINSPEISUNG -->
@@ -107,11 +109,11 @@
       Der Übergabepunkt markiert die Grenze zwischen der Anlage des Netzbetreibers/Bereitstellers und der eigenen (Veranstaltungs-)Anlage (vgl. DIN&nbsp;VDE&nbsp;0100-704). Ab hier übernimmt der Veranstalter/die Elektrofachkraft die Verantwortung.
     </p>
     <div class="grid">
-      <div class="form-group"><label>Firma / Netzbetreiber / Vermieter:</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz"></div>
-      <div class="form-group"><label>Ansprechpartner/-in:</label><input type="text" id="bereitsteller_ansprechpartner"></div>
-      <div class="form-group"><label>Telefon:</label><input type="text" id="bereitsteller_telefon"></div>
+      <div class="form-group"><label for="vnb">Firma / Netzbetreiber / Vermieter:</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz"></div>
+      <div class="form-group"><label for="bereitsteller_ansprechpartner">Ansprechpartner/-in:</label><input type="text" id="bereitsteller_ansprechpartner"></div>
+      <div class="form-group"><label for="bereitsteller_telefon">Telefon:</label><input type="text" id="bereitsteller_telefon"></div>
       <div class="form-group">
-        <label>Art der Einspeisung:</label>
+        <label for="einspeisung_art">Art der Einspeisung:</label>
         <select id="einspeisung_art" onchange="toggleEinspeisungSonstiges(this.value)">
           <option>Festanschluss / Zählerschrank</option>
           <option>Baustromverteiler</option>
@@ -121,11 +123,11 @@
       </div>
       <!-- Nur bei "Sonstiges" sichtbar: woher der Strom tatsächlich kommt -->
       <div class="form-group" id="einspeisung_sonstiges_gruppe" style="display:none;">
-        <label>Sonstiges &ndash; Herkunft der Einspeisung:</label>
+        <label for="einspeisung_sonstiges">Sonstiges &ndash; Herkunft der Einspeisung:</label>
         <input type="text" id="einspeisung_sonstiges" placeholder="z. B. Nachbargebäude Werkstatt, Verteiler W-3">
       </div>
-      <div class="form-group"><label>Standort / Bezeichnung Übergabepunkt:</label><input type="text" id="uebergabe_standort" placeholder="z. B. Zählerschrank Bühneneingang"></div>
-      <div class="form-group"><label>Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
+      <div class="form-group"><label for="uebergabe_standort">Standort / Bezeichnung Übergabepunkt:</label><input type="text" id="uebergabe_standort" placeholder="z. B. Zählerschrank Bühneneingang"></div>
+      <div class="form-group"><label for="anschlussleistung_vertrag">Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
     </div>
 
     <!-- NETZMESSUNG AM ÜBERGABEPUNKT (neu in 4.5.0, Befund B1) -->
@@ -139,13 +141,13 @@
         Genau diese Fehler liegen hinter einem fremden Übergabepunkt.
       </p>
       <div class="grid">
-        <div class="form-group"><label>U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group"><label>U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group"><label>U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group"><label>U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group"><label>U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group"><label>U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
-        <div class="form-group"><label>Frequenz f (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="50"></div>
+        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div class="form-group"><label for="netzfrequenz">Frequenz f (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="50"></div>
       </div>
     </div>
 
@@ -156,15 +158,15 @@
       keine Prüfplakette an einer bauseitigen Steckvorrichtung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label>1. Verteiler / Zählerschrank:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>4. Kennzeichnung / Beschriftung:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>7. Witterungsschutz (falls außen):</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label>9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_1">1. Verteiler / Zählerschrank:</label><select class="sicht-item" id="sicht_uebergabe_1" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_2">2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item" id="sicht_uebergabe_2" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_3">3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item" id="sicht_uebergabe_3" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_4">4. Kennzeichnung / Beschriftung:</label><select class="sicht-item" id="sicht_uebergabe_4" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_5">5. Zugänglichkeit / Fluchtwege:</label><select class="sicht-item" id="sicht_uebergabe_5" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_6">6. Zugang Not-Aus / Hauptschalter:</label><select class="sicht-item" id="sicht_uebergabe_6" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_7">7. Witterungsschutz (falls außen):</label><select class="sicht-item" id="sicht_uebergabe_7" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_8">8. Berührungsschutz / Abdeckungen:</label><select class="sicht-item" id="sicht_uebergabe_8" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_9">9. Prüfplakette / Typenschild Verteiler:</label><select class="sicht-item" id="sicht_uebergabe_9" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 4. ÜBERGABEPUNKTE -->
@@ -185,15 +187,15 @@
     <div class="kat-block kat-erdung">
     <div class="grid">
       <div class="form-group">
-        <label>Potenzialausgleich angeschlossen:</label>
+        <label for="pa_angeschlossen">Potenzialausgleich angeschlossen:</label>
         <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
       </div>
       <div class="form-group">
-        <label>Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
+        <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
         <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdungAnschluss()">
       </div>
       <div class="form-group grid-full">
-        <label>Messpunkt / Bezugspunkt der Messung:</label>
+        <label for="pa_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
         <input type="text" id="pa_messpunkt" placeholder="z. B. PA-Schiene im Übergabeverteiler">
         <div class="quick-btn-group">
           <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
@@ -217,7 +219,7 @@
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">6. Gesamtbeurteilung & Freigabe</h2>
     <div class="grid">
       <div class="form-group">
-        <label>Gesamtbewertung Mängel:</label>
+        <label for="res_maengel">Gesamtbewertung Mängel:</label>
         <select id="res_maengel">
           <option>Keine Mängel festgestellt</option>
           <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
@@ -225,11 +227,11 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Anschlussleistung ausreichend für geplante Last:</label>
+        <label for="res_leistung_ausreichend">Anschlussleistung ausreichend für geplante Last:</label>
         <select id="res_leistung_ausreichend"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
       </div>
       <div class="form-group">
-        <label>Freigabe zur Nutzung:</label>
+        <label for="res_freigabe">Freigabe zur Nutzung:</label>
         <select id="res_freigabe">
           <option value="Ja">Ja (Übergabepunkt freigegeben)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
@@ -238,16 +240,16 @@
     </div>
 
     <div class="form-group" style="margin-top: 8px;">
-      <label>Mängel / Bemerkungen / Auflagen:</label>
+      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
       <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
     </div>
 
     <!-- 7. ÜBERGABE -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">7. Übergabebestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label>Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
+      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
       <div class="form-group">
-        <label>Datum der Unterzeichnung:</label>
+        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
         <input type="date" id="unterschrift_datum">
         <div class="limit-hint">Wird unter beide Unterschriften gedruckt.</div>
       </div>
@@ -255,20 +257,20 @@
 
     <div class="sig-block">
       <div class="sig-card">
-        <label>Unterschrift Übergebende/-r (Netzbetreiber/Bereitsteller):</label>
-        <canvas id="sigUebergeber"></canvas>
+        <label id="sigUebergeber_label">Unterschrift Übergebende/-r (Netzbetreiber/Bereitsteller):</label>
+        <canvas id="sigUebergeber" role="img" aria-labelledby="sigUebergeber_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padUebergeber.clear()">Löschen</button>
       </div>
       <div class="sig-card">
-        <label>Unterschrift Übernehmende/-r (Veranstalter/Elektrofachkraft):</label>
-        <canvas id="sigUebernehmer"></canvas>
+        <label id="sigUebernehmer_label">Unterschrift Übernehmende/-r (Veranstalter/Elektrofachkraft):</label>
+        <canvas id="sigUebernehmer" role="img" aria-labelledby="sigUebernehmer_label"></canvas>
         <button type="button" class="btn btn-secondary" onclick="padUebernehmer.clear()">Löschen</button>
       </div>
     </div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
       <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
+        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
         <select id="leer_blaetter">
           <option value="1" selected>1 Blatt</option>
           <option value="2">2 Blätter</option>
