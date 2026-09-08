@@ -44,11 +44,13 @@ function karussellAktiveKarte(containerId) {
 function karussellIndikatorAktualisieren(containerId, eventMelden = true) {
   const container = document.getElementById(containerId);
   const indikator = document.getElementById(containerId + '_indikator');
+  const punkteLeiste = document.getElementById(containerId + '_punkte');
   if (!container || !indikator) return;
   const anzahl = container.children.length;
   if (anzahl === 0) {
     indikator.textContent = '';
     indikator.style.display = 'none';
+    if (punkteLeiste) { punkteLeiste.innerHTML = ''; punkteLeiste.style.display = 'none'; }
     return;
   }
   indikator.style.display = '';
@@ -57,6 +59,28 @@ function karussellIndikatorAktualisieren(containerId, eventMelden = true) {
   const cfg = (typeof KARTEN_NUMMERIERUNG !== 'undefined') ? KARTEN_NUMMERIERUNG['#' + containerId] : null;
   const praefix = cfg ? cfg.praefix : 'Karte';
   indikator.textContent = `${praefix} ${index + 1} von ${anzahl}`;
+
+  /* [7.2.0, Punkt 23] Punkte-Leiste: ein Punkt je Karte, aktive Karte
+   * hervorgehoben. Bei sehr vielen Stromkreisen (Praxis: 30-40+) waeren
+   * ebenso viele Einzelpunkte unuebersichtlich - ab 20 Karten wird deshalb
+   * nur ein kompakter Zaehl-Punkt-Cluster um die aktive Karte herum gezeigt. */
+  if (punkteLeiste) {
+    punkteLeiste.style.display = '';
+    const MAX_EINZELPUNKTE = 20;
+    let html = '';
+    if (anzahl <= MAX_EINZELPUNKTE) {
+      for (let i = 0; i < anzahl; i++) {
+        html += `<span class="karussell-punkt${i === index ? ' aktiv' : ''}"></span>`;
+      }
+    } else {
+      // Kompakte Darstellung: Punkt fuer Anfang, aktuelle Position, Ende.
+      const pos = Math.round((index / (anzahl - 1)) * (MAX_EINZELPUNKTE - 1));
+      for (let i = 0; i < MAX_EINZELPUNKTE; i++) {
+        html += `<span class="karussell-punkt${i === pos ? ' aktiv' : ''}"></span>`;
+      }
+    }
+    punkteLeiste.innerHTML = html;
+  }
 
   /* Status-Kopfleiste (js/statusleiste.js) ueber den Kartenwechsel
    * informieren, damit "aktuelle Karte" auch bei reiner Wisch-/Pfeil-
@@ -98,6 +122,29 @@ function karussellInitialisieren(containerId) {
       scrollTicking = false;
     });
   }, { passive: true });
+
+  /* [7.2.0, Punkt 22] Normales Mausrad scrollt browserseitig nur VERTIKAL -
+   * ein horizontales Karussell wie dieses laesst sich damit von Haus aus
+   * nicht durchblaettern (nur per Trackpad-Wischgeste, Shift+Rad oder den
+   * Pfeil-Buttons). Sobald der Mauszeiger ueber dem Kartenbereich steht,
+   * wird das vertikale Rad-Delta deshalb in ein horizontales scrollBy()
+   * umgeleitet - ausschliesslich innerhalb des Karussells, die Seite selbst
+   * scrollt an dieser Stelle weiterhin normal, wenn die Karte bereits am
+   * Anfang/Ende angekommen ist (kein preventDefault() in diesem Fall, damit
+   * man von den Stromkreis-Karten aus per Rad ganz normal weiter nach unten
+   * zu den restlichen Formularabschnitten gelangt). */
+  container.addEventListener('wheel', (ev) => {
+    // Ueberwiegend horizontale Geste (Trackpad-Wischen, Shift+Rad) unveraendert
+    // dem Browser ueberlassen - nur reines vertikales Rad-Scrollen umleiten.
+    if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return;
+
+    const amAnfang = container.scrollLeft <= 0;
+    const amEnde = container.scrollLeft + container.clientWidth >= container.scrollWidth - 1;
+    if ((ev.deltaY < 0 && amAnfang) || (ev.deltaY > 0 && amEnde)) return; // Seiten-Scroll zulassen
+
+    ev.preventDefault();
+    container.scrollBy({ left: ev.deltaY, behavior: 'auto' });
+  }, { passive: false });
 
   const beobachter = new MutationObserver(() => {
     karussellIndikatorAktualisieren(containerId);

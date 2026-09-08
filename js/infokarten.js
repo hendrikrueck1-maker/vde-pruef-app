@@ -339,6 +339,19 @@ function zusatzIconsEinbinden() {
       drehfeldWrapper.innerHTML = block.karten;
     }
   }
+
+  // [7.2.0, Nutzerwunsch #10] Pruefdatum-Infokarte in Abschnitt 1 (Stammdaten)
+  // - der Platzhalter-Praefix ergibt sich aus der ID des #...Container-
+  // Elements der jeweiligen Seite (eindeutig pro Formulartyp vorhanden).
+  const pruefdatumPlatzhalter = document.getElementById('pruefdatum_infokarte_platzhalter');
+  if (pruefdatumPlatzhalter && !pruefdatumPlatzhalter.innerHTML) {
+    const praefix = document.getElementById('circuitsContainer') ? 'PR'
+      : document.getElementById('devicesContainer') ? 'GP'
+      : document.getElementById('feedsContainer') ? 'AP'
+      : 'PR';
+    pruefdatumPlatzhalter.innerHTML = pruefterminInfokarteHtml(praefix);
+    pruefdatumAnzeigeAktualisieren();
+  }
 }
 
 if (typeof document !== 'undefined') {
@@ -449,5 +462,107 @@ if (typeof document !== 'undefined') {
       });
     });
     beobachtbareContainer.forEach(function (c) { observer.observe(c, { childList: true, subtree: true }); });
+  });
+}
+
+/* ============================================================================
+ *  PRUEFFRISTEN-INFOKARTE (7.2.0, Nutzerwunsch #10)
+ * ----------------------------------------------------------------------------
+ *  Problem: der naechste Pruefungstermin (Feld #res_termin_date) stand bisher
+ *  nur als ganz normales Formularfeld irgendwo im Formular (bei vde0100.html
+ *  sogar erst in Abschnitt 6 "Gesamtbewertung", also ganz am Ende) - beim
+ *  Ausfuellen leicht zu uebersehen, und es gab keine kompakte Erinnerung an
+ *  die gesetzlichen/normativen Wiederholungsfristen.
+ *
+ *  Jetzt: eine auffaellige Box direkt am Anfang jedes Formulars (Abschnitt 1,
+ *  Stammdaten), die den aktuell im Formular eingetragenen Termin GROSS
+ *  anzeigt (live, per Event-Listener auf #res_termin_date synchronisiert -
+ *  in geraetepruefung.html wird der Wert zusaetzlich automatisch aus dem
+ *  Pruefintervall berechnet, siehe updateNaechsterTermin()) und per
+ *  <details> ausklappbar die normativen Fristen als Kurzuebersicht zeigt.
+ *
+ *  anschlusspruefung.html hat bewusst KEIN #res_termin_date-Feld (ein
+ *  Uebergabepunkt fuer eine einzelne Veranstaltung hat keinen eigenen
+ *  wiederkehrenden Pruefzyklus im selben Sinne) - dort wird nur die
+ *  ausklappbare Fristen-Uebersicht angezeigt, ohne Termin-Anzeige. */
+const PRUEFFRISTEN_TEXT_VDE0100 =
+  'Ortsfeste elektrische Anlagen nach DIN VDE 0105-100: die Wiederholungsprüfungsfrist richtet sich nach ' +
+  'Betriebsart, Umgebungsbedingungen und einer betrieblichen Gefährdungsbeurteilung (häufig 1–4 Jahre je nach ' +
+  'Anlage/Einsatzbereich). Für Veranstaltungs-/Bühnentechnik empfiehlt sich wegen häufiger Auf-/Abbauten und ' +
+  'mechanischer Beanspruchung in der Praxis meist eine jährliche Prüfung. Maßgeblich ist immer die individuelle ' +
+  'Gefährdungsbeurteilung des Betreibers/der Elektrofachkraft.';
+const PRUEFFRISTEN_TEXT_GERAETE =
+  'Ortsveränderliche elektrische Geräte nach DIN EN 50699 (VDE 0702): die Prüffrist richtet sich nach Geräteart, ' +
+  'Einsatzbedingungen und Fehlerquote der letzten Prüfungen. Für Geräte der Veranstaltungs-/Bühnentechnik (häufiger ' +
+  'Auf-/Abbau, Transport, raue Umgebung) ist eine Frist von 12 Monaten üblich – bei besonders beanspruchten Geräten ' +
+  '(z. B. häufig bewegte Anschlussleitungen) kann eine kürzere Frist angezeigt sein.';
+const PRUEFFRISTEN_TEXT_ANSCHLUSS =
+  'Ein Übergabepunkt der Stromversorgung wird in der Regel je Veranstaltung/Nutzungszeitraum neu geprüft, bevor er ' +
+  'in Betrieb genommen wird (DIN VDE 0100-704/-711/-740) – ein fester Wiederholungszyklus wie bei ortsfesten Anlagen ' +
+  'oder Geräten ist hier deshalb nicht vorgesehen. Die fest installierte Anlage HINTER dem Übergabepunkt unterliegt ' +
+  'weiterhin der regulären Wiederholungsprüfungsfrist nach DIN VDE 0105-100 (siehe Prüfprotokoll elektrischer Anlagen).';
+
+/* praefix: 'PR' (vde0100), 'GP' (geraetepruefung), 'AP' (anschlusspruefung) -
+ * bestimmt Text und ob eine Termin-Anzeige eingeblendet wird. */
+function pruefterminInfokarteHtml(praefix) {
+  const text = praefix === 'GP' ? PRUEFFRISTEN_TEXT_GERAETE
+    : praefix === 'AP' ? PRUEFFRISTEN_TEXT_ANSCHLUSS
+    : PRUEFFRISTEN_TEXT_VDE0100;
+  const zeigeTermin = praefix !== 'AP';
+  return (
+    '<div class="pruefdatum-box">' +
+      (zeigeTermin
+        ? '<div class="pruefdatum-anzeige">' +
+            '<span class="pruefdatum-label">📅 Nächster Prüftermin:</span> ' +
+            '<span class="pruefdatum-wert" id="pruefdatum_anzeige_wert">– noch nicht gesetzt –</span>' +
+          '</div>'
+        : '') +
+      '<details class="infokarte pruefdatum-infokarte">' +
+        '<summary>ℹ️ Wie wird die Prüffrist bestimmt?</summary>' +
+        '<div class="infokarte-inhalt"><p>' + text + '</p></div>' +
+      '</details>' +
+    '</div>'
+  );
+}
+
+/* Haelt #pruefdatum_anzeige_wert synchron zum eigentlichen Formularfeld
+ * #res_termin_date - reiner Anzeige-Spiegel, keine eigene Datenhaltung.
+ * Wird bei jedem 'input'/'change' auf dem Feld sowie beim initialen Laden
+ * (auch nach Wiederherstellen aus Autosave/Archiv) aufgerufen. */
+function pruefdatumAnzeigeAktualisieren() {
+  const anzeige = document.getElementById('pruefdatum_anzeige_wert');
+  const feld = document.getElementById('res_termin_date');
+  if (!anzeige || !feld) return;
+  const wert = String(feld.value || '').trim();
+  if (!wert) {
+    anzeige.textContent = '– noch nicht gesetzt –';
+    anzeige.classList.remove('pruefdatum-gesetzt');
+    return;
+  }
+  const teile = wert.split('-'); // "JJJJ-MM" (input type=month)
+  anzeige.textContent = teile.length === 2 ? (teile[1] + ' / ' + teile[0]) : wert;
+  anzeige.classList.add('pruefdatum-gesetzt');
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', function () {
+    pruefdatumAnzeigeAktualisieren();
+    const feld = document.getElementById('res_termin_date');
+    if (feld) {
+      feld.addEventListener('input', pruefdatumAnzeigeAktualisieren);
+      feld.addEventListener('change', pruefdatumAnzeigeAktualisieren);
+    }
+  });
+  // Deckt auch Faelle ab, in denen res_termin_date programmatisch gesetzt
+  // wird (Autosave-Wiederherstellung, Archiv-Vorlage, automatische
+  // Berechnung in geraetepruefung.html) - dort wird ohnehin regelmaessig
+  // aktualisiereAlle()/restoreProtocolState() aufgerufen; ein document-weiter
+  // 'input'/'change'-Listener faengt diese Faelle zusaetzlich ab, ohne dass
+  // jede einzelne Setzstelle einzeln angepasst werden muss.
+  document.addEventListener('input', function (ev) {
+    if (ev.target && ev.target.id === 'res_termin_date') pruefdatumAnzeigeAktualisieren();
+  });
+  document.addEventListener('change', function (ev) {
+    if (ev.target && ev.target.id === 'res_termin_date') pruefdatumAnzeigeAktualisieren();
   });
 }

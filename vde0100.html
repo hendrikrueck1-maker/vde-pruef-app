@@ -73,6 +73,7 @@
   <form id="vdeForm">
     <!-- 1. STAMMDATEN -->
     <h2 class="kat-stamm" id="abschnitt-stammdaten-1">1. Allgemeine Angaben & Stammdaten</h2>
+    <div id="pruefdatum_infokarte_platzhalter"></div>
     <div class="grid">
       <!-- AUFTRAGGEBER LESBAR IN VOLLBREITE -->
       <div class="form-group grid-full">
@@ -296,9 +297,17 @@
          Karten selbst (.circuit-card) werden unveraendert wie bisher per
          addCircuitCard()/removeCard() in #circuitsContainer verwaltet -
          nur Darstellung/Navigation aendert sich, siehe js/karussell.js. -->
+    <!-- [7.2.0, Punkt 23] Punkte-Leiste oberhalb + Rand-Farbverlaeufe am
+         Karussell-Track machen den "Karussell-Charakter" (mehrere Karten,
+         nur eine sichtbar, seitlich geht es weiter) auf den ersten Blick
+         erkennbar, statt dass eine einzelne Karte wie ein normales
+         Formularfeld aussieht. Wird von js/karussell.js befuellt/aktualisiert. -->
+    <div class="karussell-punkte" id="circuitsContainer_punkte" aria-hidden="true"></div>
     <div class="karussell" id="circuitsKarussell">
       <button type="button" class="karussell-pfeil karussell-pfeil-links" onclick="karussellSchritt('circuitsContainer', -1)" aria-label="Vorheriger Stromkreis">&#10094;</button>
-      <div id="circuitsContainer" class="karussell-track"></div>
+      <div class="karussell-track-wrapper">
+        <div id="circuitsContainer" class="karussell-track"></div>
+      </div>
       <button type="button" class="karussell-pfeil karussell-pfeil-rechts" onclick="karussellSchritt('circuitsContainer', 1)" aria-label="Nächster Stromkreis">&#10095;</button>
     </div>
     <div class="karussell-indikator" id="circuitsContainer_indikator" aria-live="polite"></div>
@@ -315,13 +324,13 @@
     <div class="grid kat-block kat-sicht">
       <div class="form-group"><label for="erp_anlage">Funktion Anlage:</label><select class="erp-item" id="erp_anlage" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_drehfeld"><span id="drehfeld_icon"></span>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_drehfeld"><span id="drehfeld_icon"></span>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group" id="drehfeld_infokarten" style="grid-column: 1 / -1;"></div>
-      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_sicherheitsbel">Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_gst">Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst" onchange="sichtErpNiOPruefen(this)"><option>i.O.</option><option>n.i.O.</option><option selected>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_sicherheitsbel">Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_gst">Funktion Gebäudesystemtechnik:</label><select class="erp-item" id="erp_gst" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 6. ERDUNG & POTENZIALAUSGLEICH -->
@@ -472,6 +481,10 @@
 
   // AUTOSAVE WIEDERHERSTELLEN, FALLS VORHANDEN (verhindert Datenverlust bei versehentlichem Reload)
   restoreProtocolState(loadAutosave());
+  // [7.2.0] Pruefdatum-Infokarte (js/infokarten.js) nach dem Wiederherstellen
+  // synchronisieren - #res_termin_date wurde dabei per .value= gesetzt, ohne
+  // ein 'input'/'change'-Ereignis auszuloesen.
+  if (typeof pruefdatumAnzeigeAktualisieren === 'function') pruefdatumAnzeigeAktualisieren();
 
   // STATUS-KOPFLEISTE: zeigt jederzeit Anlage, aktuellen Abschnitt (vor/in/
   // nach den Stromkreisen) und den gerade fokussierten Stromkreis (6.2.0,

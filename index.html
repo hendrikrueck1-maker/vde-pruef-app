@@ -55,12 +55,36 @@
   <form id="masterDataForm">
     <div class="grid">
       <div class="form-group"><label for="m_auftraggeber">Auftraggeber / Betrieb:</label><input type="text" id="m_auftraggeber"></div>
-      <div class="form-group"><label for="m_gebaeude">Standard-Gebäude / Bereich:</label><input type="text" id="m_gebaeude"></div>
+      <div class="form-group"><label for="m_adresse">Adresse:</label><input type="text" id="m_adresse" placeholder="z. B. Inselgasse 2-6, 78462 Konstanz"></div>
+      <div class="form-group">
+        <label for="m_gebaeude_select">Standard-Gebäude / Bereich:</label>
+        <select id="m_gebaeude_select" onchange="toggleMasterGebaeudeCustom(this.value)">
+          <option value="Gr. Haus">Großes Haus</option>
+          <option value="Kl. Haus">Kleines Haus / Studiobühne</option>
+          <option value="Werkstattbühne">Werkstattbühne</option>
+          <option value="Foyer">Foyer</option>
+          <option value="Probebühne">Probebühne</option>
+          <option value="Außenspielstätte">Außenspielstätte / Open Air</option>
+          <option value="custom">Sonstiges…</option>
+        </select>
+        <input type="text" id="m_gebaeude" placeholder="Gebäude/Bereich eintragen" style="display:none; margin-top:6px;">
+        <details class="infokarte" style="margin-top:6px;">
+          <summary>ℹ️ Eigene Gebäude/Bereiche dauerhaft ergänzen</summary>
+          <div class="infokarte-inhalt">
+            <p>Die obige Liste deckt die üblichen Spielstätten ab. Für einen abweichenden Namen "Sonstiges…" wählen
+            und den Bereich frei eintragen – der Wert wird wie gewohnt zusammen mit den übrigen Stammdaten
+            gespeichert und beim nächsten Protokoll wieder vorgeschlagen.</p>
+          </div>
+        </details>
+      </div>
       <div class="form-group"><label for="m_vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="m_vnb" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
       <div class="form-group">
         <label for="m_hausanschluss">Hausanschluss / Speisepunkt (Vorsicherung):</label>
         <input type="text" id="m_hausanschluss" placeholder="z. B. NH 3x100 A gL / CEE 63 A Einspeisung">
         <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NEOZ D01 3x20 A gL')">NEOZ D01 3x20 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NEOZ D02 3x35 A gL')">NEOZ D02 3x35 A gL</button>
+          <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NEOZ D02 3x63 A gL')">NEOZ D02 3x63 A gL</button>
           <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH00 3x63 A gL')">NH00 3x63 A gL</button>
           <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH1 3x100 A gL')">NH1 3x100 A gL</button>
           <button type="button" class="quick-btn" onclick="setValue('m_hausanschluss', 'NH1 3x160 A gL')">NH1 3x160 A gL</button>

@@ -196,6 +196,52 @@ input::placeholder, textarea::placeholder { color: #94a3b8; font-style: italic; 
   background-color: #f0fdf4 !important;
   border-color: #86efac !important;
 }
+/* [7.2.0, Befund H2 / WCAG 1.4.1 "Use of Color"] Der Ampelstatus (gelb =
+   offen, gruen = ausgefuellt) war bisher AUSSCHLIESSLICH ueber Hintergrund-/
+   Randfarbe kodiert - fuer Personen mit Rot-Gruen-Sehschwaeche ausgerechnet
+   bei der sicherheitsrelevantesten Unterscheidung im Formular am schwersten
+   zugaenglich. Jetzt zusaetzlich ein Text-/Symbol-Signal direkt am Label des
+   Feldes: ":has()" waehlt das <label>, dessen naechstes Geschwister-Element
+   (input/select/textarea) die jeweilige Klasse traegt - ohne dass an den
+   ueber 100 Formularfeldern selbst etwas geaendert werden muss. ":has()" wird
+   von allen aktuellen Browsern unterstuetzt (Chrome/Edge/Safari seit 2023,
+   Firefox seit 121) - in einem sehr alten Browser bleibt schlimmstenfalls nur
+   das Symbol weg, die Farbmarkierung funktioniert unabhaengig davon weiter. */
+/* "~" (beliebiges nachfolgendes Geschwister) statt "+" (direktes Geschwister)
+   gewaehlt, da zwischen <label> und dem eigentlichen Feld in manchen
+   .form-group-Bloecken noch weitere Elemente stehen koennen (z. B. ein Icon-
+   Span vor RCD-/Drehschalter-Feldern) - "~" bleibt robust, ohne dass jede
+   der ueber 100 Formularstellen im HTML einzeln geprueft werden muss. */
+label:has(~ .pflichtfeld-leer)::after {
+  content: " ⚠ Pflichtfeld – bitte ausfüllen";
+  display: inline;
+  font-weight: 700;
+  color: #92400e;
+}
+label:has(~ .pflichtfeld-ok)::after {
+  content: " ✓ ausgefüllt";
+  display: inline;
+  font-weight: 700;
+  color: #166534;
+}
+/* Ein tatsaechlich falscher Wert (rot) hat Vorrang - auch beim Text-Signal,
+   analog zur bereits bestehenden Farb-Vorrangregel weiter unten. */
+label:has(~ .pflichtfeld-ok.out-of-norm)::after,
+label:has(~ .pflichtfeld-leer.out-of-norm)::after {
+  content: " ✗ außerhalb des zulässigen Bereichs";
+  color: var(--danger-text);
+}
+label:has(~ .pflichtfeld-ok.missing-value)::after,
+label:has(~ .pflichtfeld-leer.missing-value)::after {
+  content: " ⚠ Pflichtfeld – bitte ausfüllen";
+  color: #92400e;
+}
+/* Das Begruendungsfeld einer Totlegung ist bewusst dauerhaft rot (siehe
+   .totlegung-grund weiter unten) - kein "ausgefuellt/offen"-Text hier. */
+.totlegung-grund label:has(~ textarea.pflichtfeld-ok)::after,
+.totlegung-grund label:has(~ textarea.pflichtfeld-leer)::after {
+  content: "";
+}
 /* Ein tatsaechlich falscher Wert (rot) hat immer Vorrang vor der gruenen
    "ausgefuellt"-Markierung - ein Feld ist nicht "ok", nur weil etwas
    darinsteht. Selektor-Kombination statt Reihenfolge im Stylesheet, damit
@@ -514,6 +560,24 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
 .offene-pruefung-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
 .offene-pruefung-aktionen .btn, .offene-pruefung-aktionen .btn-danger { text-decoration: none; }
 
+/* [7.2.0, Punkt 21] "IST ABGESCHLOSSEN"-Checkbox je offener Prüfung sowie
+ * optische Abgrenzung der bereits abgeschlossenen Entwürfe (blasser, mit
+ * eigener Zwischenüberschrift) - ohne sie aus der Liste zu entfernen, damit
+ * sie weiterhin geöffnet/fortgesetzt oder gelöscht werden können. */
+.offene-pruefung-abschluss {
+  display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: var(--secondary);
+  margin-top: 2px; cursor: pointer; user-select: none;
+}
+.offene-pruefung-abschluss input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
+.offene-pruefung-zeile.ist-abgeschlossen {
+  background: #f8faf8; border-color: #cfe3cf; opacity: 0.82;
+}
+.offene-pruefung-zeile.ist-abgeschlossen .offene-pruefung-abschluss { color: #166534; font-weight: 600; }
+.offene-pruefungen-abgeschlossen-titel {
+  font-size: 0.78rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;
+  letter-spacing: 0.03em; margin: 14px 0 8px; padding-top: 10px; border-top: 1px dashed var(--border);
+}
+
 /* Formular wurde aus einer Archiv-Vorlage angelegt */
 .vorlage-hinweis {
   background: #fef9c3; border: 1px solid #ca8a04; border-radius: 6px;
@@ -812,6 +876,33 @@ details.fluke[open] summary::before { transform: rotate(90deg); }
  *  bleibt fuer andere Container unveraendert (siehe js/karussell.js).
  * ------------------------------------------------------------------------ */
 .karussell { position: relative; display: flex; align-items: stretch; gap: 4px; }
+
+/* [7.2.0, Punkt 23] Punkte-Leiste oberhalb des Karussells - macht auf einen
+   Blick klar, dass mehrere Karten existieren und welche gerade sichtbar ist,
+   noch bevor man ueberhaupt blaettert. */
+.karussell-punkte {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin: 2px 0 8px; flex-wrap: wrap;
+}
+.karussell-punkt {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--border); flex: none;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.karussell-punkt.aktiv { background: var(--primary); transform: scale(1.35); }
+
+/* [7.2.0, Punkt 23] Rand-Farbverlaeufe am Track: ein sanftes Ausblenden zu
+   den Seiten hin signalisiert "hier geht es weiter" (Filmstreifen-/Regal-
+   Optik), ohne echte Karteninhalte zu verdecken - die Verlaeufe liegen ueber
+   dem Track, aber unter den Pfeil-Buttons, und blenden per JS aus, sobald
+   Anfang/Ende des Karussells erreicht ist. */
+.karussell-track-wrapper { position: relative; flex: 1; min-width: 0; display: flex; }
+.karussell-track-wrapper::before,
+.karussell-track-wrapper::after {
+  content: ""; position: absolute; top: 0; bottom: 4px; width: 22px; pointer-events: none; z-index: 1;
+}
+.karussell-track-wrapper::before { left: 0; background: linear-gradient(to right, var(--card), transparent); }
+.karussell-track-wrapper::after { right: 0; background: linear-gradient(to left, var(--card), transparent); }
 .karussell-track {
   display: flex;
   flex-direction: row;
@@ -876,3 +967,38 @@ details.fluke[open] summary::before { transform: rotate(90deg); }
   .karussell { gap: 0; }
   .karussell-track { flex: 1 1 100%; }
 }
+
+/* ============================================================================
+ *  PRUEFDATUM-BOX (7.2.0, Nutzerwunsch #10)
+ * ----------------------------------------------------------------------------
+ *  Auffaellige Box am Anfang jedes Formulars (Abschnitt 1, Stammdaten), damit
+ *  der naechste Pruefungstermin nicht mehr uebersehen wird - siehe
+ *  pruefterminInfokarteHtml() in js/infokarten.js.
+ * ========================================================================== */
+.pruefdatum-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.pruefdatum-anzeige {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+.pruefdatum-label { font-weight: 700; color: var(--info-accent); }
+.pruefdatum-wert {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #92400e;
+}
+.pruefdatum-wert.pruefdatum-gesetzt { color: var(--info-accent); }
+.pruefdatum-box details.infokarte.pruefdatum-infokarte {
+  margin-top: 6px;
+  border-top: 1px dashed var(--info-border);
+  padding-top: 6px;
+}
+.pruefdatum-box details.infokarte:first-child { border-top: none; padding-top: 0; margin-top: 0; }

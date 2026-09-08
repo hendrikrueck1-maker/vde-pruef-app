@@ -52,6 +52,14 @@ function sicherSetItem(key, value) {
  * Autosave-Stand (der diese Angabe noch nicht enthielt) restauriert wird.
  * Diese Liste wird von allen drei restore*State()-Funktionen genutzt, um
  * genau das zu verhindern - siehe dort. */
+// [7.2.0, Nutzerwunsch #11] "adresse" ist bewusst NICHT als eigene Feld-ID
+// aufgenommen: die drei Pruefformulare haben (wie schon vorher) nur ein
+// einzeiliges Freitextfeld "auftraggeber" - dort landet die Adresse bereits
+// im Text mit (siehe applyMasterDataToForm() unten und
+// fillExampleDataStamm() in pdf-generator.js, die dasselbe Muster nutzt).
+// Ein zusaetzliches eigenes Adressfeld je Formular haette PDF-Layout und
+// Formularstruktur aller drei Protokolle veraendert - das war nicht verlangt,
+// die Adresse muss nur in den zentralen Stammdaten erfasst werden koennen.
 const MASTERDATA_FIELD_IDS = ['auftraggeber', 'vnb', 'hausanschluss', 'pruefer', 'pruefer_qualifikation', 'messgeraet', 'seriennummer', 'unterschrift_ort'];
 
 function getMasterData() {
@@ -66,6 +74,7 @@ function getMasterData() {
   // Jetzt: alle Defaults leer, Struktur/Keys unveraendert.
   return {
     auftraggeber: "",
+    adresse: "",
     gebaeude: "",
     vnb: "",
     hausanschluss: "",
@@ -84,6 +93,7 @@ function getMasterData() {
 function saveMasterData(erfolgMelden = false) {
   const data = {
     auftraggeber: document.getElementById('m_auftraggeber').value,
+    adresse: document.getElementById('m_adresse')?.value || '',
     gebaeude: document.getElementById('m_gebaeude').value,
     vnb: document.getElementById('m_vnb').value,
     hausanschluss: document.getElementById('m_hausanschluss')?.value || '',
@@ -103,7 +113,14 @@ function saveMasterData(erfolgMelden = false) {
 function loadMasterDataToDashboard() {
   const data = getMasterData();
   document.getElementById('m_auftraggeber').value = data.auftraggeber || '';
-  document.getElementById('m_gebaeude').value = data.gebaeude || '';
+  if (document.getElementById('m_adresse')) document.getElementById('m_adresse').value = data.adresse || '';
+  // [7.2.0, Nutzerwunsch #13] Standard-Gebaeude/Bereich jetzt ueber ein
+  // Auswahlfeld mit vordefinierten Spielstaetten + "Sonstiges..." (analog zu
+  // gebaeude_select in den einzelnen Formularen) statt eines reinen
+  // Freitextfelds - syncMasterGebaeudeSelect() haelt Auswahl und tatsaechlich
+  // gespeicherten Freitextwert synchron.
+  if (document.getElementById('m_gebaeude_select')) syncMasterGebaeudeSelect(data.gebaeude || 'Gr. Haus');
+  else document.getElementById('m_gebaeude').value = data.gebaeude || '';
   document.getElementById('m_vnb').value = data.vnb || '';
   if (document.getElementById('m_hausanschluss')) document.getElementById('m_hausanschluss').value = data.hausanschluss || '';
   document.getElementById('m_pruefer').value = data.pruefer || '';
@@ -117,7 +134,15 @@ function loadMasterDataToDashboard() {
 function applyMasterDataToForm() {
   const data = getMasterData();
   const setIfPresent = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-  setIfPresent('auftraggeber', data.auftraggeber || '');
+  // [7.2.0, Nutzerwunsch #11] Die drei Pruefformulare haben nur EIN
+  // einzeiliges Feld "Auftraggeber / Prüfort" - die separat erfasste Adresse
+  // wird deshalb an den Auftraggeber-Namen angehaengt (gleiches Muster wie
+  // in fillExampleDataStamm(), siehe pdf-generator.js), statt ein eigenes
+  // Adressfeld in jedem der drei Formulare/PDFs zu ergaenzen.
+  const auftraggeberMitAdresse = data.adresse
+    ? (data.auftraggeber || '') + (data.auftraggeber ? ', ' : '') + data.adresse
+    : (data.auftraggeber || '');
+  setIfPresent('auftraggeber', auftraggeberMitAdresse);
   if (document.getElementById('gebaeude_select')) syncGebaeudeSelect(data.gebaeude || 'Gr. Haus');
   setIfPresent('vnb', data.vnb || '');
   setIfPresent('hausanschluss', data.hausanschluss || '');
@@ -152,6 +177,40 @@ function syncGebaeudeSelect(value) {
   } else {
     select.value = 'custom';
     customInput.style.display = 'block';
+  }
+}
+
+/* [7.2.0, Nutzerwunsch #13] Gleiches Auswahl/Freitext-Muster wie
+ * toggleGebaeudeCustom()/syncGebaeudeSelect() oben, aber fuer die zentralen
+ * Stammdaten auf der Hauptseite (index.html, Felder m_gebaeude_select /
+ * m_gebaeude) statt fuer ein einzelnes Formular. Getrennt gehalten, damit
+ * eine kuenftige Aenderung an einem der beiden Orte den anderen nicht
+ * versehentlich mit veraendert. */
+function toggleMasterGebaeudeCustom(val) {
+  const customInput = document.getElementById('m_gebaeude');
+  if (val === 'custom') {
+    customInput.style.display = 'block';
+    customInput.value = '';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+    customInput.value = val;
+  }
+}
+
+function syncMasterGebaeudeSelect(value) {
+  const select = document.getElementById('m_gebaeude_select');
+  const customInput = document.getElementById('m_gebaeude');
+  if (!select || !customInput) return;
+  const presetValues = Array.from(select.options).map(o => o.value).filter(v => v !== 'custom');
+
+  customInput.value = value;
+  if (presetValues.includes(value)) {
+    select.value = value;
+    customInput.style.display = 'none';
+  } else {
+    select.value = 'custom';
+    customInput.style.display = value ? 'block' : 'none';
   }
 }
 

@@ -1,6 +1,37 @@
 // GEMEINSAME HILFSFUNKTIONEN FÜR ALLE PROTOKOLLTYPEN (PDF-ERZEUGUNG, FORMULAR-HELPER)
 
 /* ---------------------------------------------------------------------------
+ *  7.2.0 (Befund "Foto-Verlust nach Reload"): STABILE KARTEN-ID JE KARTE
+ * ----------------------------------------------------------------------------
+ *  VORHER: Der Foto-Schluessel je Karte (siehe fotoKartenKey() in fotos.js)
+ *  wurde aus cardCounter gebildet - einem reinen Lauf-Zaehler, der beim
+ *  Wiederherstellen aus Autosave/Archiv bei 0 neu zu zaehlen beginnt (siehe
+ *  restoreProtocolState(): "cardCounter = 0; state.circuits.forEach(...)").
+ *  Wird zwischendurch eine Karte geloescht oder die Reihenfolge aendert sich
+ *  (z. B. durch Duplizieren nicht am Ende), verschieben sich die cardCounter-
+ *  Werte ALLER nachfolgenden Karten beim naechsten Neuladen dauerhaft - die
+ *  bereits gespeicherten Fotos haengen dann noch am ALTEN, jetzt falschen
+ *  Schluessel und erscheinen fuer die (jetzt anders nummerierte) Karte als
+ *  verloren. Im praktischen Theaterbetrieb, wo Unterbrechungen/Neuladen die
+ *  Regel sind, machte das die Kernfunktion "Beweisfoto" unzuverlaessig.
+ *
+ *  JETZT: jede Karte bekommt bei ihrer Erzeugung eine EIGENE, zufaellige und
+ *  vom cardCounter unabhaengige ID (kartenId), die als data.kartenId mit im
+ *  Formularzustand gespeichert und beim Wiederherstellen unveraendert
+ *  uebernommen wird (siehe addCircuitCard/addFeedCard/addDeviceCard). Der
+ *  Foto-Schluessel verwendet ab jetzt diese kartenId statt cardCounter -
+ *  Loeschen/Umsortieren anderer Karten hat darauf keinen Einfluss mehr.
+ *  crypto.randomUUID() ist in allen unterstuetzten Browsern vorhanden; ein
+ *  einfacher Fallback deckt den unwahrscheinlichen Fall ab, dass die Seite
+ *  nicht ueber HTTPS/localhost (sicherer Kontext) laeuft. */
+function neueKartenId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'kid-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+/* ---------------------------------------------------------------------------
  *  5.0.0 (BUG #4 aus der 4.7.2-Prüfung): MESSWERTE MIT KOMMA SICHER PARSEN
  * ----------------------------------------------------------------------------
  *  VORHER: An ueber 40 Stellen im Code stand parseFloat(wert.replace(',', '.')).
@@ -526,10 +557,25 @@ function formatNetzspannung(input) {
   }
 }
 
+/* [7.2.0, Nutzerwunsch "Schnellauswahl-Felder werden nicht gruen"] setValue()
+ * setzte den Wert bisher als reine .value-Zuweisung ohne jedes DOM-Ereignis.
+ * initPflichtfelder() (pflichtfelder.js) haengt sich aber an
+ * document.addEventListener('input'/'change', ...) - eine reine .value-
+ * Zuweisung loest das NICHT aus, weshalb ein per Schnellwahl-Button
+ * befuelltes Feld gelb ("pflichtfeld-leer") stehen blieb, obwohl es einen
+ * Wert enthielt. Jetzt wird nach dem Setzen ein echtes, bubbelndes
+ * 'input'-Ereignis dispatched - dasselbe Ereignis, das eine Tastatureingabe
+ * ausloesen wuerde. Das aktualisiert nebenbei auch alle anderen an 'input'
+ * haengenden Handler (z. B. validateCardNorms) korrekt mit; ein zusaetzlicher
+ * expliziter Aufruf desselben Handlers direkt im onclick (wie an vielen
+ * Quick-Button-Stellen vorhanden) bleibt unschaedlich, da diese Funktionen
+ * rein aus dem aktuellen Feldwert neu berechnen (keine Seiteneffekte durch
+ * Mehrfachaufruf). */
 function setValue(fieldId, val) {
   const elem = document.getElementById(fieldId);
   if (elem) {
     elem.value = val;
+    elem.dispatchEvent(new Event('input', { bubbles: true }));
     if (typeof autosaveProtocol === 'function') autosaveProtocol();
   }
 }
@@ -621,6 +667,13 @@ let istTestdatensatz = false;
 function testdatensatzSetzen() {
   istTestdatensatz = true;
 }
+
+/* [7.2.0, Befund M1/M2] Nach pdf-utils.js verschoben (vorher pdf-generator.js),
+ * damit auch anschluss-generator.js/geraete-generator.js den Hinweistext
+ * nutzen koennen - pdf-generator.js wird nur in vde0100.html geladen, die
+ * anderen beiden Formulare hatten dadurch bisher gar keine "TESTDATEN"-
+ * Kennzeichnung im Bemerkungsfeld. */
+const TESTDATEN_HINWEISTEXT = '⚠ Dies sind Beispiel-/Testdaten, kein echtes Prüfprotokoll.';
 
 if (typeof document !== 'undefined') {
   // capture:true, damit auch programmatische dispatchEvent()-Aufrufe mit
@@ -1117,8 +1170,19 @@ function getMaengelZustand(wert) {
 
 // Ohne Beschreibung, WAS behoben wurde, ist die Aussage "Mängel behoben"
 // wertlos und im Streitfall nicht belegbar. Gilt nur fuer ausgefuellte PDFs.
+//
+// [7.2.0, Nutzerwunsch] Eine rein LEERE Bemerkung war bereits blockiert -
+// ein Lueckenfueller wie "ok", "-" oder "erledigt" erfuellte die Pruefung
+// aber trotzdem, obwohl er versicherungsrechtlich genauso wertlos ist wie
+// gar keine Angabe: aus so einem Text laesst sich weder der urspruengliche
+// Mangel noch die Behebung rekonstruieren. Deshalb jetzt zusaetzlich eine
+// Mindestlaenge (MAENGEL_BEHOBEN_MIN_LAENGE) - kein inhaltlicher Pruef-, nur
+// ein Plausibilitaets-Check, der reine Lueckenfueller ausschliesst.
+const MAENGEL_BEHOBEN_MIN_LAENGE = 20;
+
 function maengelBehobenBemerkungFehlt(zustand, bemerkungWert) {
-  return zustand === MAENGEL_BEHOBEN && String(bemerkungWert || '').trim() === '';
+  return zustand === MAENGEL_BEHOBEN &&
+    String(bemerkungWert || '').trim().length < MAENGEL_BEHOBEN_MIN_LAENGE;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1232,8 +1296,10 @@ const DOKU_MANGEL_ZUSATZ =
   ' Hinweis: In der Tabelle sind Angaben rot markiert, die zur vollständigen Dokumentation fehlen (z. B. RCD-Typ oder verwendeter Prüfstrom). Das Protokoll ist insoweit unvollständig und sollte ergänzt werden.';
 
 const MAENGEL_BEHOBEN_HINWEIS =
-  'Bitte im Feld "Bemerkungen / Mängel" beschreiben, WELCHE Mängel festgestellt und wie sie behoben wurden.\n\n' +
-  'Die Auswahl "Mängel festgestellt und behoben" ist ohne diese Beschreibung nicht nachvollziehbar. ' +
+  'Bitte im Feld "Bemerkungen / Mängel" beschreiben, WELCHE Mängel festgestellt und wie sie behoben wurden ' +
+  '(mind. ' + MAENGEL_BEHOBEN_MIN_LAENGE + ' Zeichen).\n\n' +
+  'Die Auswahl "Mängel festgestellt und behoben" ist ohne eine solche Beschreibung nicht nachvollziehbar und im ' +
+  'Streitfall nicht belegbar - ein reiner Lückenfüller wie "ok" oder "-" reicht dafür nicht aus. ' +
   'Das PDF wurde deshalb nicht erstellt.';
 
 // MAX. SCHUTZLEITERWIDERSTAND (Ohm): 0,3 Ohm BIS 5m LEITUNGSLÄNGE,

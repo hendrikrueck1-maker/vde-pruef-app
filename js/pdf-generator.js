@@ -85,10 +85,15 @@ function syncRcdMesswerteAnzeige(cardId) {
 
 function addCircuitCard(data = {}) {
   cardCounter++;
+  // Stabiler, vom cardCounter unabhaengiger Foto-Schluessel (siehe
+  // neueKartenId() in pdf-utils.js) - ein wiederhergestellter Zwischenstand
+  // behaelt seine ID, eine neue Karte bekommt eine frische.
+  const kartenId = data.kartenId || neueKartenId();
   const container = document.getElementById('circuitsContainer');
   const card = document.createElement('div');
   card.className = 'circuit-card';
   card.id = `circuit_${cardCounter}`;
+  card.dataset.kartenId = kartenId;
   
   card.innerHTML = `
     <div class="circuit-header">
@@ -238,7 +243,6 @@ function addCircuitCard(data = {}) {
           </div>
         </div>
       </div>
-      ${messgroesseBlock('rcd', 'fluke1663').karten}
       <!-- 4.7.1: Bei "Ohne RCD" sind die Ausloese-Messwerte nicht relevant
            (es gibt keinen RCD zu pruefen) - klappt automatisch ein, ueber die
            Kopfzeile jederzeit von Hand wieder aufklappbar (gleiches Muster wie
@@ -279,6 +283,12 @@ function addCircuitCard(data = {}) {
         </div>
         </div>
       </div>
+      <!-- [7.2.0, Nutzerwunsch #15] Anleitung/Infokarte ans ENDE der RCD-
+           Pruefung verschoben (vorher direkt nach der Typ-Auswahl, also
+           MITTEN in der Pruefung, noch vor den eigentlichen Messfeldern) -
+           so wird zuerst gemessen/eingetragen und die Anleitung steht wie
+           ein Nachschlage-Abschnitt danach. -->
+      ${messgroesseBlock('rcd', 'fluke1663').karten}
     </div>
 
     <!-- MESSWERTE: BERÜHRUNGSSPANNUNG -->
@@ -337,7 +347,7 @@ function addCircuitCard(data = {}) {
       </div>
     </div>
 
-    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', cardCounter)) : ''}
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', kartenId)) : ''}
 
     <div class="circuit-footer-actions">
       <button type="button" class="btn btn-secondary" onclick="dupliziereStromkreis('circuit_${cardCounter}')" title="Legt eine neue Karte mit denselben Leitungs- und Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
@@ -354,7 +364,7 @@ function addCircuitCard(data = {}) {
   // aus Autosave/Archiv - eine NEUE Karte hat noch keine, der Aufruf findet
   // dann einfach nichts).
   if (typeof fotosLeisteAktualisieren === 'function') {
-    fotosLeisteAktualisieren(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', cardCounter));
+    fotosLeisteAktualisieren(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', kartenId));
   }
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
@@ -710,7 +720,9 @@ function netzmessungZeile() {
  *  echten Protokoll verwechselt werden kann - zusaetzlich zum Wasserzeichen
  *  im PDF selbst (testdatenWasserzeichenEinfuegen() in pdf-utils.js).
  * ========================================================================== */
-const TESTDATEN_HINWEISTEXT = '⚠ Dies sind Beispiel-/Testdaten, kein echtes Prüfprotokoll.';
+// TESTDATEN_HINWEISTEXT steht jetzt in pdf-utils.js (7.2.0, Befund M2/M1),
+// damit anschluss-generator.js/geraete-generator.js ihn ebenfalls nutzen
+// koennen - pdf-generator.js wird nur in vde0100.html geladen.
 
 /* Gemeinsame Stammdaten/Netzmessung/Erdung fuer alle drei Varianten -
  * unveraendert gegenueber dem bisherigen einzelnen Beispieldatensatz. */
@@ -995,7 +1007,7 @@ function generatePDFInner(isBlank = false) {
 
   /* Mindestangaben: ohne sie ist das Protokoll keinem Vorgang zuzuordnen. */
   if (!isBlank) {
-    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'anlage_bez']);
+    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'anlage_bez', 'auftraggeber']);
     if (fehlend) { pflichtfeldMelden(fehlend); return; }
   }
 
@@ -1884,37 +1896,58 @@ function generatePDFInner(isBlank = false) {
       : Promise.resolve([])
   ]).then(function (teile) { return teile[0].concat(teile[1]); });
 
+  /* [7.2.0, Befund H1] Dieser .then()-Callback laeuft ASYNCHRON, NACHDEM
+   * generatePDF() (der aeussere Aufrufer) sein try/catch bereits verlassen
+   * hat - ein synchroner Fehler HIER DRIN (z. B. defekte Bilddaten in
+   * drawFotodokumentationSeite()) waere bisher eine unbehandelte Promise-
+   * Rejection: kein Alert, PDF wird stillschweigend nicht erzeugt, ohne jede
+   * Rueckmeldung. anschluss-generator.js/geraete-generator.js legen das
+   * eigene try/catch bereits INNERHALB des .then()-Callbacks (siehe dort) -
+   * hier jetzt nachgezogen, analog. */
   fotoLadenPromise.then(function (fotos) {
-    if (fotos.length) {
-      drawFotodokumentationSeite(doc, fotos, '5. FOTODOKUMENTATION', 'Stromkreis');
-    }
+    try {
+      if (fotos.length) {
+        drawFotodokumentationSeite(doc, fotos, '5. FOTODOKUMENTATION', 'Stromkreis');
+      }
 
-    // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
-    drawProtokollSeitenkoepfe(doc, {
-      ...VDE0100_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: FORMULAR_REVISION
-    });
-
-    const filename = isBlank
-      ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
-      : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
-
-    /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
-     * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
-     * ein Leerformular ebenfalls nicht. */
-    Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
-      .then(function (gespeichert) {
-      if (isBlank || gespeichert === false) return;
-      // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
-      // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
-      // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
-      // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
-      // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
-      // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
-      verbraucheProtokollNummer(nummerRoh, 'PR');
-      nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
-        AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+      // KOPF DER FOLGESEITEN + INFOBOX MIT SEITENZAHL + REVISIONSVERMERK
+      drawProtokollSeitenkoepfe(doc, {
+        ...VDE0100_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: FORMULAR_REVISION
       });
-    });
+
+      const filename = isBlank
+        ? `VDE_0100_Pruefprotokoll_Leerformular.pdf`
+        : `Pruefprotokoll_${protokollNr}_${(datum || '').replace(/\./g, '-')}.pdf`;
+
+      /* Die Nummer wird ERST JETZT verbraucht - und nur, wenn wirklich eine Datei
+       * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
+       * ein Leerformular ebenfalls nicht. */
+      Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
+        .then(function (gespeichert) {
+        if (isBlank || gespeichert === false) return;
+        // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
+        // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
+        // wird erst hochgezaehlt, wenn tatsaechlich ein neues Formular angelegt
+        // wird (siehe nachPdfNeuesFormularAnbieten in storage.js) - das Formular
+        // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
+        // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
+        verbraucheProtokollNummer(nummerRoh, 'PR');
+        nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
+          AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
+        });
+      });
+    } catch (err) {
+      console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
+      alert(
+        'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
+        'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
+        'bleiben erhalten (Autosave läuft weiter).\n\n' +
+        'Bitte versuche es erneut. Falls der Fehler wiederholt auftritt, hilft oft ' +
+        'ein Blick auf sehr lange Freitextfelder (Bemerkungen o.Ä.) - oder melde den ' +
+        'Fehler mit einer Beschreibung, was gerade im Formular stand.\n\n' +
+        'Technische Details: ' + (err && err.message ? err.message : String(err))
+      );
+    }
   });
 }
 
@@ -1973,6 +2006,7 @@ function collectProtocolState() {
   document.querySelectorAll('.erp-item').forEach(el => { state.erproben[el.id] = el.value; });
 
   state.circuits = Array.from(document.querySelectorAll('.circuit-card')).map(card => ({
+    kartenId: card.dataset.kartenId || '',
     bez: card.querySelector('.c-bez').value,
     kabel: card.querySelector('.c-kabel-typ').value,
     leiter: card.querySelector('.c-leiter').value,

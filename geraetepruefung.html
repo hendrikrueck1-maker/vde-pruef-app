@@ -60,6 +60,7 @@
   <form id="geraeteForm">
     <!-- 1. STAMMDATEN -->
     <h2 class="kat-stamm" id="abschnitt-stammdaten">1. Allgemeine Angaben & Stammdaten</h2>
+    <div id="pruefdatum_infokarte_platzhalter"></div>
     <div class="grid">
       <div class="form-group grid-full">
         <label for="auftraggeber">Auftraggeber / Prüfort:</label>
@@ -233,6 +234,10 @@
   }
 
   restoreGeraeteState(loadGeraeteAutosave());
+  // [7.2.0] Pruefdatum-Infokarte (js/infokarten.js) nach dem Wiederherstellen
+  // synchronisieren - #res_termin_date wurde dabei per .value= gesetzt, ohne
+  // ein 'input'/'change'-Ereignis auszuloesen.
+  if (typeof pruefdatumAnzeigeAktualisieren === 'function') pruefdatumAnzeigeAktualisieren();
 
   initStatusleiste({
     typLabel: 'Geräteprüfung',

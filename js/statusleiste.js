@@ -51,14 +51,43 @@ function initStatusleiste(cfg) {
     trennerBezEl.style.display = bez ? '' : 'none';
   }
 
+  // [7.2.0, Nutzerwunsch #17] Zusaetzlich zur laufenden Nummer ("Stromkreis
+  // #3") auch die vom Nutzer eingetragene Bezeichnung/Zweck der Karte
+  // (.c-bez, z. B. "Schukosteckdose Tonregie") in der Statusleiste anzeigen -
+  // das war bisher nur in der Karte selbst sichtbar, nicht mehr, sobald man
+  // innerhalb der Karte nach unten zu den Messwerten gescrollt/fokussiert
+  // hatte.
+  function kartenBezeichnung(karte) {
+    const bezEl = karte.querySelector('.c-bez');
+    const bez = bezEl ? String(bezEl.value || '').trim() : '';
+    return bez;
+  }
+
   function aktualisiereKreis(ziel) {
     if (!cfg.kartenSelector) return;
     const karte = ziel && ziel.closest ? ziel.closest(cfg.kartenSelector) : null;
     if (!karte) return; // Fokus ausserhalb einer Karte -> letzten Stand stehen lassen
     const label = karte.querySelector(cfg.kartenLabelSelector || '.circuit-header span, .feed-header span, .card-header span');
-    kreisEl.textContent = label ? label.textContent.trim() : '';
+    const nummer = label ? label.textContent.trim() : '';
+    const bez = kartenBezeichnung(karte);
+    kreisEl.textContent = bez ? (nummer + ' – ' + bez) : nummer;
     kreisEl.dataset.quelle = 'karte';
+    kreisEl.dataset.aktuelleKarte = ''; // wird unten gesetzt, falls Karte ein Element ist
+    if (karte.id) kreisEl.dataset.aktuelleKarte = karte.id;
   }
+
+  // Die Bezeichnung kann sich AENDERN, waehrend die Statusleiste bereits auf
+  // dieser Karte steht (Nutzer tippt gerade ins .c-bez-Feld selbst) - ohne
+  // diesen Listener wuerde die Leiste erst beim naechsten Kartenwechsel
+  // nachziehen. 'input' bubbelt, ein einzelner document-weiter Listener
+  // deckt daher alle Karten/Formulare ab.
+  document.addEventListener('input', function (ev) {
+    if (!ev.target || !ev.target.classList || !ev.target.classList.contains('c-bez')) return;
+    if (kreisEl.dataset.quelle !== 'karte') return;
+    const karte = cfg.kartenSelector ? ev.target.closest(cfg.kartenSelector) : null;
+    if (!karte || !karte.id || karte.id !== kreisEl.dataset.aktuelleKarte) return;
+    aktualisiereKreis(ev.target);
+  });
 
   /* ABSCHNITTS-ORIENTIERUNG (6.2.0, Feature E)
    * ---------------------------------------------------------------------

@@ -19,10 +19,15 @@ function pruefstromSel(wert, optionWert) {
 
 function addFeedCard(data = {}) {
   cardCounter++;
+  // Stabiler, vom cardCounter unabhaengiger Foto-Schluessel (siehe
+  // neueKartenId() in pdf-utils.js und Kommentar in pdf-generator.js
+  // addCircuitCard()).
+  const kartenId = data.kartenId || neueKartenId();
   const container = document.getElementById('feedsContainer');
   const card = document.createElement('div');
   card.className = 'feed-card';
   card.id = `feed_${cardCounter}`;
+  card.dataset.kartenId = kartenId;
 
   card.innerHTML = `
     <div class="feed-header">
@@ -63,7 +68,7 @@ function addFeedCard(data = {}) {
       <div class="form-group grid-full">${messgroesseBlock('drehfeld', 'fluke1663').karten}</div>
     </div>
 
-    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', cardCounter)) : ''}
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', kartenId)) : ''}
 
     <div class="sub-section">
       <div class="sub-title mess-karte-titel">${messgroesseBlock('rpe', 'fluke1663').icon}<span class="titel-text">1. Schutzleiter & Spannung N–PE</span></div>
@@ -168,7 +173,7 @@ function addFeedCard(data = {}) {
   // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen
   // aus Autosave/Archiv).
   if (typeof fotosLeisteAktualisieren === 'function') {
-    fotosLeisteAktualisieren(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', cardCounter));
+    fotosLeisteAktualisieren(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', kartenId));
   }
 }
 
@@ -325,6 +330,10 @@ function initSignaturePadsAnschluss() {
 function fillExampleDataAnschluss() {
   document.getElementById('pruefungsnummer').value = 'AP-2026-014';
   document.getElementById('pruefer').value = 'Max Mustermann (Elektrofachkraft)';
+  // [M1/M2/M3] Auftraggeber gehoert zu den Mindestangaben (erstesLeerePflichtfeld,
+  // siehe generatePDFAnschlussInner) und muss deshalb auch im Beispieldatensatz
+  // gesetzt sein, sonst blockiert der eigene Testdatensatz seinen PDF-Export.
+  document.getElementById('auftraggeber').value = 'TESTDATEN – Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz';
   document.getElementById('veranstaltung').value = 'Gastspiel "Sommernachtstraum", Freilichtbühne Münsterplatz';
   document.getElementById('bereitsteller_ansprechpartner').value = 'Frau Schneider';
   document.getElementById('bereitsteller_telefon').value = '07531 / 900-0';
@@ -343,11 +352,20 @@ function fillExampleDataAnschluss() {
   document.getElementById('u_l13').value = '401';
   document.getElementById('netzfrequenz').value = '50';
   validateErdungAnschluss();
-  document.getElementById('res_bemerkungen').value = 'Übergabepunkt in einwandfreiem Zustand. Keine Mängel festgestellt.';
+  document.getElementById('res_bemerkungen').value =
+    TESTDATEN_HINWEISTEXT + ' Übergabepunkt in einwandfreiem Zustand. Keine Mängel festgestellt.';
+
+  // [M1] Sichtpruefungsfelder muessen mit ausgefuellt werden - sonst
+  // blockiert ersteLeereAuswahl() ("Es ist noch eine Bewertung offen") den
+  // PDF-Export des eigenen Beispieldatensatzes.
+  document.querySelectorAll('.sicht-item').forEach(el => { el.value = 'i.O.'; });
+  document.querySelectorAll('.sicht-item').forEach(el => sichtErpNiOPruefen(el));
 
   document.getElementById('feedsContainer').innerHTML = '';
   cardCounter = 0;
   addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', rpe: '0,12', unpe: '0,3', sich: 'C 32A', zs: '0,31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
+
+  testdatensatzSetzen();
 }
 
 // KOPFDATEN (einmal definiert, auf Seite 1 und allen Folgeseiten verwendet).
@@ -530,7 +548,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
   if (!isBlank) {
-    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'veranstaltung', 'uebergabe_standort']);
+    const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'veranstaltung', 'uebergabe_standort', 'auftraggeber']);
     if (fehlend) { pflichtfeldMelden(fehlend); return; }
   }
 
@@ -1217,6 +1235,7 @@ function collectAnschlussState() {
   state.sicht = Array.from(document.querySelectorAll('.sicht-item')).map(s => s.value);
 
   state.feeds = Array.from(document.querySelectorAll('.feed-card')).map(card => ({
+    kartenId: card.dataset.kartenId || '',
     bez: card.querySelector('.c-bez').value,
     netzsystem: card.querySelector('.c-netzsystem').value,
     spannung: card.querySelector('.c-spannung').value,

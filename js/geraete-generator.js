@@ -24,10 +24,15 @@ function updateNaechsterTermin() {
 
 function addDeviceCard(data = {}) {
   cardCounter++;
+  // Stabiler, vom cardCounter unabhaengiger Foto-Schluessel (siehe
+  // neueKartenId() in pdf-utils.js und Kommentar in pdf-generator.js
+  // addCircuitCard()).
+  const kartenId = data.kartenId || neueKartenId();
   const container = document.getElementById('devicesContainer');
   const card = document.createElement('div');
   card.className = 'feed-card';
   card.id = `device_${cardCounter}`;
+  card.dataset.kartenId = kartenId;
 
   card.innerHTML = `
     <div class="feed-header">
@@ -78,17 +83,17 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label for="sicht_gehaeuse_${cardCounter}">Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" id="sicht_gehaeuse_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_leitung_${cardCounter}">Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" id="sicht_leitung_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_kennz_${cardCounter}">Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" id="sicht_kennz_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_reparatur_${cardCounter}">Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" id="sicht_reparatur_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_gehaeuse_${cardCounter}">Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" id="sicht_gehaeuse_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_gehaeuse ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_gehaeuse === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_gehaeuse === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_gehaeuse === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_leitung_${cardCounter}">Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" id="sicht_leitung_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_leitung ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_leitung === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_leitung === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_leitung === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_kennz_${cardCounter}">Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" id="sicht_kennz_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_kennz ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_kennz === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_kennz === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_kennz === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
+        <div class="form-group"><label for="sicht_reparatur_${cardCounter}">Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" id="sicht_reparatur_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_reparatur ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_reparatur === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_reparatur === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_reparatur === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
       </div>
     </div>
 
     <div class="sub-section">
       <div class="sub-title">2. Erproben</div>
       <div class="grid">
-        <div class="form-group"><label for="funktion_${cardCounter}">Funktionsprüfung:</label><select class="c-funktion erp-item" id="funktion_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option></select></div>
+        <div class="form-group"><label for="funktion_${cardCounter}">Funktionsprüfung:</label><select class="c-funktion erp-item" id="funktion_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.funktion ? ' selected' : ''}>– bitte wählen –</option><option${data.funktion === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.funktion === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option></select></div>
       </div>
     </div>
 
@@ -130,7 +135,7 @@ function addDeviceCard(data = {}) {
         : ''}
     </div>
 
-    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', cardCounter)) : ''}
+    ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', kartenId)) : ''}
 
     <div class="circuit-footer-actions">
       <button type="button" class="btn btn-secondary" onclick="dupliziereGeraet('device_${cardCounter}')" title="Neue Karte mit derselben Schutzklasse, Leitungslänge und Messmethode. Messwerte und Inventarnummer bleiben leer.">⧉ Duplizieren</button>
@@ -148,7 +153,7 @@ function addDeviceCard(data = {}) {
   // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen
   // aus Autosave/Archiv).
   if (typeof fotosLeisteAktualisieren === 'function') {
-    fotosLeisteAktualisieren(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', cardCounter));
+    fotosLeisteAktualisieren(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', kartenId));
   }
 }
 
@@ -336,14 +341,28 @@ function initSignaturePads() {
 function fillExampleDataGeraete() {
   document.getElementById('pruefungsnummer').value = 'GP-2026-033';
   document.getElementById('pruefer').value = 'Max Mustermann (Elektrofachkraft)';
+  // [M1/M2] Auftraggeber gehoert zu den Mindestangaben (erstesLeerePflichtfeld,
+  // siehe generatePDFGeraeteInner) und muss deshalb auch im Beispieldatensatz
+  // gesetzt sein, sonst blockiert der eigene Testdatensatz seinen PDF-Export.
+  document.getElementById('auftraggeber').value = 'TESTDATEN – Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz';
   document.getElementById('pruefintervall').value = '12';
   updateNaechsterTermin();
-  document.getElementById('res_bemerkungen').value = 'Alle geprüften Geräte in einwandfreiem Zustand. Keine Mängel festgestellt.';
+  document.getElementById('res_bemerkungen').value =
+    TESTDATEN_HINWEISTEXT + ' Alle geprüften Geräte in einwandfreiem Zustand. Keine Mängel festgestellt.';
+  document.getElementById('res_plakette').value = 'Ja';
+  document.getElementById('res_gewaehrleistung').value = 'Ja';
 
   document.getElementById('devicesContainer').innerHTML = '';
   cardCounter = 0;
-  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0,22', riso: '> 100', ableitstrom: '0,3' });
-  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2,5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0,48', riso: '> 200', ableitstrom: '0,1' });
+  // [M1] Sicht-/Funktionspruefungsfelder muessen mit ausgefuellt werden -
+  // sonst blockiert ersteLeereAuswahl() ("Es ist noch eine Bewertung offen")
+  // den PDF-Export des eigenen Beispieldatensatzes.
+  addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0,22', riso: '> 100', ableitstrom: '0,3',
+    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.' });
+  addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2,5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0,48', riso: '> 200', ableitstrom: '0,1',
+    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.' });
+
+  testdatensatzSetzen();
 }
 
 // KOPFDATEN. Der Titel folgt jetzt dem Sprachgebrauch der geltenden Normen:
@@ -1099,6 +1118,7 @@ function collectGeraeteState() {
   state.gebaeude = document.getElementById('gebaeude_custom').value;
 
   state.devices = Array.from(document.querySelectorAll('#devicesContainer .feed-card')).map(card => ({
+    kartenId: card.dataset.kartenId || '',
     bez: card.querySelector('.c-bez').value,
     typ: card.querySelector('.c-typ').value,
     invnr: card.querySelector('.c-invnr').value,

@@ -74,14 +74,35 @@ function neueEntwurfId() {
 function entwurfMerken(praefix, entwurfId, meta) {
   const liste = ladeEntwuerfeIndex();
   const idx = liste.findIndex(e => e.id === entwurfId);
+  // [7.2.0, Punkt 21] Ein bereits gesetztes "abgeschlossen"-Flag (per Checkbox
+  // in der Liste "Offene Prüfungen" gesetzt) darf durch den naechsten
+  // regulaeren Autosave-Aufruf aus dem Formular NICHT wieder zurueckgesetzt
+  // werden - das Flag lebt ausschliesslich in der Liste, das Formular selbst
+  // kennt es nicht. Deshalb wird ein vorhandener Wert hier uebernommen.
+  const bisherigesFlag = idx !== -1 ? !!liste[idx].abgeschlossen : false;
   const eintrag = {
     id: entwurfId,
     praefix: praefix,
     protokollnummer: (meta && meta.protokollnummer) || '',
     bezeichnung: (meta && meta.bezeichnung) || '',
-    zuletzt: Date.now()
+    zuletzt: Date.now(),
+    abgeschlossen: bisherigesFlag
   };
   if (idx === -1) liste.push(eintrag); else liste[idx] = eintrag;
+  speichereEntwuerfeIndex(liste);
+}
+
+/* [7.2.0, Punkt 21] Setzt/entfernt das "IST ABGESCHLOSSEN"-Flag eines
+ * Entwurfs. Anders als ein geloeschter Entwurf bleibt ein abgeschlossener
+ * Entwurf vollstaendig erhalten (inkl. Autosave-Stand) und laesst sich
+ * jederzeit wieder oeffnen/fortsetzen - das Flag dient nur der Uebersicht,
+ * damit fertig bearbeitete, aber noch nicht als PDF exportierte Entwuerfe
+ * nicht mehr zwischen den wirklich offenen Prüfungen stehen. */
+function entwurfAbschlussUmschalten(entwurfId, abgeschlossen) {
+  const liste = ladeEntwuerfeIndex();
+  const idx = liste.findIndex(e => e.id === entwurfId);
+  if (idx === -1) return;
+  liste[idx].abgeschlossen = !!abgeschlossen;
   speichereEntwuerfeIndex(liste);
 }
 
@@ -217,7 +238,15 @@ function renderOffenePruefungen(containerId) {
     return;
   }
 
-  el.innerHTML = alle.map(function (e) {
+  // [7.2.0, Punkt 21] Zwei Gruppen: wirklich offene Entwuerfe zuerst, fertig
+  // bearbeitete ("IST ABGESCHLOSSEN" angehakt) danach unter eigener
+  // Zwischenueberschrift - so faellt die eigentlich noch zu bearbeitende
+  // Prüfung nicht mehr zwischen bereits erledigten unter, auch wenn diese
+  // zuletzt bearbeitet wurden.
+  const offen = alle.filter(e => !e.abgeschlossen);
+  const abgeschlossen = alle.filter(e => e.abgeschlossen);
+
+  function zeile(e) {
     /* [Befund #8, Vollprüfungsbericht 6.1.0] '#' als Fallback ergibt einen
      * Link, der auf der aktuellen Seite bleibt, statt auf ein gültiges
      * Formular zu verweisen. In der Praxis nicht erreichbar, da e.praefix
@@ -228,11 +257,16 @@ function renderOffenePruefungen(containerId) {
     const typLabel = PROTOKOLL_PRAEFIXE[e.praefix] || e.praefix;
     const titel = e.protokollnummer ? (e.protokollnummer + (e.bezeichnung ? ' – ' + esc(e.bezeichnung) : '')) : esc(e.bezeichnung || typLabel);
     return (
-      '<div class="offene-pruefung-zeile">' +
+      '<div class="offene-pruefung-zeile' + (e.abgeschlossen ? ' ist-abgeschlossen' : '') + '">' +
         '<div class="offene-pruefung-info">' +
           '<span class="offene-pruefung-typ">' + esc(typLabel) + '</span>' +
           '<strong>' + titel + '</strong>' +
           '<span class="offene-pruefung-zeit">zuletzt bearbeitet ' + formatZuletzt(e.zuletzt) + '</span>' +
+          '<label class="offene-pruefung-abschluss">' +
+            '<input type="checkbox"' + (e.abgeschlossen ? ' checked' : '') +
+            ' onchange="entwurfAbschlussUmschalten(\'' + attrEsc(e.id) + '\', this.checked); renderOffenePruefungen(\'' + attrEsc(containerId) + '\');">' +
+            ' IST ABGESCHLOSSEN' +
+          '</label>' +
         '</div>' +
         '<div class="offene-pruefung-aktionen">' +
           '<a class="btn btn-success" href="' + datei + '?entwurf=' + encodeURIComponent(e.id) + '">Öffnen</a>' +
@@ -240,7 +274,17 @@ function renderOffenePruefungen(containerId) {
         '</div>' +
       '</div>'
     );
-  }).join('');
+  }
+
+  let html = offen.map(zeile).join('');
+  if (!offen.length) {
+    html += '<p style="font-size:0.85rem; color:var(--secondary);">Keine wirklich offenen Prüfungen mehr – alle sind als abgeschlossen markiert.</p>';
+  }
+  if (abgeschlossen.length) {
+    html += '<h3 class="offene-pruefungen-abgeschlossen-titel">Abgeschlossen, aber noch nicht als PDF archiviert (' + abgeschlossen.length + ')</h3>';
+    html += abgeschlossen.map(zeile).join('');
+  }
+  el.innerHTML = html;
 }
 
 /* 5.0.0 (BUG #9 aus der 4.7.2-Prüfung): escapt jetzt auch " und ' - vorher
