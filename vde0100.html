@@ -59,7 +59,11 @@
       <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
     </div>
     <h1>VDE 0100 / 0105 Prüfprotokoll</h1>
-    <div>
+    <!-- [7.3.0, Nutzerwunsch #8] Ohne display:flex + gap standen die beiden
+         Elemente (Select + Button) ohne jeden Zwischenraum uebereinander,
+         sobald sie umbrechen (schmaler Bildschirm) - jetzt wie die Buttons
+         oben (Zeile 57) explizit mit Abstand angeordnet. -->
+    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
       <select class="btn btn-secondary beispieldaten-auswahl" onchange="if(this.value){window[this.value](); this.value='';}" title="Beispieldaten laden (3 Varianten zum Testen)">
         <option value="">+ Beispieldaten laden…</option>
         <option value="fillExampleDataOhneMaengel">Ohne Mängel</option>
@@ -196,10 +200,17 @@
         bei Netzersatzanlage/Wechselrichter Pflichtangabe (siehe „Art der Einspeisung“ oben).
       </p>
       <div class="form-group" style="margin-bottom:10px;">
+        <label for="netzmessung_netzart">Netzart:</label>
+        <select id="netzmessung_netzart" onchange="updateNetzmessungNetzart()">
+          <option value="Drehstrom" selected>Drehstrom (400 V, 3 Außenleiter)</option>
+          <option value="1-phasig">1-phasiger Wechselstrom (230 V, z. B. Schukosteckdose)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
         <label for="netzmessung_speisepunkt_art">Art des Speisepunkts:</label>
         <select id="netzmessung_speisepunkt_art" onchange="updateNetzmessungArt()">
-          <option value="Fest verkabelt" selected>Fest verkabelt (Klemme/Verteiler)</option>
-          <option value="Steckstelle">Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
+          <option value="Fest verkabelt">Fest verkabelt (Klemme/Verteiler)</option>
+          <option value="Steckstelle" selected>Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
         </select>
         <div class="limit-hint" id="netzmessung_art_hint">Messung wie gehabt am Speisepunkt – die einfache Messung nur der 230-V-Werte bleibt jederzeit möglich, eine volle 400-V-Drehstrommessung ist nicht zwingend.</div>
       </div>
@@ -213,12 +224,12 @@
         <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.</div>
       </div>
       <div class="grid">
-        <div class="form-group"><label for="u_l1n">U L1&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div class="form-group" id="netzmessung_gruppe_l1n"><label for="u_l1n"><span id="netzmessung_l1n_label">U L1&ndash;N (V):</span></label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
+        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l2n"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
+        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l3n"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
+        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l12"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
+        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l23"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
+        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l13"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
         <div class="form-group"><label for="u_npe">U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
         <div class="form-group"><label for="netzfrequenz">Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
@@ -391,6 +402,7 @@
       <div class="form-group">
         <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr):</label>
         <input type="month" id="res_termin_date">
+        <div id="pruefdatum_bestaetigung_platzhalter"></div>
       </div>
       <div class="form-group">
         <label for="res_gewaehrleistung">Sicherer Gebrauch gewährleistet:</label>
@@ -464,6 +476,7 @@
   initProtokollNummer('PR');
   updateEinspeisung();
   updateNetzmessungArt();
+  updateNetzmessungNetzart();
 
   addCircuitCard();
   addCircuitCard();

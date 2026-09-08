@@ -36,9 +36,13 @@ function sicherSetItem(key, value) {
       if (typeof showNotification === 'function') {
         showNotification(hinweis, 'error');
       }
-      // Zusätzlich als Alert, da eine verpasste Statusleisten-Meldung hier
+      // Zusätzlich als Dialog, da eine verpasste Statusleisten-Meldung hier
       // besonders teuer wäre (stiller Datenverlust) - bewusst redundant.
-      try { alert(hinweis); } catch (e2) {}
+      // sicherSetItem() selbst bleibt synchron (wird an sehr vielen Stellen
+      // im Code aufgerufen) - appAlert() daher bewusst NICHT awaited, das
+      // Promise wird ignoriert ("fire and forget"), niemand wartet auf die
+      // Bestaetigung dieser Meldung.
+      try { appAlert(hinweis); } catch (e2) {}
     }
     return false;
   }
@@ -90,7 +94,7 @@ function getMasterData() {
  * verdeckte innerhalb dieser Funktion die gleichnamige globale Funktion
  * showNotification() aus pdf-utils.js, wodurch sicherSetItem() bei einem
  * vollen Speicher hier keine Warnung hätte anzeigen können. */
-function saveMasterData(erfolgMelden = false) {
+async function saveMasterData(erfolgMelden = false) {
   const data = {
     auftraggeber: document.getElementById('m_auftraggeber').value,
     adresse: document.getElementById('m_adresse')?.value || '',
@@ -107,7 +111,7 @@ function saveMasterData(erfolgMelden = false) {
   // Erläuterung am Dateianfang. Vorher konnte ein voller Speicher hier eine
   // unbehandelte Exception werfen (BUG #1 aus der 4.7.2-Prüfung).
   const ok = sicherSetItem('vde_master_data', JSON.stringify(data));
-  if (erfolgMelden && ok) alert("Zentrale Stammdaten erfolgreich gespeichert!");
+  if (erfolgMelden && ok) await appAlert("Zentrale Stammdaten erfolgreich gespeichert!");
 }
 
 function loadMasterDataToDashboard() {
@@ -290,9 +294,9 @@ function merkeVergebeneNummer(nummer) {
 
 /* Vor dem Erzeugen eines ausgefuellten PDF aufrufen. Liefert false, wenn die
  * Nutzerin die Doppelvergabe NICHT bestaetigt hat. */
-function protokollNummerFreigeben(nummer) {
+async function protokollNummerFreigeben(nummer) {
   if (!istNummerVergeben(nummer)) return true;
-  return confirm(
+  return await appConfirm(
     `Die Protokollnummer ${nummer} wurde in dieser App bereits für ein fertiges PDF vergeben.\n\n` +
     `Zwei Protokolle mit derselben Nummer sind nicht mehr eindeutig zuzuordnen.\n\n` +
     `Trotzdem fortfahren?`);
@@ -359,9 +363,9 @@ function protokollNummerNachPdf(praefix = 'PR') {
  * formular-spezifischen Funktionen (siehe pdf-generator.js,
  * anschluss-generator.js, geraete-generator.js), die AKTUELLER_ENTWURF_ID
  * neu setzen. */
-function nachPdfNeuesFormularAnbieten(praefix, nummerAlt, resetFn, clearFn, setzeAktivenEntwurf) {
+async function nachPdfNeuesFormularAnbieten(praefix, nummerAlt, resetFn, clearFn, setzeAktivenEntwurf) {
   var naechste = naechsteProtokollNummer(praefix);
-  var neu = confirm(
+  var neu = await appConfirm(
     'Protokoll ' + (nummerAlt || '') + ' wurde erstellt.\n\n' +
     'Neues Formular für die nächste Anlage anlegen?\n\n' +
     'OK: Neuer, leerer Entwurf für die nächste Anlage. Die nächste Nummer ist ' +
@@ -398,8 +402,8 @@ function initProtokollNummer(praefix = 'PR') {
  * beim fertigen PDF) - ein Klick auf "Neues Formular" ist der Moment, in dem
  * die Nutzerin bewusst zur naechsten Anlage wechselt, und genau dann soll
  * die Nummer weiterzaehlen. */
-function neuesProtokoll() {
-  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
+async function neuesProtokoll() {
+  if (!await appConfirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('PR');
   /* 5.0.0 (BUG #2 aus der 4.7.2-Prüfung): Reihenfolge getauscht - der Entwurf
@@ -415,7 +419,7 @@ function neuesProtokoll() {
   resetVdeForm();
   document.getElementById('protokollnummer').value = nr;
   autosaveProtocol();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  await appAlert(`Neues Protokoll angelegt: ${nr}`);
 }
 
 /* ============================================================================
@@ -543,24 +547,24 @@ function beschreibeSicherung(daten) {
 function importAppData(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function () {
+  reader.onload = async function () {
     try {
       const obj = JSON.parse(String(reader.result));
       if (!obj || obj.typ !== 'vde-pruefprotokoll-backup' || !obj.daten) {
-        alert('Das ist keine gültige Sicherungsdatei dieser App.');
+        await appAlert('Das ist keine gültige Sicherungsdatei dieser App.');
         return;
       }
       const bericht = beschreibeSicherung(obj.daten);
-      if (!confirm('Sicherung vom ' + String(obj.erstellt).slice(0, 10) +
+      if (!await appConfirm('Sicherung vom ' + String(obj.erstellt).slice(0, 10) +
                    ' (App-Version ' + obj.version + ') einspielen?\n\n' + bericht +
                    '\nVorhandene Daten auf diesem Gerät werden überschrieben.')) return;
       Object.keys(obj.daten).forEach(function (k) { sicherSetItem(k, obj.daten[k]); });
       // Sicherungen aelterer Versionen bringen die alten Autosave-Schluessel mit
       migriereAutosaveSchluessel();
-      alert('Sicherung eingespielt:\n\n' + bericht + '\nDie Seite wird neu geladen.');
+      await appAlert('Sicherung eingespielt:\n\n' + bericht + '\nDie Seite wird neu geladen.');
       location.reload();
     } catch (e) {
-      alert('Datei konnte nicht gelesen werden: ' + e.message);
+      await appAlert('Datei konnte nicht gelesen werden: ' + e.message);
     }
   };
   reader.readAsText(file);

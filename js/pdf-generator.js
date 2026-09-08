@@ -256,6 +256,21 @@ function addCircuitCard(data = {}) {
         </div>
         <div class="grid">
         <div class="form-group">
+          <!-- [7.3.0, Nutzerwunsch #3] Bemessungsstrom I_n DES RCD-GERAETS
+               SELBST (z. B. "40 A"-RCD) - nicht zu verwechseln mit dem
+               bereits vorhandenen Bemessungsfehlerstrom I_dn (in mA, die
+               Ausloese-Empfindlichkeit) direkt darunter. Beide Angaben
+               stehen zusammen auf dem Typenschild des RCD. -->
+          <label>Bemessungsstrom I<sub>n</sub> (RCD):</label>
+          <input type="text" class="c-rcd-in" id="rcd_in_${cardCounter}" value="${attrEsc(data.rcd_in)}" placeholder="z. B. 40 A">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '16 A')">16 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '25 A')">25 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '40 A')">40 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '63 A')">63 A</button>
+          </div>
+        </div>
+        <div class="form-group">
           <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
           <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${attrEsc(data.rcd_idn)}" placeholder="z. B. 30 mA" oninput="validateCardNorms(${cardCounter})">
           <div class="quick-btn-group">
@@ -408,6 +423,7 @@ function dupliziereStromkreis(cardDomId) {
     sich: w('.c-sich-typ'),
     riso_mode: w('.c-riso-mode'),
     rcd_typ: w('.c-rcd-typ'),
+    rcd_in: w('.c-rcd-in'),
     rcd_idn: w('.c-rcd-idn'),
     rcd_pruefstrom: w('.c-rcd-pruefstrom'),
     gefaehrdung: w('.c-gefaehrdung'),
@@ -662,6 +678,34 @@ function updateNetzmessungArt() {
   gruppe.style.display = istSpeisepunktSteckstelle() ? '' : 'none';
 }
 
+/* [7.3.0, Nutzerwunsch #2] NETZART: DREHSTROM vs. 1-PHASIGER WECHSELSTROM.
+ * Viele Buehnen-/Nebenverbraucher (z. B. eine einzelne Schukosteckdose fuer
+ * ein Pult) haben gar keinen Drehstromanschluss - die drei L-L-Werte (400 V)
+ * sowie L2-N/L3-N ergeben dort keinen Sinn und wuerden nur verwirren bzw.
+ * als "vergessen" missverstanden. Bei "1-phasig" bleiben ausschliesslich das
+ * (umbenannte) Spannungsfeld, N-PE und die Frequenz sichtbar - inhaltlich
+ * identisch mit der bisherigen "nur 230 V"-Teilmessung, jetzt aber explizit
+ * als eigene, saubere Auswahl statt implizit durch leer gelassene Felder. */
+function istNetzmessungDrehstrom() {
+  const v = document.getElementById('netzmessung_netzart')?.value || 'Drehstrom';
+  return v !== '1-phasig';
+}
+
+function updateNetzmessungNetzart() {
+  const drehstrom = istNetzmessungDrehstrom();
+  document.querySelectorAll('.netzmessung-drehstrom-feld').forEach(function (el) {
+    el.style.display = drehstrom ? '' : 'none';
+    if (!drehstrom) {
+      // Ausgeblendete Drehstrom-Werte duerfen nicht unsichtbar als Messwert
+      // im PDF landen bzw. eine Pflichtfeld-Warnung ausloesen.
+      const feld = el.querySelector('input');
+      if (feld) feld.value = '';
+    }
+  });
+  const label = document.getElementById('netzmessung_l1n_label');
+  if (label) label.textContent = drehstrom ? 'U L1–N (V):' : 'U (V):';
+}
+
 /* U_NPE_SCHWELLE und npeUeberschritten() liegen seit 4.5.0 zentral in
  * pdf-utils.js - die Anschlusspruefung braucht dieselbe Bewertung (Befund B1). */
 
@@ -739,6 +783,7 @@ function fillExampleDataStamm(auftraggeberPraefix) {
   document.getElementById('erdung_re').value = "0,18";
   document.getElementById('erdung_messpunkt').value = "HES (Haupterdungsschiene) Keller Gr. Haus";
   document.getElementById('hausanschluss').value = "NH 3x100 A gL (HAK Keller)";
+  document.getElementById('netzmessung_netzart').value = "Drehstrom";
   document.getElementById('u_l1n').value = "231";
   document.getElementById('u_l2n').value = "230";
   document.getElementById('u_l3n').value = "229";
@@ -749,6 +794,7 @@ function fillExampleDataStamm(auftraggeberPraefix) {
   validateNetzmessung();
   updateEinspeisung();
   updateNetzmessungArt();
+  updateNetzmessungNetzart();
   validateErdung();
 
   // Sicht-/Erprobungspruefung: alle Punkte i.O. setzen (Pflichtfelder ohne
@@ -931,12 +977,12 @@ function leerBlattzahl() {
  * unveraendert, nur um try/catch UND eine sichtbare Fehlermeldung ergaenzt -
  * damit bleibt das Risiko eines fehlerhaften Merge minimal, waehrend ein
  * Absturz jetzt wenigstens gemeldet wird statt spurlos zu verpuffen. */
-function generatePDF(isBlank = false) {
+async function generatePDF(isBlank = false) {
   try {
-    generatePDFInner(isBlank);
+    await generatePDFInner(isBlank);
   } catch (err) {
     console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-    alert(
+    await appAlert(
       'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
       'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
       'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -948,7 +994,7 @@ function generatePDF(isBlank = false) {
   }
 }
 
-function generatePDFInner(isBlank = false) {
+async function generatePDFInner(isBlank = false) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung. Deshalb Abbruch VOR dem Aufbau des PDF.
@@ -963,11 +1009,11 @@ function generatePDFInner(isBlank = false) {
   if (!isBlank) {
     const offeneAuswahl = ersteLeereAuswahl(
       ['.sicht-item', '.erp-item', '#res_maengel', '#res_plakette', '#res_gewaehrleistung']);
-    if (offeneAuswahl) { offeneBewertungMelden(offeneAuswahl); return; }
+    if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
   }
 
   if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
-    alert(MAENGEL_BEHOBEN_HINWEIS);
+    await appAlert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
     return;
   }
@@ -976,7 +1022,7 @@ function generatePDFInner(isBlank = false) {
    * Messtabelle bliebe leer, die Gesamtbewertung stuende trotzdem auf
    * "keine Maengel" und die Plakette waere erteilt. */
   if (!isBlank && document.querySelectorAll('.circuit-card').length === 0) {
-    keinePrueflingeMelden('Stromkreis');
+    await keinePrueflingeMelden('Stromkreis');
     return;
   }
 
@@ -988,7 +1034,7 @@ function generatePDFInner(isBlank = false) {
       document.querySelectorAll('.circuit-card'),
       ['.c-rpe', '.c-riso', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta', '.c-umess'],
       '.c-totgelegt');
-    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Stromkreis'); return; }
+    if (ohneMessung.length) { await ohneMessungMelden(ohneMessung, 'Stromkreis'); return; }
 
     // Ein totgelegter Stromkreis MUSS einen Fehlertext haben - sonst
     // dokumentiert das Protokoll eine Freischaltung ohne erkennbaren Grund.
@@ -999,7 +1045,7 @@ function generatePDFInner(isBlank = false) {
       }
     });
     if (totOhneGrund.length) {
-      alert('Stromkreis ' + totOhneGrund.join(', ') + ' ist als totgelegt markiert, aber es fehlt die Angabe des festgestellten Fehlers.\n\n' +
+      await appAlert('Stromkreis ' + totOhneGrund.join(', ') + ' ist als totgelegt markiert, aber es fehlt die Angabe des festgestellten Fehlers.\n\n' +
         'Bitte im Feld "Festgestellter Fehler / Grund der Totlegung" eintragen.\n\nDas PDF wurde deshalb nicht erstellt.');
       return;
     }
@@ -1008,7 +1054,7 @@ function generatePDFInner(isBlank = false) {
   /* Mindestangaben: ohne sie ist das Protokoll keinem Vorgang zuzuordnen. */
   if (!isBlank) {
     const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'anlage_bez', 'auftraggeber']);
-    if (fehlend) { pflichtfeldMelden(fehlend); return; }
+    if (fehlend) { await pflichtfeldMelden(fehlend); return; }
   }
 
   /* Bei Netzersatzanlage und Wechselrichter ist die Frequenz ein echter
@@ -1017,7 +1063,7 @@ function generatePDFInner(isBlank = false) {
    * trotzdem ohne Frequenzangabe erzeugt. */
   if (!isBlank && istErsatzstromversorgung() &&
       String(document.getElementById('netzfrequenz')?.value || '').trim() === '') {
-    pflichtfeldMelden({ el: document.getElementById('netzfrequenz'), id: 'netzfrequenz' });
+    await pflichtfeldMelden({ el: document.getElementById('netzfrequenz'), id: 'netzfrequenz' });
     return;
   }
 
@@ -1029,7 +1075,7 @@ function generatePDFInner(isBlank = false) {
       String(document.getElementById('netzmessung_steckverbindung')?.value || '').trim() === '') {
     const block = document.getElementById('netzmessung_block');
     if (block) block.open = true;
-    pflichtfeldMelden({ el: document.getElementById('netzmessung_steckverbindung'), id: 'netzmessung_steckverbindung' });
+    await pflichtfeldMelden({ el: document.getElementById('netzmessung_steckverbindung'), id: 'netzmessung_steckverbindung' });
     return;
   }
 
@@ -1037,14 +1083,14 @@ function generatePDFInner(isBlank = false) {
    * harter Abbruch - es gibt Nachpruefungen mit rueckdatiertem Termin. */
   const terminRoh = String(document.getElementById('res_termin_date')?.value || '');
   if (!isBlank && terminRoh && terminRoh < heuteIso().slice(0, 7)) {
-    if (!confirm('Der nächste Prüftermin (' + terminRoh.replace('-', ' / ') +
+    if (!await appConfirm('Der nächste Prüftermin (' + terminRoh.replace('-', ' / ') +
                  ') liegt in der Vergangenheit.\n\nTrotzdem fortfahren?')) return;
   }
 
   /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
    * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
   const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
-  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+  if (!isBlank && !await protokollNummerFreigeben(nummerRoh)) return;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -1224,17 +1270,28 @@ function generatePDFInner(isBlank = false) {
                     NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA1, NM_FELD_B, isBlank, { rot: !!rot });
     };
     doc.setFontSize(6.6);
-    nmZelle('U L1-N',  'u_l1n', 0, 0);
-    nmZelle('U L2-N',  'u_l2n', 1, 0);
-    nmZelle('U L3-N',  'u_l3n', 2, 0);
-    nmZelle('f',       'netzfrequenz', 3, 0);
-    nmZelle('U L1-L2', 'u_l12', 0, 1);
-    nmZelle('U L2-L3', 'u_l23', 1, 1);
-    nmZelle('U L1-L3', 'u_l13', 2, 1);
-    // N-PE ist der einzige Wert der Netzmessung, der eigenstaendig einen
-    // Fehler findet (hochohmiger PEN, Fremdeinspeisung) -> bei Ueberschreitung
-    // rot, damit er nicht als unauffaellige Zahl untergeht.
-    nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
+    // [7.3.0, Nutzerwunsch #2] Bei 1-phasiger Netzart (z. B. Schukosteckdose
+    // ohne Drehstromanschluss) ergeben L2-N/L3-N/die drei L-L-Werte keinen
+    // Sinn - statt sie leer bzw. als "n. gem." zu drucken (wirkt wie ein
+    // vergessenes Feld), wird nur eine kompakte Zeile mit U/f/N-PE gedruckt.
+    const drehstrom = isBlank || istNetzmessungDrehstrom();
+    if (drehstrom) {
+      nmZelle('U L1-N',  'u_l1n', 0, 0);
+      nmZelle('U L2-N',  'u_l2n', 1, 0);
+      nmZelle('U L3-N',  'u_l3n', 2, 0);
+      nmZelle('f',       'netzfrequenz', 3, 0);
+      nmZelle('U L1-L2', 'u_l12', 0, 1);
+      nmZelle('U L2-L3', 'u_l23', 1, 1);
+      nmZelle('U L1-L3', 'u_l13', 2, 1);
+      // N-PE ist der einzige Wert der Netzmessung, der eigenstaendig einen
+      // Fehler findet (hochohmiger PEN, Fremdeinspeisung) -> bei Ueberschreitung
+      // rot, damit er nicht als unauffaellige Zahl untergeht.
+      nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
+    } else {
+      nmZelle('U (1-phasig)', 'u_l1n', 0, 0);
+      nmZelle('f',       'netzfrequenz', 1, 0);
+      nmZelle('U N-PE',  'u_npe', 2, 0, isNpeOut);
+    }
 
     doc.setFontSize(7.2);
   }
@@ -1431,6 +1488,7 @@ function generatePDFInner(isBlank = false) {
       }
 
       const rcdTyp = card.querySelector('.c-rcd-typ').value;
+      const rcdIn = card.querySelector('.c-rcd-in')?.value || '';
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
       const rcdImess = card.querySelector('.c-rcd-imess').value;
       const rcdTa = card.querySelector('.c-rcd-ta').value;
@@ -1441,7 +1499,7 @@ function generatePDFInner(isBlank = false) {
       // Zelltext und Dokumentationsmaengel zentral aufbauen (siehe pdf-utils.js).
       // Messwerte erscheinen dadurch auch dann, wenn das Typ-Feld leer blieb.
       const rcdZelle = buildRcdZelle({
-        typ: rcdTyp, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
+        typ: rcdTyp, in: rcdIn, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
       });
 
       // Ausloesezeit nur bewerten, wenn der Pruefstrom bekannt ist - sonst gibt
@@ -1743,7 +1801,7 @@ function generatePDFInner(isBlank = false) {
 
   // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT gewährleistet" schreibt.
   if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
-    alert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+    await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
     document.getElementById('res_gewaehrleistung')?.focus();
     return;
   }
@@ -1751,7 +1809,7 @@ function generatePDFInner(isBlank = false) {
   // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
   // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
   if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
-    alert(plaketteWiderspruchHinweis());
+    await appAlert(plaketteWiderspruchHinweis());
     document.getElementById('res_plakette')?.focus();
     return;
   }
@@ -1904,7 +1962,7 @@ function generatePDFInner(isBlank = false) {
    * Rueckmeldung. anschluss-generator.js/geraete-generator.js legen das
    * eigene try/catch bereits INNERHALB des .then()-Callbacks (siehe dort) -
    * hier jetzt nachgezogen, analog. */
-  fotoLadenPromise.then(function (fotos) {
+  fotoLadenPromise.then(async function (fotos) {
     try {
       if (fotos.length) {
         drawFotodokumentationSeite(doc, fotos, '5. FOTODOKUMENTATION', 'Stromkreis');
@@ -1923,7 +1981,7 @@ function generatePDFInner(isBlank = false) {
        * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
        * ein Leerformular ebenfalls nicht. */
       Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('PR', nummerRoh, filename, isBlank)))
-        .then(function (gespeichert) {
+        .then(async function (gespeichert) {
         if (isBlank || gespeichert === false) return;
         // Verbraucht/markiert NUR die soeben erstellte Nummer als vergeben
         // (wichtig fuer die Doppelvergabe-Pruefung). Der Protokollzaehler selbst
@@ -1932,13 +1990,13 @@ function generatePDFInner(isBlank = false) {
         // bleibt nach dem PDF weiterhin bearbeitbar, ein erneuter Export ersetzt
         // einfach die gerade heruntergeladene Datei (gleicher Dateiname).
         verbraucheProtokollNummer(nummerRoh, 'PR');
-        nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
+        await nachPdfNeuesFormularAnbieten('PR', nummerRoh, resetVdeForm, clearAutosave, function () {
           AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('PR');
         });
       });
     } catch (err) {
       console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-      alert(
+      await appAlert(
         'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
         'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
         'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -1981,7 +2039,7 @@ function AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('PR', AKTUELLER_
 const AUTOSAVE_FIELD_IDS = [
   'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'pruefnorm', 'pruefgrund', 'netzsystem',
   'netzspannung', 'netzfrequenz', 'einspeisung', 'hausanschluss', 'vnb', 'messgeraet', 'seriennummer',
-  'netzmessung_speisepunkt_art', 'netzmessung_steckverbindung',
+  'netzmessung_netzart', 'netzmessung_speisepunkt_art', 'netzmessung_steckverbindung',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erdung_re', 'erdung_messpunkt',
@@ -1999,6 +2057,10 @@ function collectProtocolState() {
 
   state.anlage_bez = document.getElementById('anlage_bez').value;
   state.gebaeude = document.getElementById('gebaeude_custom').value;
+  // [7.3.0, Nutzerwunsch #5] Checkbox getrennt behandeln - AUTOSAVE_FIELD_IDS
+  // liest generisch .value aus, das bei einer Checkbox immer "on" waere,
+  // unabhaengig vom tatsaechlichen Haken.
+  state.res_termin_bestaetigt = !!document.getElementById('res_termin_bestaetigt')?.checked;
   state.sicht = Array.from(document.querySelectorAll('.sicht-item')).map(s => s.value);
   // Erproben laeuft jetzt ueber .erp-item statt ueber feste IDs - so wachsen
   // neue Pruefpunkte automatisch in Autosave und Sicherung mit.
@@ -2020,6 +2082,7 @@ function collectProtocolState() {
     zln: card.querySelector('.c-zln').value,
     ik2: card.querySelector('.c-ik2').value,
     rcd_typ: card.querySelector('.c-rcd-typ').value,
+    rcd_in: card.querySelector('.c-rcd-in').value,
     rcd_idn: card.querySelector('.c-rcd-idn').value,
     rcd_imess: card.querySelector('.c-rcd-imess').value,
     rcd_ta: card.querySelector('.c-rcd-ta').value,
@@ -2069,6 +2132,14 @@ function restoreProtocolState(state) {
     ta.style.height = ta.scrollHeight + 'px';
   }
 
+  // [7.3.0, Nutzerwunsch #5] Bestaetigungs-Checkbox wiederherstellen +
+  // gelbe Markierung entsprechend nachziehen.
+  const terminCheckbox = document.getElementById('res_termin_bestaetigt');
+  if (terminCheckbox) {
+    terminCheckbox.checked = !!state.res_termin_bestaetigt;
+    if (typeof pruefdatumBestaetigungAktualisieren === 'function') pruefdatumBestaetigungAktualisieren();
+  }
+
   // Mitwachsende Textfelder nach dem Wiederherstellen auf Inhaltshoehe bringen
   ['res_bemerkungen'].forEach(id => {
     const ta = document.getElementById(id);
@@ -2087,6 +2158,7 @@ function restoreProtocolState(state) {
   });
   updateEinspeisung();
   updateNetzmessungArt();
+  updateNetzmessungNetzart();
   validateNetzmessung();
 
   if (state.circuits && state.circuits.length) {

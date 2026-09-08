@@ -350,7 +350,17 @@ function zusatzIconsEinbinden() {
       : document.getElementById('feedsContainer') ? 'AP'
       : 'PR';
     pruefdatumPlatzhalter.innerHTML = pruefterminInfokarteHtml(praefix);
-    pruefdatumAnzeigeAktualisieren();
+  }
+
+  // [7.3.0, Nutzerwunsch #5] Bestaetigungs-Checkbox unter #res_termin_date
+  // einfuegen (nur in vde0100.html/geraetepruefung.html vorhanden -
+  // anschlusspruefung.html hat kein res_termin_date-Feld, siehe oben).
+  const terminBestaetigungPlatzhalter = document.getElementById('pruefdatum_bestaetigung_platzhalter');
+  if (terminBestaetigungPlatzhalter && !terminBestaetigungPlatzhalter.innerHTML) {
+    terminBestaetigungPlatzhalter.innerHTML = pruefterminBestaetigungHtml();
+    pruefdatumBestaetigungAktualisieren();
+    const checkbox = document.getElementById('res_termin_bestaetigt');
+    if (checkbox) checkbox.addEventListener('change', pruefdatumBestaetigungAktualisieren);
   }
 }
 
@@ -466,25 +476,24 @@ if (typeof document !== 'undefined') {
 }
 
 /* ============================================================================
- *  PRUEFFRISTEN-INFOKARTE (7.2.0, Nutzerwunsch #10)
+ *  PRUEFFRISTEN-INFOKARTE (7.2.0, Nutzerwunsch #10; 7.3.0, Nutzerwunsch #5)
  * ----------------------------------------------------------------------------
- *  Problem: der naechste Pruefungstermin (Feld #res_termin_date) stand bisher
- *  nur als ganz normales Formularfeld irgendwo im Formular (bei vde0100.html
- *  sogar erst in Abschnitt 6 "Gesamtbewertung", also ganz am Ende) - beim
- *  Ausfuellen leicht zu uebersehen, und es gab keine kompakte Erinnerung an
- *  die gesetzlichen/normativen Wiederholungsfristen.
+ *  Zeigt am Anfang jedes Formulars (Abschnitt 1, Stammdaten) eine kompakte,
+ *  ausklappbare Kurzuebersicht der normativen Wiederholungsfristen.
  *
- *  Jetzt: eine auffaellige Box direkt am Anfang jedes Formulars (Abschnitt 1,
- *  Stammdaten), die den aktuell im Formular eingetragenen Termin GROSS
- *  anzeigt (live, per Event-Listener auf #res_termin_date synchronisiert -
- *  in geraetepruefung.html wird der Wert zusaetzlich automatisch aus dem
- *  Pruefintervall berechnet, siehe updateNaechsterTermin()) und per
- *  <details> ausklappbar die normativen Fristen als Kurzuebersicht zeigt.
+ *  [7.3.0] Die urspruenglich hier zusaetzlich gezeigte GROSSE Live-Anzeige
+ *  des im Formular eingetragenen naechsten Pruefdatums wurde auf Wunsch
+ *  wieder entfernt - das Datum wird stattdessen NUR noch dort hervorgehoben,
+ *  wo es tatsaechlich eingetragen wird: am ENDE der Pruefung, direkt am
+ *  Eingabefeld #res_termin_date (gelb markiert, mit Bestaetigungs-Checkbox),
+ *  siehe pruefterminBestaetigungHtml() weiter unten. Am Anfang stehend hatte
+ *  der Termin faelschlich den Eindruck erweckt, er gehoere zu den
+ *  Stammdaten, die vor der eigentlichen Pruefung feststehen.
  *
  *  anschlusspruefung.html hat bewusst KEIN #res_termin_date-Feld (ein
  *  Uebergabepunkt fuer eine einzelne Veranstaltung hat keinen eigenen
  *  wiederkehrenden Pruefzyklus im selben Sinne) - dort wird nur die
- *  ausklappbare Fristen-Uebersicht angezeigt, ohne Termin-Anzeige. */
+ *  ausklappbare Fristen-Uebersicht angezeigt. */
 const PRUEFFRISTEN_TEXT_VDE0100 =
   'Ortsfeste elektrische Anlagen nach DIN VDE 0105-100: die Wiederholungsprüfungsfrist richtet sich nach ' +
   'Betriebsart, Umgebungsbedingungen und einer betrieblichen Gefährdungsbeurteilung (häufig 1–4 Jahre je nach ' +
@@ -508,15 +517,8 @@ function pruefterminInfokarteHtml(praefix) {
   const text = praefix === 'GP' ? PRUEFFRISTEN_TEXT_GERAETE
     : praefix === 'AP' ? PRUEFFRISTEN_TEXT_ANSCHLUSS
     : PRUEFFRISTEN_TEXT_VDE0100;
-  const zeigeTermin = praefix !== 'AP';
   return (
     '<div class="pruefdatum-box">' +
-      (zeigeTermin
-        ? '<div class="pruefdatum-anzeige">' +
-            '<span class="pruefdatum-label">📅 Nächster Prüftermin:</span> ' +
-            '<span class="pruefdatum-wert" id="pruefdatum_anzeige_wert">– noch nicht gesetzt –</span>' +
-          '</div>'
-        : '') +
       '<details class="infokarte pruefdatum-infokarte">' +
         '<summary>ℹ️ Wie wird die Prüffrist bestimmt?</summary>' +
         '<div class="infokarte-inhalt"><p>' + text + '</p></div>' +
@@ -525,44 +527,56 @@ function pruefterminInfokarteHtml(praefix) {
   );
 }
 
-/* Haelt #pruefdatum_anzeige_wert synchron zum eigentlichen Formularfeld
- * #res_termin_date - reiner Anzeige-Spiegel, keine eigene Datenhaltung.
- * Wird bei jedem 'input'/'change' auf dem Feld sowie beim initialen Laden
- * (auch nach Wiederherstellen aus Autosave/Archiv) aufgerufen. */
-function pruefdatumAnzeigeAktualisieren() {
-  const anzeige = document.getElementById('pruefdatum_anzeige_wert');
+/* ============================================================================
+ *  PRUEFTERMIN-BESTAETIGUNG AM ENDE DER PRUEFUNG (7.3.0, Nutzerwunsch #5)
+ * ----------------------------------------------------------------------------
+ *  Direkt unter dem Eingabefeld #res_termin_date eingeblendet: das Feld wird
+ *  gelb markiert (auffaellige Warnfarbe, nicht die normale Pflichtfeld-
+ *  Ampel), und eine Checkbox verlangt die explizite Bestaetigung, dass der
+ *  Pruefer den naechsten Termin zur Kenntnis genommen hat. Anders als ein
+ *  einfaches Pflichtfeld dokumentiert die Bestaetigung eine bewusste
+ *  Wahrnehmung, nicht nur eine Eingabe - das Feld kann ja technisch auch
+ *  automatisch vorbelegt sein (geraetepruefung.html), ohne dass der Pruefer
+ *  es tatsaechlich angesehen hat. */
+function pruefterminBestaetigungHtml() {
+  return (
+    '<div class="form-group pruefdatum-bestaetigung-gruppe">' +
+      '<label class="pruefdatum-bestaetigung-label">' +
+        '<input type="checkbox" id="res_termin_bestaetigt">' +
+        ' Nächster Prüftermin zur Kenntnis genommen' +
+      '</label>' +
+    '</div>'
+  );
+}
+
+/* Gelbe Warnmarkierung am Feld #res_termin_date, solange die Bestaetigung
+ * (Checkbox) nicht gesetzt ist - unabhaengig davon, ob ueberhaupt schon ein
+ * Datum eingetragen wurde (das Feld ist z.T. automatisch vorbelegt, siehe
+ * geraetepruefung.html, ohne dass das schon eine bewusste Wahrnehmung waere). */
+function pruefdatumBestaetigungAktualisieren() {
   const feld = document.getElementById('res_termin_date');
-  if (!anzeige || !feld) return;
-  const wert = String(feld.value || '').trim();
-  if (!wert) {
-    anzeige.textContent = '– noch nicht gesetzt –';
-    anzeige.classList.remove('pruefdatum-gesetzt');
-    return;
-  }
-  const teile = wert.split('-'); // "JJJJ-MM" (input type=month)
-  anzeige.textContent = teile.length === 2 ? (teile[1] + ' / ' + teile[0]) : wert;
-  anzeige.classList.add('pruefdatum-gesetzt');
+  const checkbox = document.getElementById('res_termin_bestaetigt');
+  if (!feld || !checkbox) return;
+  feld.classList.toggle('pruefdatum-unbestaetigt', !checkbox.checked);
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', function () {
-    pruefdatumAnzeigeAktualisieren();
-    const feld = document.getElementById('res_termin_date');
-    if (feld) {
-      feld.addEventListener('input', pruefdatumAnzeigeAktualisieren);
-      feld.addEventListener('change', pruefdatumAnzeigeAktualisieren);
-    }
-  });
-  // Deckt auch Faelle ab, in denen res_termin_date programmatisch gesetzt
-  // wird (Autosave-Wiederherstellung, Archiv-Vorlage, automatische
-  // Berechnung in geraetepruefung.html) - dort wird ohnehin regelmaessig
-  // aktualisiereAlle()/restoreProtocolState() aufgerufen; ein document-weiter
-  // 'input'/'change'-Listener faengt diese Faelle zusaetzlich ab, ohne dass
-  // jede einzelne Setzstelle einzeln angepasst werden muss.
+  // (Initiales pruefdatumBestaetigungAktualisieren() + change-Listener auf
+  // der Checkbox passieren bereits direkt beim Einfuegen des Platzhalter-
+  // HTML in zusatzIconsEinbinden() weiter oben - kein zusaetzlicher
+  // DOMContentLoaded-Handler noetig, das wuerde den change-Listener doppelt
+  // registrieren.)
+  // Wird der Termin NACH dem Bestaetigen noch geaendert (z. B. Korrektur),
+  // soll die Bestaetigung nicht stillschweigend fuer den neuen Wert
+  // weitergelten - die Checkbox wird zurueckgesetzt, die gelbe Markierung
+  // erscheint wieder, bis erneut bestaetigt wird. Deckt auch den Fall ab,
+  // dass res_termin_date programmatisch neu gesetzt wird (Autosave-
+  // Wiederherstellung, Archiv-Vorlage, automatische Berechnung in
+  // geraetepruefung.html).
   document.addEventListener('input', function (ev) {
-    if (ev.target && ev.target.id === 'res_termin_date') pruefdatumAnzeigeAktualisieren();
-  });
-  document.addEventListener('change', function (ev) {
-    if (ev.target && ev.target.id === 'res_termin_date') pruefdatumAnzeigeAktualisieren();
+    if (!ev.target || ev.target.id !== 'res_termin_date') return;
+    const checkbox = document.getElementById('res_termin_bestaetigt');
+    if (checkbox && checkbox.checked) checkbox.checked = false;
+    pruefdatumBestaetigungAktualisieren();
   });
 }

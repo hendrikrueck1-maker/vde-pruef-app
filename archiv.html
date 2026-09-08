@@ -20,6 +20,7 @@
   <script src="js/app-config.js"></script>
   <script src="js/pwa.js" defer></script>
   <script src="js/vendor/jszip.min.js"></script>
+  <script src="js/pdf-utils.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/entwuerfe.js"></script>
   <script src="js/archiv.js"></script>
@@ -131,7 +132,7 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Wird erstellt …'; }
     archivZipMonatErstellen(schluessel, alleEintraege).then(function (anzahl) {
       if (btn) { btn.disabled = false; btn.textContent = 'ZIP herunterladen'; }
-      if (!anzahl) alert('Für diesen Monat sind keine Protokolle im Archiv.');
+      if (!anzahl) appAlert('Für diesen Monat sind keine Protokolle im Archiv.');
     });
   }
 
@@ -140,7 +141,7 @@
     return alleEintraege.filter(function (e) {
       if (filterTyp !== 'alle' && e.praefix !== filterTyp) return false;
       if (!suche) return true;
-      var heu = [e.nummer, e.gebaeude, e.pruefer, e.dateiname, archivTyp(e.praefix).label,
+      var heu = [e.nummer, e.gebaeude, e.anlage, e.pruefer, e.dateiname, archivTyp(e.praefix).label,
                  archivDatumKurz(e.pruefdatum)].join(' ').toLowerCase();
       return heu.indexOf(suche) !== -1;
     });
@@ -233,7 +234,12 @@
     mitte.appendChild(nr);
     var sub = document.createElement('div');
     sub.className = 'archiv-sub';
-    sub.textContent = [typ.label, e.gebaeude, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
+    // [7.3.0, Nutzerwunsch #7] e.anlage (Anlagenbezeichnung, z. B. "Hauptverteilung
+    // Unterbühne UV-1") zusaetzlich zu e.gebaeude ("Gr. Haus") anzeigen, damit
+    // zwei Protokolle im selben Gebaeude in der Liste unterscheidbar sind -
+    // nur bei vde0100.html vorhanden, bei den anderen beiden Formulartypen
+    // bleibt e.anlage leer und faellt per filter(Boolean) einfach weg.
+    sub.textContent = [typ.label, e.gebaeude, e.anlage, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
       .filter(Boolean).join(' · ');
     mitte.appendChild(sub);
     zeile.appendChild(mitte);
@@ -283,10 +289,10 @@
     archivPdfTeilen(eintraege);
   }
 
-  function auswahlLoeschen() {
+  async function auswahlLoeschen() {
     var ids = auswahlIds();
     if (!ids.length) return;
-    if (!confirm(ids.length + ' Protokoll(e) endgültig aus dem Archiv löschen?\n\n' +
+    if (!await appConfirm(ids.length + ' Protokoll(e) endgültig aus dem Archiv löschen?\n\n' +
                  'Bereits heruntergeladene oder geteilte PDFs bleiben davon unberührt.')) return;
     archivLoeschen(ids).then(function () { auswahl = {}; auswahlLeisteAktualisieren(); laden(); });
   }
@@ -306,6 +312,7 @@
       ['Prüfdatum', archivDatumKurz(e.pruefdatum) || '–'],
       ['Erstellt', archivDatumKurz(e.erstellt.slice(0, 10)) + ', ' + e.erstellt.slice(11, 16) + ' Uhr'],
       ['Gebäude / Bereich', e.gebaeude || '–'],
+      ['Anlage', e.anlage || '–'],
       ['Prüfer/-in', e.pruefer || '–'],
       [typ.einheit, e.anzahl || '–'],
       ['Gesamtbewertung', e.maengel || '–'],
@@ -335,21 +342,21 @@
   function detailOeffnen() { if (aktuellerEintrag) archivPdfOeffnen(aktuellerEintrag); }
   function detailTeilen() { if (aktuellerEintrag) archivPdfTeilen(aktuellerEintrag); }
 
-  function detailLoeschen() {
+  async function detailLoeschen() {
     if (!aktuellerEintrag) return;
-    if (!confirm('Protokoll ' + (aktuellerEintrag.nummer || aktuellerEintrag.dateiname) +
+    if (!await appConfirm('Protokoll ' + (aktuellerEintrag.nummer || aktuellerEintrag.dateiname) +
                  ' endgültig aus dem Archiv löschen?')) return;
     archivLoeschen(aktuellerEintrag.id).then(function () { detailSchliessen(); laden(); });
   }
 
-  function detailVorlage() {
+  async function detailVorlage() {
     if (!aktuellerEintrag) return;
     var typ = archivTyp(aktuellerEintrag.praefix);
-    if (!confirm('Neues ' + typ.label + '-Formular aus ' + (aktuellerEintrag.nummer || 'diesem Protokoll') + ' anlegen?\n\n' +
+    if (!await appConfirm('Neues ' + typ.label + '-Formular aus ' + (aktuellerEintrag.nummer || 'diesem Protokoll') + ' anlegen?\n\n' +
                  'Übernommen werden nur beschreibende Angaben. Alle Messwerte und Bewertungen ' +
                  'bleiben leer.\n\nEin vorhandener Zwischenstand in diesem Formular wird überschrieben.')) return;
     var ziel = archivVorlageUebernehmen(aktuellerEintrag);
-    if (!ziel) { alert('Für dieses Protokoll wurde kein Formularstand mitgespeichert.'); return; }
+    if (!ziel) { await appAlert('Für dieses Protokoll wurde kein Formularstand mitgespeichert.'); return; }
     location.href = ziel;
   }
 

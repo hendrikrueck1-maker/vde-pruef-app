@@ -51,7 +51,8 @@
       <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
     </div>
     <h1>Prüfung elektrischer Geräte</h1>
-    <div>
+    <!-- [7.3.0, Nutzerwunsch #8] siehe gleichlautender Kommentar in vde0100.html. -->
+    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
       <button type="button" class="btn btn-secondary" onclick="fillExampleDataGeraete()">+ Beispieldaten laden</button>
       <button type="button" class="btn btn-secondary" onclick="neuesGeraeteProtokoll()">+ Neues Formular</button>
     </div>
@@ -113,11 +114,6 @@
         </select>
       </div>
       <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum"></div>
-      <div class="form-group">
-        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
-        <input type="month" id="res_termin_date">
-        <div class="limit-hint">Ergibt sich aus der Prüffrist, kann überschrieben werden.</div>
-      </div>
       <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
@@ -162,6 +158,15 @@
           <option value="Ja">Ja (Geräte entsprechen den Normen)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
         </select>
+      </div>
+      <div class="form-group">
+        <!-- [7.3.0, Nutzerwunsch #5] Ans Ende der Pruefung verschoben (vorher
+             in Abschnitt 1, Stammdaten) - der Termin gehoert inhaltlich zum
+             Pruefergebnis, nicht zu den vorab feststehenden Stammdaten. -->
+        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
+        <input type="month" id="res_termin_date">
+        <div class="limit-hint">Ergibt sich aus der Prüffrist, kann überschrieben werden.</div>
+        <div id="pruefdatum_bestaetigung_platzhalter"></div>
       </div>
     </div>
 

@@ -281,8 +281,18 @@ function renderOffenePruefungen(containerId) {
     html += '<p style="font-size:0.85rem; color:var(--secondary);">Keine wirklich offenen Prüfungen mehr – alle sind als abgeschlossen markiert.</p>';
   }
   if (abgeschlossen.length) {
-    html += '<h3 class="offene-pruefungen-abgeschlossen-titel">Abgeschlossen, aber noch nicht als PDF archiviert (' + abgeschlossen.length + ')</h3>';
-    html += abgeschlossen.map(zeile).join('');
+    // [7.3.0, Nutzerwunsch #6] Abgeschlossene Pruefungen jetzt in einem
+    // eigenen, standardmaessig EINGEKLAPPTEN <details>-Element statt
+    // dauerhaft sichtbar unter einer Zwischenueberschrift - bei vielen
+    // abgeschlossenen Entwuerfen bleibt die Liste "Offene Prüfungen" so
+    // uebersichtlich. Der offen-Zustand wird bewusst NICHT sitzungsweit
+    // gemerkt (anders als die Mess-Infokarten) - die Liste soll bei jedem
+    // Aufruf der Startseite wieder eingeklappt starten, das ist hier der
+    // sinnvolle Normalzustand.
+    html += '<details class="offene-pruefungen-abgeschlossen-details">' +
+      '<summary class="offene-pruefungen-abgeschlossen-titel">Abgeschlossen, aber noch nicht als PDF archiviert (' + abgeschlossen.length + ')</summary>' +
+      abgeschlossen.map(zeile).join('') +
+    '</details>';
   }
   el.innerHTML = html;
 }
@@ -303,8 +313,8 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-function offenePruefungLoeschen(entwurfId, praefix) {
-  if (!confirm('Diese offene Prüfung endgültig löschen? Ein noch nicht als PDF gespeicherter Zwischenstand geht dabei verloren.')) return;
+async function offenePruefungLoeschen(entwurfId, praefix) {
+  if (!await appConfirm('Diese offene Prüfung endgültig löschen? Ein noch nicht als PDF gespeicherter Zwischenstand geht dabei verloren.')) return;
   entwurfEntfernen(entwurfId);
   try { localStorage.removeItem(autosaveKeyFuerEntwurf(praefix, entwurfId)); } catch (e) {}
   if (typeof renderOffenePruefungen === 'function') renderOffenePruefungen('offenePruefungenListe');

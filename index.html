@@ -227,8 +227,8 @@
   }
 
   /* Version & Update ------------------------------------------------------ */
-  function appZuruecksetzenMitFrage() {
-    if (!confirm('Offline-Speicher zurücksetzen?\n\n' +
+  async function appZuruecksetzenMitFrage() {
+    if (!await appConfirm('Offline-Speicher zurücksetzen?\n\n' +
                  'Alle zwischengespeicherten Dateien werden neu vom Server geladen.\n' +
                  'Stammdaten, Protokollzähler und Zwischenspeicher bleiben erhalten.')) return;
     appZuruecksetzen();

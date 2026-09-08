@@ -197,6 +197,15 @@ function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
     isBlank: !!isBlank,
     pruefdatum: archivFeld('datum'),
     gebaeude: archivFeld('gebaeude_custom') || archivFeld('anlage_bez') || archivFeld('veranstaltung'),
+    // [7.3.0, Nutzerwunsch #7] Bisher ging die Anlagenbezeichnung (z. B.
+    // "Hauptverteilung Unterbühne UV-1") unter, sobald zusaetzlich ein
+    // Gebaeude/Bereich gesetzt war ("Gr. Haus") - beide Werte zusammen
+    // sind aber genau das, was zwei Eintraege im selben Gebaeude
+    // unterscheidbar macht. anlage_bez wird deshalb jetzt zusaetzlich als
+    // eigenes Feld gespeichert (in vde0100.html vorhanden; in
+    // anschlusspruefung.html/geraetepruefung.html existiert das Feld
+    // nicht, archivFeld() liefert dann '').
+    anlage: archivFeld('anlage_bez'),
     pruefer: archivFeld('pruefer'),
     maengel: archivFeld('res_maengel'),
     ergebnis: archivFeld('res_gewaehrleistung') || archivFeld('res_freigabe'),
@@ -321,7 +330,7 @@ function archivZipEindeutigerName(name, vergeben) {
  * (0 = nichts zu tun, ruft dann keinen Download auf). */
 function archivZipMonatErstellen(monatSchluessel, alleEintraege) {
   if (typeof JSZip === 'undefined') {
-    alert('ZIP-Funktion nicht verfügbar (JSZip nicht geladen). Bitte Seite neu laden.');
+    appAlert('ZIP-Funktion nicht verfügbar (JSZip nicht geladen). Bitte Seite neu laden.');
     return Promise.resolve(0);
   }
   var treffer = (alleEintraege || []).filter(function (e) {
@@ -352,7 +361,7 @@ function archivZipMonatErstellen(monatSchluessel, alleEintraege) {
     })
     .catch(function (err) {
       console.warn('[Archiv] ZIP-Erstellung fehlgeschlagen:', err);
-      alert('Die ZIP-Datei konnte nicht erstellt werden: ' + (err && err.message ? err.message : err));
+      appAlert('Die ZIP-Datei konnte nicht erstellt werden: ' + (err && err.message ? err.message : err));
       return 0;
     });
 }

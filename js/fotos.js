@@ -367,7 +367,7 @@ function fotosDateienAusgewaehlt(input, kartenKey) {
   fotosFuerKarteLaden(kartenKey).then(function (vorhandene) {
     var frei = FOTOS_MAX_PRO_KARTE - vorhandene.length;
     if (frei <= 0) {
-      alert('Maximal ' + FOTOS_MAX_PRO_KARTE + ' Fotos je Karte. Bitte zuerst ein vorhandenes Foto entfernen.');
+      appAlert('Maximal ' + FOTOS_MAX_PRO_KARTE + ' Fotos je Karte. Bitte zuerst ein vorhandenes Foto entfernen.');
       return;
     }
     var zuVerarbeiten = dateien.slice(0, frei);
@@ -378,7 +378,7 @@ function fotosDateienAusgewaehlt(input, kartenKey) {
     })).then(function () {
       fotosLeisteAktualisieren(kartenKey);
     }).catch(function () {
-      alert('Foto konnte nicht gespeichert werden (Speicherplatz auf dem Gerät prüfen).');
+      appAlert('Foto konnte nicht gespeichert werden (Speicherplatz auf dem Gerät prüfen).');
     });
   });
 }

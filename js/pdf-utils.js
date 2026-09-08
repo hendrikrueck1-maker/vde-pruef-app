@@ -1,6 +1,109 @@
 // GEMEINSAME HILFSFUNKTIONEN FÜR ALLE PROTOKOLLTYPEN (PDF-ERZEUGUNG, FORMULAR-HELPER)
 
 /* ---------------------------------------------------------------------------
+ *  [7.3.0, Nutzerwunsch #9] APP-EIGENE HINWEIS-/BESTAETIGUNGSDIALOGE
+ * ---------------------------------------------------------------------------
+ *  VORHER: alert() und confirm() des Browsers - erscheinen als dunkle,
+ *  system-eigene Dialogboxen ("Diese Seite sagt..."), die optisch nichts mit
+ *  der App zu tun haben (siehe Screenshot des Nutzers). JETZT: eigene, an
+ *  das App-Design angepasste Dialoge auf Basis des <dialog>-Elements, mit
+ *  denselben Buttons/Farben wie der Rest der App (.btn / .btn-secondary).
+ *
+ *  appAlert(nachricht) ersetzt alert() 1:1 - liefert ein Promise<void>, das
+ *  aufgeloest wird, sobald "OK" gedrueckt wurde. appConfirm(nachricht)
+ *  ersetzt confirm() - liefert ein Promise<boolean> (true = OK/Bestaetigen,
+ *  false = Abbrechen). Da ein <dialog> nicht synchron blockieren kann wie
+ *  das browsereigene confirm(), MUESSEN alle aufrufenden Funktionen mit
+ *  await appAlert(...) / await appConfirm(...) arbeiten und selbst async
+ *  sein - das ist an jeder Aufrufstelle in den drei generator-Dateien sowie
+ *  in storage.js/archiv.js/entwuerfe.js/fotos.js entsprechend nachgezogen.
+ *
+ *  Fallback: falls <dialog> im Browser nicht unterstuetzt wird (praktisch
+ *  nie mehr der Fall), faellt appAlert/appConfirm automatisch auf das
+ *  eingebaute alert()/confirm() zurueck, damit die App nie unbedienbar wird.
+ * ------------------------------------------------------------------------ */
+function appDialogUnterstuetzt() {
+  return typeof HTMLDialogElement !== 'undefined' && typeof document.createElement('dialog').showModal === 'function';
+}
+
+function appDialogAnzeigen(nachricht, buttons) {
+  return new Promise(function (resolve) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'app-dialog';
+
+    const text = document.createElement('div');
+    text.className = 'app-dialog-text';
+    // Zeilenumbrueche (\n) wie bei alert()/confirm() ueblich als <br> darstellen;
+    // Inhalt kommt ausschliesslich aus App-eigenen, fest programmierten Texten
+    // (keine Nutzereingaben), daher ist ein einfaches textContent-basiertes
+    // Escaping ausreichend und sicher.
+    String(nachricht).split('\n').forEach(function (zeile, i) {
+      if (i > 0) text.appendChild(document.createElement('br'));
+      text.appendChild(document.createTextNode(zeile));
+    });
+
+    const aktionen = document.createElement('div');
+    aktionen.className = 'app-dialog-aktionen';
+
+    let erledigt = false;
+    function schliessenMit(wert) {
+      if (erledigt) return;
+      erledigt = true;
+      resolve(wert);
+      if (dialog.open) dialog.close();
+      dialog.remove();
+    }
+
+    buttons.forEach(function (btnDef, idx) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = btnDef.label;
+      btn.className = btnDef.klasse || 'btn';
+      btn.addEventListener('click', function () { schliessenMit(btnDef.wert); });
+      aktionen.appendChild(btn);
+      if (idx === buttons.length - 1) {
+        // Standard-Button (OK/Bestaetigen) erhaelt den Fokus, wie bei den
+        // nativen Dialogen des Browsers.
+        setTimeout(function () { btn.focus(); }, 0);
+      }
+    });
+
+    dialog.appendChild(text);
+    dialog.appendChild(aktionen);
+    document.body.appendChild(dialog);
+
+    // Schliessen mit ESC (native <dialog>-Funktion) zaehlt wie "Abbrechen"
+    // bzw. bei appAlert (nur ein Button) wie dessen einziger Button.
+    dialog.addEventListener('cancel', function () {
+      const abbrechenDef = buttons.find(function (b) { return b.istAbbrechen; });
+      schliessenMit(abbrechenDef ? abbrechenDef.wert : buttons[0].wert);
+    });
+
+    dialog.showModal();
+  });
+}
+
+function appAlert(nachricht) {
+  if (!appDialogUnterstuetzt()) {
+    try { window.alert(nachricht); } catch (e) {}
+    return Promise.resolve();
+  }
+  return appDialogAnzeigen(nachricht, [
+    { label: 'OK', wert: undefined, klasse: 'btn' }
+  ]);
+}
+
+function appConfirm(nachricht) {
+  if (!appDialogUnterstuetzt()) {
+    try { return Promise.resolve(window.confirm(nachricht)); } catch (e) { return Promise.resolve(false); }
+  }
+  return appDialogAnzeigen(nachricht, [
+    { label: 'Abbrechen', wert: false, klasse: 'btn btn-secondary', istAbbrechen: true },
+    { label: 'OK', wert: true, klasse: 'btn' }
+  ]);
+}
+
+/* ---------------------------------------------------------------------------
  *  7.2.0 (Befund "Foto-Verlust nach Reload"): STABILE KARTEN-ID JE KARTE
  * ----------------------------------------------------------------------------
  *  VORHER: Der Foto-Schluessel je Karte (siehe fotoKartenKey() in fotos.js)
@@ -1046,6 +1149,10 @@ function istRcdSelektiv(typ) {
 // Liefert Text und Bewertungsflags fuer die RCD-Spalte.
 function buildRcdZelle(roh) {
   const typ = String(roh.typ || '').trim();
+  // [7.3.0, Nutzerwunsch #3] Bemessungsstrom I_n des RCD-Geraets selbst
+  // (z. B. "40 A") - eine reine Dokumentationsangabe vom Typenschild, geht
+  // NICHT in die Sicherheitsbewertung ein (anders als I_dn/Auslosezeit).
+  const inWert = String(roh.in || '').trim();
   // 4.5.0 (D1): Zahlenwerte der RCD-Zelle mit Dezimalkomma.
   // [Befund N1, 6.0.0] kommaZahlGeprueft statt kommaZahl: eine ungueltige
   // Zahl (z.B. "1,2,3") erscheint jetzt mit Warnpraefix statt unauffaellig.
@@ -1065,21 +1172,25 @@ function buildRcdZelle(roh) {
   const hatMesswerte = hatImess || hatTa;
 
   // Gar nichts eingetragen -> schlichter Strich, keine leeren Klammern.
-  if (!typAngegeben && !ohneRcd && idn === '' && !hatMesswerte) {
+  if (!typAngegeben && !ohneRcd && idn === '' && inWert === '' && !hatMesswerte) {
     return { text: '-', isOut: false, isDokumentationsmangel: false, isPruefungUnvollstaendig: false, taMax: null };
   }
 
   let dokuMangel = false;
   const zeilen = [];
 
-  // --- Kopfzeile: Typ (I_dn) ---
+  // --- Kopfzeile: Typ (I_n / I_dn) ---
+  // [7.3.0, Nutzerwunsch #3] I_n (Geraete-Bemessungsstrom) steht, falls
+  // angegeben, mit vor I_dn - beides zusammen steht auch auf dem
+  // Typenschild des RCD.
+  const inIdnKlammer = [inWert, idn].filter(Boolean).join(' / ');
   if (ohneRcd) {
     zeilen.push('Ohne RCD');
   } else if (typAngegeben) {
-    zeilen.push(idn ? `${typ} (${idn})` : typ);
+    zeilen.push(inIdnKlammer ? `${typ} (${inIdnKlammer})` : typ);
   } else {
     // Messwerte oder I_dn ohne Typ: Angabe fehlt, Messung bleibt trotzdem stehen.
-    zeilen.push(idn ? `Typ nicht angegeben (${idn})` : 'Typ nicht angegeben');
+    zeilen.push(inIdnKlammer ? `Typ nicht angegeben (${inIdnKlammer})` : 'Typ nicht angegeben');
     dokuMangel = true;
   }
 
@@ -1249,8 +1360,8 @@ function prueflingeOhneMessung(karten, messSelektoren, totgelegtSelektor) {
   return leer;
 }
 
-function ohneMessungMelden(nummern, bezeichnung) {
-  alert('Ohne Messwerte ist das kein Prüfprotokoll:\n\n' +
+async function ohneMessungMelden(nummern, bezeichnung) {
+  await appAlert('Ohne Messwerte ist das kein Prüfprotokoll:\n\n' +
     (nummern.length === 1 ? `${bezeichnung} ${nummern[0]} enthält` : `${bezeichnung} ${nummern.join(', ')} enthalten`) +
     ' keinen einzigen Messwert.\n\n' +
     'Ein Protokoll, das "keine Mängel" und eine Prüfplakette bescheinigt, obwohl an dieser Stelle nichts ' +
@@ -1901,9 +2012,9 @@ const PFLICHTFELD_NAMEN = {
   netzmessung_steckverbindung: 'Steckverbindung mitgeprüft (Netzmessung)'
 };
 
-function pflichtfeldMelden(treffer) {
+async function pflichtfeldMelden(treffer) {
   var name = PFLICHTFELD_NAMEN[treffer.id] || treffer.id;
-  alert('Pflichtangabe fehlt: ' + name + '\n\n' +
+  await appAlert('Pflichtangabe fehlt: ' + name + '\n\n' +
         'Ohne diese Angabe ist das Protokoll keinem Prüfvorgang zuzuordnen.\n\n' +
         'Das PDF wurde deshalb nicht erstellt.');
   if (treffer.el) {
@@ -1915,16 +2026,16 @@ function pflichtfeldMelden(treffer) {
 /* Ein Protokoll ohne einen einzigen Pruefling ist keine Pruefung: die
  * Messtabelle bliebe leer, die Gesamtbewertung stuende trotzdem auf
  * "keine Maengel". */
-function keinePrueflingeMelden(was) {
-  alert('Es ist kein ' + was + ' erfasst.\n\n' +
+async function keinePrueflingeMelden(was) {
+  await appAlert('Es ist kein ' + was + ' erfasst.\n\n' +
         'Ein ausgefülltes Protokoll ohne eine einzige Messung ist keine Prüfung - die Messtabelle ' +
         'bliebe leer, die Gesamtbewertung stünde trotzdem auf "keine Mängel".\n\n' +
         'Für ein Formular zum Ausfüllen von Hand bitte "Leeres Protokoll drucken" verwenden.\n\n' +
         'Das PDF wurde deshalb nicht erstellt.');
 }
 
-function offeneBewertungMelden(el) {
-  alert('Es ist noch eine Bewertung offen.\n\n' +
+async function offeneBewertungMelden(el) {
+  await appAlert('Es ist noch eine Bewertung offen.\n\n' +
         'Mindestens ein Auswahlfeld (Sichtprüfung, Erproben, Drehfeld oder Gesamtbewertung) ist ' +
         'nicht ausgefüllt. Das passiert vor allem bei einem Formular, das aus einer Archiv-Vorlage ' +
         'angelegt wurde: dort sind alle Bewertungen bewusst leer und müssen neu erfasst werden.\n\n' +
@@ -2058,7 +2169,7 @@ function pdfOrdnerHandleLaden() {
 // Ordnerauswahl (muss aus einem Klick heraus aufgerufen werden)
 async function pdfZielordnerWaehlen() {
   if (!window.showDirectoryPicker) {
-    alert('Das Auswählen eines festen Ordners unterstützt nur Chrome oder Edge am Computer.\n' +
+    await appAlert('Das Auswählen eines festen Ordners unterstützt nur Chrome oder Edge am Computer.\n' +
           'Auf Android/iPad bitte "Download-Ordner" oder "Teilen-Menü" verwenden.');
     return null;
   }
@@ -2157,7 +2268,7 @@ async function pdfDateiAusgeben(doc, filename) {
   try {
     blob = doc.output('blob');
   } catch (e) {
-    try { doc.save(filename); return true; } catch (e2) { alert('PDF konnte nicht erzeugt werden.'); }
+    try { doc.save(filename); return true; } catch (e2) { await appAlert('PDF konnte nicht erzeugt werden.'); }
     return false;
   }
 
@@ -2204,7 +2315,7 @@ async function pdfDateiAusgeben(doc, filename) {
   /* --- 4. Notfall --- */
   try { doc.save(filename); return true; }
   catch (e) {
-    alert('PDF konnte nicht gespeichert werden. Bitte die Seite im Browser (statt als App) öffnen.');
+    await appAlert('PDF konnte nicht gespeichert werden. Bitte die Seite im Browser (statt als App) öffnen.');
   }
   return false;
 }

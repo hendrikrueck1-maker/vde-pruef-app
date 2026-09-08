@@ -62,8 +62,13 @@ function addFeedCard(data = {}) {
         <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz_${cardCounter}" value="${attrEsc(data.frequenz)}" placeholder="z. B. 50 Hz">
       </div>
       <div class="form-group">
+        <!-- [7.3.0, Nutzerwunsch #4] War bisher IMMER technisch auf "i.O."
+             vorbelegt (erste <option> ohne "selected", vom Browser als
+             Startwert genommen) - ein tatsaechlich nicht geprueftes Drehfeld
+             war von einem geprueften "i.O." nicht zu unterscheiden. Jetzt wie
+             alle anderen Erproben-Felder mit leerer Startoption. -->
         <label for="drehfeld_${cardCounter}">${messgroesseBlock('drehfeld', 'fluke1663').icon}Rechtsdrehfeld (bei Drehstrom):</label>
-        <select class="c-drehfeld" id="drehfeld_${cardCounter}"><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select>
+        <select class="c-drehfeld erp-item" id="drehfeld_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.drehfeld ? ' selected' : ''}>– bitte wählen –</option><option${data.drehfeld === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.drehfeld === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.drehfeld === 'n.a.' ? ' selected' : ''}>n.a.</option></select>
       </div>
       <div class="form-group grid-full">${messgroesseBlock('drehfeld', 'fluke1663').karten}</div>
     </div>
@@ -126,6 +131,18 @@ function addFeedCard(data = {}) {
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B')">Typ B</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B+')">Typ B+</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Ohne RCD')">Ohne RCD</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <!-- [7.3.0, Nutzerwunsch #3] Bemessungsstrom I_n des RCD-Geraets
+               selbst, analog zu vde0100.html. -->
+          <label>Bemessungsstrom I<sub>n</sub> (RCD):</label>
+          <input type="text" class="c-rcd-in" id="rcd_in_${cardCounter}" value="${attrEsc(data.rcd_in)}" placeholder="z. B. 40 A">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '16 A')">16 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '25 A')">25 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '40 A')">40 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '63 A')">63 A</button>
           </div>
         </div>
         <div class="form-group">
@@ -192,6 +209,7 @@ function dupliziereUebergabepunkt(cardDomId) {
     frequenz: w('.c-frequenz'),
     sich: w('.c-sich-typ'),
     rcd_typ: w('.c-rcd-typ'),
+    rcd_in: w('.c-rcd-in'),
     rcd_idn: w('.c-rcd-idn'),
     rcd_pruefstrom: w('.c-rcd-pruefstrom')
     // drehfeld, rpe, unpe, zs, ik, rcd_imess, rcd_ta bleiben leer.
@@ -363,7 +381,12 @@ function fillExampleDataAnschluss() {
 
   document.getElementById('feedsContainer').innerHTML = '';
   cardCounter = 0;
-  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', rpe: '0,12', unpe: '0,3', sich: 'C 32A', zs: '0,31', ik: '740', rcd_typ: 'Typ A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
+  addFeedCard({ bez: 'Bühnenversorgung Haupt', netzsystem: 'TN-S', spannung: '230 / 400', frequenz: '50 Hz', drehfeld: 'i.O.', rpe: '0,12', unpe: '0,3', sich: 'C 32A', zs: '0,31', ik: '740', rcd_typ: 'Typ A', rcd_in: '40 A', rcd_idn: '30 mA', rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5' });
+  // .c-drehfeld ist jetzt ebenfalls .erp-item (Punkt 4) - Ampel-Status nach
+  // dem Setzen von value/"selected" per addFeedCard() nachziehen, analog zu
+  // .sicht-item oben (das "selected"-Attribut allein loest noch keine
+  // gruene Markierung aus, das macht erst sichtErpNiOPruefen()).
+  document.querySelectorAll('.erp-item').forEach(el => sichtErpNiOPruefen(el));
 
   testdatensatzSetzen();
 }
@@ -442,7 +465,7 @@ function leerBlattzahlAnschluss() {
 /* 5.0.0 (BUG #8 aus der 4.7.2-Prüfung): try/catch-Wrapper um den PDF-Aufbau,
  * analog zu generatePDF()/generatePDFInner() in pdf-generator.js - siehe dort
  * für die ausführliche Begründung. */
-function generatePDFAnschluss(isBlank = false) {
+async function generatePDFAnschluss(isBlank = false) {
   try {
     // [7.1.0] Fotos liegen im IndexedDB und muessen asynchron geladen werden
     // (siehe js/fotos.js) - deshalb hier vor dem eigentlichen (synchronen)
@@ -456,12 +479,12 @@ function generatePDFAnschluss(isBlank = false) {
         ? fotosFuerEinzelkarteLaden(fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1), isBlank, 'Bemerkung')
         : Promise.resolve([])
     ]).then(function (teile) { return teile[0].concat(teile[1]); });
-    fotoLadenPromise.then(function (fotos) {
+    fotoLadenPromise.then(async function (fotos) {
       try {
-        generatePDFAnschlussInner(isBlank, fotos);
+        await generatePDFAnschlussInner(isBlank, fotos);
       } catch (err) {
         console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-        alert(
+        await appAlert(
           'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
           'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
           'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -474,7 +497,7 @@ function generatePDFAnschluss(isBlank = false) {
     });
   } catch (err) {
     console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-    alert(
+    await appAlert(
       'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
       'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
       'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -486,7 +509,7 @@ function generatePDFAnschluss(isBlank = false) {
   }
 }
 
-function generatePDFAnschlussInner(isBlank = false, fotos = []) {
+async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
@@ -499,18 +522,18 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     const offeneAuswahl = ersteLeereAuswahl(
       ['.sicht-item', '.c-drehfeld', '#pa_angeschlossen', '#res_maengel',
        '#res_leistung_ausreichend', '#res_freigabe']);
-    if (offeneAuswahl) { offeneBewertungMelden(offeneAuswahl); return; }
+    if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
   }
 
   if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
-    alert(MAENGEL_BEHOBEN_HINWEIS);
+    await appAlert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
     return;
   }
 
   /* Ohne einen einzigen Uebergabepunkt gibt es nichts zu uebergeben. */
   if (!isBlank && document.querySelectorAll('.feed-card').length === 0) {
-    keinePrueflingeMelden('Übergabepunkt');
+    await keinePrueflingeMelden('Übergabepunkt');
     return;
   }
 
@@ -519,7 +542,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     const ohneMessung = prueflingeOhneMessung(
       document.querySelectorAll('#feedsContainer .feed-card'),
       ['.c-rpe', '.c-unpe', '.c-zs', '.c-ik', '.c-rcd-imess', '.c-rcd-ta']);
-    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Übergabepunkt'); return; }
+    if (ohneMessung.length) { await ohneMessungMelden(ohneMessung, 'Übergabepunkt'); return; }
   }
 
   /* 4.5.0 (B1): U N-PE ist Pflichtangabe je Uebergabepunkt.
@@ -536,7 +559,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
       .map((k, i) => (String(k.querySelector('.c-unpe')?.value || '').trim() === '' ? i + 1 : null))
       .filter(n => n !== null);
     if (ohneNpe.length) {
-      alert('Spannung U N–PE fehlt bei Übergabepunkt ' + ohneNpe.join(', ') + '.\n\n' +
+      await appAlert('Spannung U N–PE fehlt bei Übergabepunkt ' + ohneNpe.join(', ') + '.\n\n' +
             'Sollwert 0 V. Die N–PE-Spannung ist der einzige Wert, der eigenständig einen Fehler ' +
             'findet (hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat) - ' +
             'genau die Fehler, die hinter einem fremden Übergabepunkt liegen.\n\n' +
@@ -549,13 +572,13 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   /* Mindestangaben eines ausgefuellten Protokolls. */
   if (!isBlank) {
     const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'veranstaltung', 'uebergabe_standort', 'auftraggeber']);
-    if (fehlend) { pflichtfeldMelden(fehlend); return; }
+    if (fehlend) { await pflichtfeldMelden(fehlend); return; }
   }
 
   /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
    * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
   const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
-  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+  if (!isBlank && !await protokollNummerFreigeben(nummerRoh)) return;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -836,6 +859,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
       // Die frueheren "|| '-'"-Vorgaben erzeugten Zellen wie "- (-)". Die
       // Rohwerte gehen jetzt unveraendert in die gemeinsame Auswertung.
       const rcdTyp = card.querySelector('.c-rcd-typ').value;
+      const rcdIn = card.querySelector('.c-rcd-in')?.value || '';
       const rcdIdn = card.querySelector('.c-rcd-idn').value;
       const rcdImess = card.querySelector('.c-rcd-imess').value;
       const rcdTa = card.querySelector('.c-rcd-ta').value;
@@ -846,7 +870,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
       // Identische Auswertung wie im Anlagenprotokoll (pdf-utils.js): damit
       // erkennt auch die Anschlusspruefung eingetragene, aber ungepruefte RCD.
       const rcdZelle = buildRcdZelle({
-        typ: rcdTyp, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
+        typ: rcdTyp, in: rcdIn, idn: rcdIdn, imess: rcdImess, ta: rcdTa, pruefstrom: rcdPruefstrom
       });
 
       const taNum = parseMesswert(rcdTa);
@@ -1057,7 +1081,7 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
 
   // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT freigegeben" schreibt.
   if (freigabeWidersprichtBefund(isBlank, hasIssues, freigabeVal)) {
-    alert(freigabeWiderspruchHinweis('Freigabe zur Nutzung'));
+    await appAlert(freigabeWiderspruchHinweis('Freigabe zur Nutzung'));
     document.getElementById('res_freigabe')?.focus();
     return;
   }
@@ -1186,10 +1210,10 @@ function generatePDFAnschlussInner(isBlank = false, fotos = []) {
    * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
    * ein Leerformular ebenfalls nicht. */
   Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('AP', nummerRoh, filename, isBlank)))
-    .then(function (gespeichert) {
+    .then(async function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'AP');
-    nachPdfNeuesFormularAnbieten('AP', nummerRoh, resetAnschlussForm, clearAnschlussAutosave, function () {
+    await nachPdfNeuesFormularAnbieten('AP', nummerRoh, resetAnschlussForm, clearAnschlussAutosave, function () {
       AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('AP');
     });
   });
@@ -1247,6 +1271,7 @@ function collectAnschlussState() {
     zs: card.querySelector('.c-zs').value,
     ik: card.querySelector('.c-ik').value,
     rcd_typ: card.querySelector('.c-rcd-typ').value,
+    rcd_in: card.querySelector('.c-rcd-in')?.value || '',
     rcd_idn: card.querySelector('.c-rcd-idn').value,
     rcd_imess: card.querySelector('.c-rcd-imess').value,
     rcd_ta: card.querySelector('.c-rcd-ta').value,
@@ -1313,8 +1338,9 @@ function restoreAnschlussState(state) {
    * nicht nur bei manueller Auswahl im Formular - sonst bleibt ein bereits
    * gespeichertes n.i.O. unmarkiert. Erst NACH dem Wiederherstellen der
    * Einspeisepunkte, damit der darin ausgeloeste autosaveProtocol()-Aufruf
-   * nicht mit noch leerem feedsContainer speichert. */
-  document.querySelectorAll('.sicht-item').forEach(el => sichtErpNiOPruefen(el));
+   * nicht mit noch leerem feedsContainer speichert. Seit Punkt 4 (7.3.0)
+   * gilt das auch fuer .c-drehfeld (jetzt zusaetzlich .erp-item). */
+  document.querySelectorAll('.sicht-item, .erp-item').forEach(el => sichtErpNiOPruefen(el));
 
   return true;
 }
@@ -1368,8 +1394,8 @@ function resetAnschlussForm() {
   if (typeof padUebernehmer !== 'undefined' && padUebernehmer) padUebernehmer.clear();
 }
 
-function neuesAnschlussProtokoll() {
-  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
+async function neuesAnschlussProtokoll() {
+  if (!await appConfirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('AP');
   verbraucheProtokollNummer(nr, 'AP');
@@ -1377,5 +1403,5 @@ function neuesAnschlussProtokoll() {
   resetAnschlussForm();
   document.getElementById('protokollnummer').value = nr;
   autosaveProtocol();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  await appAlert(`Neues Protokoll angelegt: ${nr}`);
 }

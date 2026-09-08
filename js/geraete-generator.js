@@ -436,7 +436,7 @@ function leerBlattzahlGeraete() {
 /* 5.0.0 (BUG #8 aus der 4.7.2-Prüfung): try/catch-Wrapper um den PDF-Aufbau,
  * analog zu generatePDF()/generatePDFInner() in pdf-generator.js - siehe dort
  * für die ausführliche Begründung. */
-function generatePDFGeraete(isBlank = false) {
+async function generatePDFGeraete(isBlank = false) {
   try {
     // [7.1.0] Fotos liegen im IndexedDB und muessen asynchron geladen werden
     // (siehe js/fotos.js) - deshalb hier vor dem eigentlichen (synchronen)
@@ -450,12 +450,12 @@ function generatePDFGeraete(isBlank = false) {
         ? fotosFuerEinzelkarteLaden(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1), isBlank, 'Bemerkung')
         : Promise.resolve([])
     ]).then(function (teile) { return teile[0].concat(teile[1]); });
-    fotoLadenPromise.then(function (fotos) {
+    fotoLadenPromise.then(async function (fotos) {
       try {
-        generatePDFGeraeteInner(isBlank, fotos);
+        await generatePDFGeraeteInner(isBlank, fotos);
       } catch (err) {
         console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-        alert(
+        await appAlert(
           'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
           'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
           'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -468,7 +468,7 @@ function generatePDFGeraete(isBlank = false) {
     });
   } catch (err) {
     console.error('[PDF] Unerwarteter Fehler bei der PDF-Erzeugung:', err);
-    alert(
+    await appAlert(
       'Beim Erzeugen des PDFs ist ein unerwarteter Fehler aufgetreten.\n\n' +
       'Das Formular wurde NICHT gespeichert oder zurückgesetzt - deine Eingaben ' +
       'bleiben erhalten (Autosave läuft weiter).\n\n' +
@@ -480,7 +480,7 @@ function generatePDFGeraete(isBlank = false) {
   }
 }
 
-function generatePDFGeraeteInner(isBlank = false, fotos = []) {
+async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
    * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
    * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
@@ -493,11 +493,11 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
     const offeneAuswahl = ersteLeereAuswahl(
       ['.c-sicht-item', '.c-funktion', '.c-ableit-methode', '#res_maengel',
        '#res_plakette', '#res_gewaehrleistung']);
-    if (offeneAuswahl) { offeneBewertungMelden(offeneAuswahl); return; }
+    if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
   }
 
   if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
-    alert(MAENGEL_BEHOBEN_HINWEIS);
+    await appAlert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
     return;
   }
@@ -505,11 +505,11 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   /* Doppelvergabe: wurde diese Nummer in dieser App schon einmal fuer ein
    * fertiges PDF verwendet, muss das ausdruecklich bestaetigt werden. */
   const nummerRoh = isBlank ? '' : (document.getElementById('protokollnummer')?.value || '').trim();
-  if (!isBlank && !protokollNummerFreigeben(nummerRoh)) return;
+  if (!isBlank && !await protokollNummerFreigeben(nummerRoh)) return;
 
   /* Ohne einen einzigen Pruefling gibt es nichts zu bewerten. */
   if (!isBlank && document.querySelectorAll('#devicesContainer .feed-card').length === 0) {
-    keinePrueflingeMelden('Gerät');
+    await keinePrueflingeMelden('Gerät');
     return;
   }
 
@@ -522,13 +522,13 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
     const ohneMessung = prueflingeOhneMessung(
       document.querySelectorAll('#devicesContainer .feed-card'),
       ['.c-rpe', '.c-riso', '.c-ableitstrom']);
-    if (ohneMessung.length) { ohneMessungMelden(ohneMessung, 'Gerät'); return; }
+    if (ohneMessung.length) { await ohneMessungMelden(ohneMessung, 'Gerät'); return; }
   }
 
   /* Mindestangaben eines ausgefuellten Protokolls. */
   if (!isBlank) {
     const fehlend = erstesLeerePflichtfeld(['datum', 'pruefer', 'auftraggeber']);
-    if (fehlend) { pflichtfeldMelden(fehlend); return; }
+    if (fehlend) { await pflichtfeldMelden(fehlend); return; }
   }
 
   /* Heizelement ohne Heizleistung: der zulaessige Schutzleiterstrom haengt nach
@@ -540,7 +540,7 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
       .filter(o => o.c.querySelector('.c-heizelement')?.checked &&
                    String(o.c.querySelector('.c-heizleistung')?.value || '').trim() === '');
     if (ohneLeistung.length) {
-      alert('Bei Gerät ' + ohneLeistung.map(o => '#' + o.nr).join(', ') +
+      await appAlert('Bei Gerät ' + ohneLeistung.map(o => '#' + o.nr).join(', ') +
             ' ist "Heizelement" angekreuzt, aber keine Heizleistung eingetragen.\n\n' +
             'Der zulässige Schutzleiterstrom hängt nach DIN EN 50699 von der Heizleistung ab. ' +
             'Ohne diese Angabe wäre die Bewertung des Ableitstroms nicht belastbar.\n\n' +
@@ -931,7 +931,7 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
 
   // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT ... betrieben werden" schreibt.
   if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
-    alert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+    await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
     document.getElementById('res_gewaehrleistung')?.focus();
     return;
   }
@@ -939,7 +939,7 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
   // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
   if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
-    alert(plaketteWiderspruchHinweis());
+    await appAlert(plaketteWiderspruchHinweis());
     document.getElementById('res_plakette')?.focus();
     return;
   }
@@ -1082,10 +1082,10 @@ function generatePDFGeraeteInner(isBlank = false, fotos = []) {
    * entstanden ist. Ein abgebrochener Teilen-Dialog kostet keine Nummer,
    * ein Leerformular ebenfalls nicht. */
   Promise.resolve(savePdfCompatible(doc, filename, archivMetaSammeln('GP', nummerRoh, filename, isBlank)))
-    .then(function (gespeichert) {
+    .then(async function (gespeichert) {
     if (isBlank || gespeichert === false) return;
     verbraucheProtokollNummer(nummerRoh, 'GP');
-    nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave, function () {
+    await nachPdfNeuesFormularAnbieten('GP', nummerRoh, resetGeraeteForm, clearGeraeteAutosave, function () {
       AKTUELLER_ENTWURF_ID = neuenEntwurfAnlegen('GP');
     });
   });
@@ -1116,6 +1116,9 @@ function collectGeraeteState() {
   });
 
   state.gebaeude = document.getElementById('gebaeude_custom').value;
+  // [7.3.0, Nutzerwunsch #5] siehe gleichlautender Kommentar in
+  // pdf-generator.js collectProtocolState().
+  state.res_termin_bestaetigt = !!document.getElementById('res_termin_bestaetigt')?.checked;
 
   state.devices = Array.from(document.querySelectorAll('#devicesContainer .feed-card')).map(card => ({
     kartenId: card.dataset.kartenId || '',
@@ -1157,6 +1160,12 @@ function restoreGeraeteState(state) {
   });
 
   if (state.gebaeude) syncGebaeudeSelect(state.gebaeude);
+
+  const terminCheckboxGp = document.getElementById('res_termin_bestaetigt');
+  if (terminCheckboxGp) {
+    terminCheckboxGp.checked = !!state.res_termin_bestaetigt;
+    if (typeof pruefdatumBestaetigungAktualisieren === 'function') pruefdatumBestaetigungAktualisieren();
+  }
 
   if (state.devices && state.devices.length) {
     document.getElementById('devicesContainer').innerHTML = '';
@@ -1228,8 +1237,8 @@ function resetGeraeteForm() {
   if (typeof padKunde !== 'undefined' && padKunde) padKunde.clear();
 }
 
-function neuesGeraeteProtokoll() {
-  if (!confirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
+async function neuesGeraeteProtokoll() {
+  if (!await appConfirm('Neues Formular anlegen? Das aktuelle Formular bleibt unter "Offene Prüfungen" erhalten und kann dort später fortgesetzt werden.')) return;
 
   const nr = naechsteProtokollNummer('GP');
   verbraucheProtokollNummer(nr, 'GP');
@@ -1237,5 +1246,5 @@ function neuesGeraeteProtokoll() {
   resetGeraeteForm();
   document.getElementById('protokollnummer').value = nr;
   autosaveProtocol();
-  alert(`Neues Protokoll angelegt: ${nr}`);
+  await appAlert(`Neues Protokoll angelegt: ${nr}`);
 }
