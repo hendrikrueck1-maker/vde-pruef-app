@@ -102,19 +102,25 @@
           <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
         </select>
       </div>
-      <div class="form-group"><label for="m_messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="m_messgeraet"></div>
-      <!-- [7.4.0, Punkt 8] Bisher EINE gemeinsame Seriennummer fuer beide
-           Pruefgeraete - dadurch stand faelschlich dieselbe Nummer sowohl bei
-           der Anlagen-/Anschlusspruefung (Installationstester, Fluke 1663)
-           als auch bei der Geraetepruefung (Geraetetester, Fluke 6500-2), wenn
-           beide Geraete parallel im Einsatz waren. Jetzt zwei getrennte
-           Felder - js/storage.js (applyMasterDataToForm) uebernimmt beim
-           Oeffnen eines Formulars automatisch die zum Formulartyp passende
-           Nummer in das dortige Feld "Seriennummer Messgerät". Das alte Feld
-           "m_seriennummer" bleibt aus Kompatibilitaetsgruenden bestehen (siehe
-           Aenderungsbericht 7.4.0, Punkt 8), ist aber nicht mehr sichtbar. -->
-      <div class="form-group"><label for="m_seriennummer_installationstester">Seriennummer Installationstester (Fluke 1663):</label><input type="text" id="m_seriennummer_installationstester" placeholder="für Anlagen- und Anschlussprüfung"></div>
-      <div class="form-group"><label for="m_seriennummer_geraetetester">Seriennummer Gerätetester (Fluke 6500-2):</label><input type="text" id="m_seriennummer_geraetetester" placeholder="für Geräteprüfung"></div>
+      <!-- [8.0.0, Teil 6.2] Bisher war der Geraetename fest im Label-Text
+           einprogrammiert ("Fluke 1663"/"Fluke 6500-2") und nicht editierbar -
+           nur die Seriennummern waren freie Felder. Jetzt vier vollstaendig
+           freie Felder: Name/Typ UND Seriennummer je Installationstester und
+           Geraetetester. Falls Hendrik kuenftig ein anderes Messgeraet nutzt,
+           muss dafuer nichts mehr im Code geaendert werden - die bisherigen
+           Fluke-Namen sind nur noch Platzhalter-Vorbelegung (value), keine
+           Labels mehr. js/storage.js (applyMasterDataToForm) uebernimmt beim
+           Oeffnen eines Formulars automatisch Name+Nummer des zum Formulartyp
+           passenden Geraets in die dortigen Felder "Verwendetes Prüfgerät"/
+           "Seriennummer Messgerät". Das alte gemeinsame Feld "m_messgeraet"/
+           "m_seriennummer" bleibt aus Kompatibilitaetsgruenden als verstecktes
+           Feld bestehen (siehe Aenderungsbericht 7.4.0, Punkt 8), ist aber
+           nicht mehr sichtbar. -->
+      <div class="form-group"><label for="m_geraet_installationstester">Installationstester (Name/Typ):</label><input type="text" id="m_geraet_installationstester" value="Fluke 1663" placeholder="z. B. Fluke 1663"></div>
+      <div class="form-group"><label for="m_seriennummer_installationstester">Seriennummer Installationstester:</label><input type="text" id="m_seriennummer_installationstester" placeholder="für Anlagen- und Anschlussprüfung"></div>
+      <div class="form-group"><label for="m_geraet_geraetetester">Gerätetester (Name/Typ):</label><input type="text" id="m_geraet_geraetetester" value="Fluke 6500-2" placeholder="z. B. Fluke 6500-2"></div>
+      <div class="form-group"><label for="m_seriennummer_geraetetester">Seriennummer Gerätetester:</label><input type="text" id="m_seriennummer_geraetetester" placeholder="für Geräteprüfung"></div>
+      <input type="hidden" id="m_messgeraet">
       <input type="hidden" id="m_seriennummer">
       <div class="form-group"><label for="m_ort">Ort der Unterzeichnung:</label><input type="text" id="m_ort"></div>
     </div>
@@ -202,6 +208,20 @@
 </div>
 
 <script>
+  /* [8.0.0, Teil 6.3] Ordnet jeder Kachel (PROTOKOLLE[].id) das passende
+   * Entwurfs-Praefix aus js/entwuerfe.js zu (dort PR/AP/GP genannt), damit
+   * pro Kachel gezielt nach einem offenen Entwurf GENAU dieses Protokolltyps
+   * gesucht werden kann - anders als der bisherige globale "Letztes
+   * weitermachen"-Button (typuebergreifend, siehe renderStartSchnellzugriff
+   * unten), der bestehen bleibt.
+   * WICHTIG: muss VOR dem ersten Aufruf von renderProtokollKacheln() (gleich
+   * unten) initialisiert sein - eine spaeter im Skript stehende var-Zuweisung
+   * ist zur Laufzeit an dieser Stelle noch undefined, obwohl sie als
+   * Deklaration bereits gehoisted ist (Bug in einer Zwischenversion: die
+   * Kacheln blieben dadurch beim ersten Laden ohne "Protokoll
+   * fortsetzen"-Button, mit einem TypeError in der Konsole). */
+  var KACHEL_PRAEFIX = { vde0100: 'PR', anschluss: 'AP', geraete: 'GP' };
+
   loadMasterDataToDashboard();
   renderProtokollKacheln();
   renderOffenePruefungen('offenePruefungenListe');
@@ -338,13 +358,41 @@
       card.appendChild(kopf);
 
       if (aktiv) {
-        var a = document.createElement('a');
-        a.href = p.datei;
-        a.className = 'btn btn-success';
-        a.style.cssText = 'display:block; text-align:center; text-decoration:none; margin-top:10px;';
-        a.textContent = '▶ Protokoll starten';
-        a.onclick = function () { saveMasterData(false); };
-        card.appendChild(a);
+        // [8.0.0, Teil 6.3] Grüner Button "Neues Protokoll" (immer sichtbar,
+        // legt per ?neu=1 explizit einen frischen Entwurf an) + gelber
+        // Button "Protokoll fortsetzen" (nur sichtbar, wenn fuer GENAU
+        // diesen Protokolltyp mindestens ein nicht abgeschlossener Entwurf
+        // existiert - fuehrt direkt zum zuletzt bearbeiteten davon).
+        var aktionen = document.createElement('div');
+        aktionen.style.cssText = 'display:flex; flex-direction:column; gap:6px; margin-top:10px;';
+
+        var neu = document.createElement('a');
+        neu.href = p.datei + '?neu=1';
+        neu.className = 'btn btn-success';
+        neu.style.cssText = 'display:block; text-align:center; text-decoration:none;';
+        neu.textContent = '+ Neues Protokoll';
+        neu.onclick = function () { saveMasterData(false); };
+        aktionen.appendChild(neu);
+
+        var praefix = KACHEL_PRAEFIX[p.id];
+        var offeneEntwuerfe = praefix && typeof entwuerfeFuerTyp === 'function'
+          ? entwuerfeFuerTyp(praefix).filter(function (e) { return !e.abgeschlossen; })
+          : [];
+        if (offeneEntwuerfe.length) {
+          var letzterEigener = offeneEntwuerfe[0]; // entwuerfeFuerTyp() sortiert bereits nach "zuletzt"
+          var weiter = document.createElement('a');
+          weiter.href = p.datei + '?entwurf=' + encodeURIComponent(letzterEigener.id);
+          weiter.className = 'btn btn-warning';
+          weiter.style.cssText = 'display:block; text-align:center; text-decoration:none;';
+          var bez = letzterEigener.protokollnummer
+            ? (letzterEigener.protokollnummer + (letzterEigener.bezeichnung ? ' – ' + letzterEigener.bezeichnung : ''))
+            : letzterEigener.bezeichnung;
+          weiter.textContent = '▶ Protokoll fortsetzen' + (bez ? ' (' + bez + ')' : '') +
+            (offeneEntwuerfe.length > 1 ? ' [' + offeneEntwuerfe.length + ']' : '');
+          aktionen.appendChild(weiter);
+        }
+
+        card.appendChild(aktionen);
       } else {
         var d = document.createElement('div');
         d.style.cssText = 'margin-top:10px; text-align:center; font-size:0.8rem; color:var(--secondary);';

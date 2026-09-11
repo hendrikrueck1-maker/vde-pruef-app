@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '7.4.0';
+var APP_VERSION = '8.0.0';
 
 /* ---------------------------------------------------------------------------
  * 1b. BETRIEBSNAME (Branding)
@@ -148,6 +148,7 @@ var CORE_ASSETS = [
   'img/drehschalter/RCD_Typ_AC.png',
   'img/drehschalter/RCD_Typ_A.png',
   'img/drehschalter/RCD_Typ_B.png',
+  'img/drehschalter/RCD_Typ_Bplus.png',
   'img/drehschalter/RCD_Typ_F.png',
   'img/drehschalter/R_ISO_Isolationswiderstand.png',
   'img/drehschalter/R_PE_Schutzleiterwiderstand.png',

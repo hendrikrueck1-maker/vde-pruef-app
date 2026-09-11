@@ -114,11 +114,15 @@ async function saveMasterData(erfolgMelden = false) {
     hausanschluss: document.getElementById('m_hausanschluss')?.value || '',
     pruefer: document.getElementById('m_pruefer').value,
     pruefer_qualifikation: document.getElementById('m_pruefer_qualifikation')?.value || '',
-    messgeraet: document.getElementById('m_messgeraet').value,
+    messgeraet: document.getElementById('m_messgeraet')?.value || '',
     seriennummer: document.getElementById('m_seriennummer')?.value || '',
     // [7.4.0, Punkt 8] Getrennte Seriennummern je Pruefgeraet.
     seriennummer_installationstester: document.getElementById('m_seriennummer_installationstester')?.value || '',
     seriennummer_geraetetester: document.getElementById('m_seriennummer_geraetetester')?.value || '',
+    // [8.0.0, Teil 6.2] Getrennte, frei editierbare Geraetenamen je Pruefgeraet
+    // (vorher fest im Label-Text einprogrammiert).
+    geraet_installationstester: document.getElementById('m_geraet_installationstester')?.value || '',
+    geraet_geraetetester: document.getElementById('m_geraet_geraetetester')?.value || '',
     ort: document.getElementById('m_ort').value
   };
   // 5.0.0: sicherSetItem() statt direktem localStorage.setItem() - siehe
@@ -143,11 +147,16 @@ function loadMasterDataToDashboard() {
   if (document.getElementById('m_hausanschluss')) document.getElementById('m_hausanschluss').value = data.hausanschluss || '';
   document.getElementById('m_pruefer').value = data.pruefer || '';
   if (document.getElementById('m_pruefer_qualifikation')) document.getElementById('m_pruefer_qualifikation').value = data.pruefer_qualifikation || '';
-  document.getElementById('m_messgeraet').value = data.messgeraet || '';
+  if (document.getElementById('m_messgeraet')) document.getElementById('m_messgeraet').value = data.messgeraet || '';
   if (document.getElementById('m_seriennummer')) document.getElementById('m_seriennummer').value = data.seriennummer || '';
   // [7.4.0, Punkt 8] Getrennte Seriennummern je Pruefgeraet.
   if (document.getElementById('m_seriennummer_installationstester')) document.getElementById('m_seriennummer_installationstester').value = data.seriennummer_installationstester || '';
   if (document.getElementById('m_seriennummer_geraetetester')) document.getElementById('m_seriennummer_geraetetester').value = data.seriennummer_geraetetester || '';
+  // [8.0.0, Teil 6.2] Getrennte, frei editierbare Geraetenamen je Pruefgeraet.
+  // Vorbelegung mit den bisherigen Fluke-Standardnamen, falls noch keine
+  // Stammdaten gespeichert wurden (erster Aufruf / neue Installation).
+  if (document.getElementById('m_geraet_installationstester')) document.getElementById('m_geraet_installationstester').value = data.geraet_installationstester || 'Fluke 1663';
+  if (document.getElementById('m_geraet_geraetetester')) document.getElementById('m_geraet_geraetetester').value = data.geraet_geraetetester || 'Fluke 6500-2';
   document.getElementById('m_ort').value = data.ort || '';
 }
 
@@ -169,22 +178,186 @@ function applyMasterDataToForm() {
   setIfPresent('hausanschluss', data.hausanschluss || '');
   setIfPresent('pruefer', data.pruefer || '');
   setIfPresent('pruefer_qualifikation', data.pruefer_qualifikation || '');
-  setIfPresent('messgeraet', data.messgeraet || '');
-  // [7.4.0, Punkt 8] Je nach Formulartyp die passende, getrennt erfasste
-  // Seriennummer in das gemeinsame Formularfeld "Seriennummer Messgerät"
-  // uebernehmen: Installationstester (Fluke 1663) fuer Anlagen-/
-  // Anschlusspruefung, Geraetetester (Fluke 6500-2) fuer die Geraetepruefung.
-  // Erkennung ueber dieselbe Container-ID wie in infokarten.js
-  // (zusatzIconsEinbinden) - eindeutig pro Formulartyp vorhanden. Ist noch
-  // keine der beiden getrennten Nummern erfasst, faellt der Wert auf das
-  // alte gemeinsame Feld "seriennummer" zurueck (Rueckwaertskompatibilitaet
-  // mit vor 7.4.0 gespeicherten Stammdaten).
+  // [7.4.0, Punkt 8 + 8.0.0, Teil 6.2] Je nach Formulartyp den passenden,
+  // getrennt erfassten Geraetenamen UND die passende Seriennummer in die
+  // gemeinsamen Formularfelder "Verwendetes Prüfgerät"/"Seriennummer
+  // Messgerät" uebernehmen: Installationstester fuer Anlagen-/
+  // Anschlusspruefung, Geraetetester fuer die Geraetepruefung. Erkennung
+  // ueber dieselbe Container-ID wie in infokarten.js (zusatzIconsEinbinden) -
+  // eindeutig pro Formulartyp vorhanden. Ist noch kein getrennter Name/keine
+  // getrennte Nummer erfasst, faellt der Wert auf das alte gemeinsame Feld
+  // "messgeraet"/"seriennummer" zurueck (Rueckwaertskompatibilitaet mit vor
+  // 7.4.0/8.0.0 gespeicherten Stammdaten).
   const istGeraetepruefungsformular = !!document.getElementById('devicesContainer');
+  const passenderGeraetename = istGeraetepruefungsformular
+    ? (data.geraet_geraetetester || data.messgeraet || '')
+    : (data.geraet_installationstester || data.messgeraet || '');
   const passendeSeriennummer = istGeraetepruefungsformular
     ? (data.seriennummer_geraetetester || data.seriennummer || '')
     : (data.seriennummer_installationstester || data.seriennummer || '');
+  setIfPresent('messgeraet', passenderGeraetename);
   setIfPresent('seriennummer', passendeSeriennummer);
   setIfPresent('unterschrift_ort', data.ort || '');
+}
+
+/* ---------------------------------------------------------------------------
+ *  [8.0.0, Teil 6.1] GEBÄUDE/BEREICH-VERWALTUNG (EIGENE EINTRÄGE HINZUFÜGEN)
+ * ----------------------------------------------------------------------------
+ *  Die Liste der Gebäude/Bereiche (Werkstatt, Spiegelhalle, ...) war bisher
+ *  fest im HTML jeder der drei Formularseiten einprogrammiert - Änderungen
+ *  waren nur durch einen Code-Eingriff möglich. Jetzt kann Hendrik über einen
+ *  kleinen "Verwalten"-Button direkt neben dem Dropdown eigene Einträge
+ *  hinzufügen oder wieder entfernen. Gespeichert wird EINE gemeinsame,
+ *  zusätzliche Liste in localStorage (GEBAEUDE_ZUSATZ_KEY) - sie gilt
+ *  einheitlich für alle drei Prüfformulare (nicht für die Startseite,
+ *  index.html hat bewusst ihre eigene, unabhängige Liste). Die fünf
+ *  eingebauten Standard-Einträge (Gr. Haus/Werkstatt/Spiegelhalle/
+ *  Münsterplatz/Probebühne) bleiben als HTML-<option> bestehen und werden
+ *  NICHT dupliziert - nur zusätzliche, von Hendrik selbst angelegte Einträge
+ *  liegen in localStorage und werden dynamisch vor "Sonstiges..." eingefügt. */
+const GEBAEUDE_ZUSATZ_KEY = 'vde_gebaeude_zusatz';
+
+function gebaeudeZusatzListeLaden() {
+  try {
+    const roh = localStorage.getItem(GEBAEUDE_ZUSATZ_KEY);
+    const liste = roh ? JSON.parse(roh) : [];
+    return Array.isArray(liste) ? liste.filter(s => typeof s === 'string' && s.trim() !== '') : [];
+  } catch (e) {
+    console.error('[VDE-App] Gebäude-Zusatzliste konnte nicht gelesen werden:', e);
+    return [];
+  }
+}
+
+function gebaeudeZusatzListeSpeichern(liste) {
+  sicherSetItem(GEBAEUDE_ZUSATZ_KEY, JSON.stringify(liste));
+}
+
+/* Ergänzt die im HTML fest vorhandenen <option>-Werte (alle außer "custom")
+ * um die zusätzlichen, selbst angelegten Eintraege aus localStorage - jeweils
+ * VOR der letzten Option ("Sonstiges..."), damit diese immer den Abschluss
+ * bildet. Wird beim Laden jeder der drei Formularseiten sowie direkt nach
+ * einer Aenderung im Verwalten-Dialog aufgerufen. Mehrfacher Aufruf ist
+ * unschaedlich: bereits vorhandene Zusatz-Optionen (erkennbar an
+ * data-gebaeude-zusatz) werden vorher entfernt und neu aufgebaut. */
+function gebaeudeOptionenAktualisieren(selectId) {
+  const select = document.getElementById(selectId || 'gebaeude_select');
+  if (!select) return;
+  const bisherigerWert = select.value;
+  Array.from(select.querySelectorAll('option[data-gebaeude-zusatz]')).forEach(o => o.remove());
+  const sonstigesOption = Array.from(select.options).find(o => o.value === 'custom');
+  gebaeudeZusatzListeLaden().forEach(eintrag => {
+    // Keine doppelten Eintraege, falls ein Zusatzeintrag zufaellig genauso
+    // heisst wie einer der fest eingebauten.
+    if (Array.from(select.options).some(o => o.value === eintrag)) return;
+    const opt = document.createElement('option');
+    opt.value = eintrag;
+    opt.textContent = eintrag;
+    opt.setAttribute('data-gebaeude-zusatz', '1');
+    if (sonstigesOption) select.insertBefore(opt, sonstigesOption);
+    else select.appendChild(opt);
+  });
+  if (Array.from(select.options).some(o => o.value === bisherigerWert)) select.value = bisherigerWert;
+}
+
+/* Baut den Verwalten-Dialog auf: Liste der aktuellen Zusatz-Einträge mit
+ * je einem Löschen-Button, plus ein Eingabefeld zum Hinzufügen. Die fünf
+ * eingebauten Standard-Einträge sind absichtlich NICHT löschbar (sie sind
+ * Teil des HTML, nicht dieser Liste) - nur selbst hinzugefügte Einträge
+ * lassen sich wieder entfernen. selectId: das Dropdown, das nach dem
+ * Schliessen aktualisiert werden soll (jede der drei Formularseiten ruft
+ * dies mit ihrer eigenen 'gebaeude_select' auf - alle teilen sich dieselbe
+ * ID, daher reicht ein einziger Parameter). */
+function gebaeudeVerwaltenOeffnen(selectId) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'app-dialog gebaeude-verwalten-dialog';
+
+  const titel = document.createElement('div');
+  titel.className = 'app-dialog-text';
+  titel.innerHTML = '<strong>Gebäude / Bereiche verwalten</strong><br>' +
+    '<span style="font-weight:normal; font-size:0.82rem;">Gilt einheitlich für alle drei Prüfformulare.</span>';
+  dialog.appendChild(titel);
+
+  const liste = document.createElement('div');
+  liste.className = 'gebaeude-verwalten-liste';
+  dialog.appendChild(liste);
+
+  function listeNeuZeichnen() {
+    liste.innerHTML = '';
+    const eintraege = gebaeudeZusatzListeLaden();
+    if (eintraege.length === 0) {
+      const leer = document.createElement('div');
+      leer.className = 'gebaeude-verwalten-leer';
+      leer.textContent = 'Noch keine eigenen Einträge angelegt.';
+      liste.appendChild(leer);
+    }
+    eintraege.forEach((eintrag, i) => {
+      const zeile = document.createElement('div');
+      zeile.className = 'gebaeude-verwalten-zeile';
+      const label = document.createElement('span');
+      label.textContent = eintrag;
+      const entfernenBtn = document.createElement('button');
+      entfernenBtn.type = 'button';
+      entfernenBtn.className = 'btn-danger btn-klein';
+      entfernenBtn.textContent = 'Entfernen';
+      entfernenBtn.addEventListener('click', () => {
+        const aktuelle = gebaeudeZusatzListeLaden();
+        aktuelle.splice(i, 1);
+        gebaeudeZusatzListeSpeichern(aktuelle);
+        listeNeuZeichnen();
+      });
+      zeile.appendChild(label);
+      zeile.appendChild(entfernenBtn);
+      liste.appendChild(zeile);
+    });
+  }
+  listeNeuZeichnen();
+
+  const hinzufuegenZeile = document.createElement('div');
+  hinzufuegenZeile.className = 'gebaeude-verwalten-hinzufuegen';
+  const neuEingabe = document.createElement('input');
+  neuEingabe.type = 'text';
+  neuEingabe.placeholder = 'z. B. Foyer, Werkstattbühne …';
+  const hinzufuegenBtn = document.createElement('button');
+  hinzufuegenBtn.type = 'button';
+  hinzufuegenBtn.className = 'btn btn-secondary';
+  hinzufuegenBtn.textContent = '+ Hinzufügen';
+  function eintragHinzufuegen() {
+    const wert = neuEingabe.value.trim();
+    if (!wert) return;
+    const aktuelle = gebaeudeZusatzListeLaden();
+    if (!aktuelle.includes(wert)) {
+      aktuelle.push(wert);
+      gebaeudeZusatzListeSpeichern(aktuelle);
+      listeNeuZeichnen();
+    }
+    neuEingabe.value = '';
+    neuEingabe.focus();
+  }
+  hinzufuegenBtn.addEventListener('click', eintragHinzufuegen);
+  neuEingabe.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); eintragHinzufuegen(); } });
+  hinzufuegenZeile.appendChild(neuEingabe);
+  hinzufuegenZeile.appendChild(hinzufuegenBtn);
+  dialog.appendChild(hinzufuegenZeile);
+
+  const aktionen = document.createElement('div');
+  aktionen.className = 'app-dialog-aktionen';
+  const schliessenBtn = document.createElement('button');
+  schliessenBtn.type = 'button';
+  schliessenBtn.className = 'btn';
+  schliessenBtn.textContent = 'Fertig';
+  function schliessenUndAktualisieren() {
+    gebaeudeOptionenAktualisieren(selectId);
+    if (dialog.open) dialog.close();
+    dialog.remove();
+  }
+  schliessenBtn.addEventListener('click', schliessenUndAktualisieren);
+  aktionen.appendChild(schliessenBtn);
+  dialog.appendChild(aktionen);
+
+  dialog.addEventListener('cancel', schliessenUndAktualisieren);
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  setTimeout(() => neuEingabe.focus(), 0);
 }
 
 function toggleGebaeudeCustom(val) {

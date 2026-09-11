@@ -322,13 +322,18 @@ label .limit-hint { display: inline; margin-top: 0; }
 .mess-sections-hinweis { font-size: 0.72rem; color: var(--secondary); flex: 1; }
 .mess-sections-chevron { transition: transform 0.15s; color: var(--secondary); }
 .c-mess-sections.mess-sections-collapsed .mess-sections-chevron,
-.c-rcd-messwerte.mess-sections-collapsed .mess-sections-chevron { transform: rotate(-90deg); }
+.c-rcd-messwerte.mess-sections-collapsed .mess-sections-chevron,
+.c-schutz-basisdaten.mess-sections-collapsed .mess-sections-chevron { transform: rotate(-90deg); }
 .c-mess-sections.mess-sections-collapsed .sub-section { display: none; }
 /* 4.7.1: c-rcd-messwerte ist kein Stapel von .sub-section wie c-mess-sections,
-   sondern hat sein eigenes .grid direkt als Kind - deshalb eigene Regel. */
-.c-rcd-messwerte.mess-sections-collapsed > .grid { display: none; }
+   sondern hat sein eigenes .grid direkt als Kind - deshalb eigene Regel.
+   [8.0.0] c-schutz-basisdaten hat dieselbe Struktur (eigenes .grid direkt als
+   Kind) - teilt sich daher dieselbe Regel wie c-rcd-messwerte. */
+.c-rcd-messwerte.mess-sections-collapsed > .grid,
+.c-schutz-basisdaten.mess-sections-collapsed > .grid { display: none; }
 .c-mess-sections:not(.mess-sections-collapsed) .mess-sections-hinweis,
-.c-rcd-messwerte:not(.mess-sections-collapsed) .mess-sections-hinweis { display: none; }
+.c-rcd-messwerte:not(.mess-sections-collapsed) .mess-sections-hinweis,
+.c-schutz-basisdaten:not(.mess-sections-collapsed) .mess-sections-hinweis { display: none; }
 
 /* Ergebnis-Auswahlfeld je Stromkreis (4.7.0) - steht am Ende der Karte. */
 .circuit-totlegung { margin: 10px 0 -4px; }
@@ -402,6 +407,10 @@ label .limit-hint { display: inline; margin-top: 0; }
 .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.88rem; }
 .btn-success { background: var(--success); }
 .btn-secondary { background: #64748b; font-size: 0.78rem; padding: 6px 12px; }
+/* [8.0.0, Teil 6.3] Gelber Button "Protokoll fortsetzen" in den
+ * Protokolltyp-Kacheln (index.html) - dunkler Text statt weiss, da Gelb auf
+ * Weiss zu wenig Kontrast fuer weisse Schrift bietet. */
+.btn-warning { background: #eab308; color: #1e293b; }
 
 /* 6.3.0 (Befund #3): <select> im Look eines .btn-secondary-Buttons - fuer
  * die 3 Beispieldaten-Varianten, ohne dass 3 einzelne Buttons in die knappe
@@ -560,6 +569,8 @@ canvas { background: white; border: 1px solid #cbd5e1; width: 280px; height: 90p
   color: var(--primary);
 }
 .offene-pruefung-info strong { font-size: 0.92rem; }
+/* [8.0.0, Teil 6.4] Standort/Gebäude/Anlage/Anzahl - analog zu .archiv-sub */
+.offene-pruefung-zusatz { font-size: 0.76rem; color: var(--secondary); }
 .offene-pruefung-zeit { font-size: 0.72rem; color: var(--secondary); }
 .offene-pruefung-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
 .offene-pruefung-aktionen .btn, .offene-pruefung-aktionen .btn-danger { text-decoration: none; }
@@ -1062,4 +1073,64 @@ dialog.app-dialog .app-dialog-aktionen .btn,
 dialog.app-dialog .app-dialog-aktionen .btn-secondary {
   padding: 9px 18px;
   font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------------------
+ *  [8.0.0, Teil 6.1] Gebäude/Bereich verwalten - Dialog
+ * ---------------------------------------------------------------------------
+ *  Eigener Dialoginhalt (Liste + Hinzufuegen-Zeile) innerhalb des
+ *  allgemeinen .app-dialog-Rahmens, siehe gebaeudeVerwaltenOeffnen() in
+ *  js/storage.js. .btn-klein ist ein generischer Groessen-Modifikator fuer
+ *  kleine Buttons in engen Listenzeilen (hier mit .btn-danger kombiniert).
+ * ------------------------------------------------------------------------ */
+.btn-klein {
+  padding: 3px 10px;
+  font-size: 0.72rem;
+}
+dialog.app-dialog.gebaeude-verwalten-dialog {
+  max-width: min(440px, 92vw);
+}
+.gebaeude-verwalten-liste {
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 4px 22px 0 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.gebaeude-verwalten-leer {
+  padding: 14px;
+  font-size: 0.82rem;
+  color: #64748b;
+  text-align: center;
+}
+.gebaeude-verwalten-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+.gebaeude-verwalten-zeile:not(:last-child) {
+  border-bottom: 1px solid #f1f5f9;
+}
+.gebaeude-verwalten-zeile span {
+  overflow-wrap: anywhere;
+}
+.gebaeude-verwalten-hinzufuegen {
+  display: flex;
+  gap: 8px;
+  padding: 14px 22px 6px 22px;
+  flex-wrap: wrap;
+}
+.gebaeude-verwalten-hinzufuegen input[type="text"] {
+  flex: 1 1 160px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.gebaeude-verwalten-hinzufuegen .btn-secondary {
+  flex: 0 0 auto;
 }

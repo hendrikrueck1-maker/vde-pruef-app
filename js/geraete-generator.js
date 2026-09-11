@@ -663,9 +663,10 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(4), spB, isBlank);
 
   drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",           datum,                spR, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,      spR, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Grund der Prüfung:",   feldWert('pruefgrund'), spR, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Prüfdatum:",           datum,                spR, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,      spR, z1(4), spB, isBlank);
 
   y += SEK1_H + 6;
 
@@ -1119,7 +1120,7 @@ function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AK
 // Änderungsbericht 7.4.0, Punkt 7/11).
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'anlage_bez', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
-  'pruefart', 'pruefintervall', 'res_termin_date',
+  'pruefart', 'pruefgrund', 'pruefintervall', 'res_termin_date',
   'pruefumfang',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
   'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
@@ -1218,7 +1219,15 @@ function autosaveProtocol() {
       bezeichnung: entwurfBezeichnung('GP', () => ({
         anlage: document.getElementById('auftraggeber')?.value,
         gebaeude: (document.getElementById('gebaeude_custom')?.value || '') + (anzahl ? ' · ' + anzahl + ' Geräte' : '')
-      }))
+      })),
+      // [8.0.0, Teil 6.4] Einzelteile zusaetzlich zur zusammengesetzten
+      // "bezeichnung" fuer die Spalten in "Offene Prüfungen" (index.html).
+      // Kein eigenes anlage_bez-Feld in diesem Formular - Standort/Anlage
+      // stammen beide aus "Auftraggeber / Prüfort".
+      standort: document.getElementById('auftraggeber')?.value || '',
+      gebaeude: document.getElementById('gebaeude_custom')?.value || '',
+      anlage: '',
+      anzahl: anzahl
     });
   } catch (e) {}
 }

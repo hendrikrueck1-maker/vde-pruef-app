@@ -70,14 +70,17 @@
 
       <div class="form-group">
         <label for="gebaeude_select">Gebäude / Bereich:</label>
-        <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
-          <option value="Gr. Haus">Gr. Haus</option>
-          <option value="Werkstatt">Werkstatt</option>
-          <option value="Spiegelhalle">Spiegelhalle</option>
-          <option value="Münsterplatz">Münsterplatz</option>
-          <option value="Probebühne">Probebühne</option>
-          <option value="custom">Sonstiges...</option>
-        </select>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)" style="flex:1 1 auto;">
+            <option value="Gr. Haus">Gr. Haus</option>
+            <option value="Werkstatt">Werkstatt</option>
+            <option value="Spiegelhalle">Spiegelhalle</option>
+            <option value="Münsterplatz">Münsterplatz</option>
+            <option value="Probebühne">Probebühne</option>
+            <option value="custom">Sonstiges...</option>
+          </select>
+          <button type="button" class="btn-secondary btn-klein" style="flex:0 0 auto; white-space:nowrap;" onclick="gebaeudeVerwaltenOeffnen('gebaeude_select')" title="Eigene Gebäude/Bereiche hinzufügen oder entfernen">Verwalten</button>
+        </div>
         <input type="text" id="gebaeude_custom" value="Gr. Haus" placeholder="Gebäude/Raum eingeben" style="display:none; margin-top:4px;">
       </div>
 
@@ -106,6 +109,16 @@
           <option value="24">2 Jahre</option>
           <option value="48">4 Jahre</option>
         </select>
+        <!-- [8.0.0] NEU: sichtbare Schnellauswahl-Buttonleiste, einheitlich
+             mit vde0100.html/geraetepruefung.html (vorher nur Dropdown). -->
+        <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '1'); updateNaechsterTerminAnschluss()">1 Monat</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '2'); updateNaechsterTerminAnschluss()">2 Monate</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '3'); updateNaechsterTerminAnschluss()">3 Monate</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '12'); updateNaechsterTerminAnschluss()">1 Jahr</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '24'); updateNaechsterTerminAnschluss()">2 Jahre</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '48'); updateNaechsterTerminAnschluss()">4 Jahre</button>
+        </div>
       </div>
       <div class="form-group">
         <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
@@ -134,6 +147,18 @@
           <option>Baustromverteiler</option>
           <option>Generator / Notstromaggregat</option>
           <option>Sonstiges</option>
+        </select>
+      </div>
+      <!-- [8.0.0] NEU: "Grund der Prüfung" - bisher nur in vde0100.html,
+           jetzt einheitlich in allen drei Formularen. -->
+      <div class="form-group">
+        <label for="pruefgrund">Grund der Prüfung:</label>
+        <select id="pruefgrund">
+          <option selected>Wiederholungsprüfung</option>
+          <option>Neuanlage / Erstprüfung</option>
+          <option>Änderung</option>
+          <option>Erweiterung</option>
+          <option>Instandsetzung</option>
         </select>
       </div>
       <!-- Nur bei "Sonstiges" sichtbar: woher der Strom tatsächlich kommt -->
@@ -181,8 +206,49 @@
       <div class="form-group"><label for="sicht_uebergabe_6">6. Berührungsschutz / Abdeckungen:</label><select class="sicht-item" id="sicht_uebergabe_6" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
-    <!-- 4. NETZMESSUNG JE ÜBERGABEPUNKT -->
-    <h2 class="kat-messen" id="abschnitt-messen">4. Messtechnische Feststellungen je Übergabepunkt</h2>
+    <!-- 4. ANSCHLUSSKABEL DER ANLAGE -->
+    <!-- [8.0.0] NEU: analog zu vde0100.html - einmaliger Abschnitt für das
+         Hauptzuleitungskabel zum Übergabepunkt, getrennt von etwaigen
+         Feldern je einzelnem Übergabepunkt in dessen Karte. -->
+    <h2 class="kat-sicht" id="abschnitt-anschlusskabel">4. Anschlusskabel der Anlage</h2>
+    <div class="kat-block kat-sicht">
+      <div class="grid">
+        <div class="form-group">
+          <label for="anschluss_typ">Kabeltyp:</label>
+          <input type="text" id="anschluss_typ" placeholder="z. B. H07RN-F">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'NYM-J')">NYM-J</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07RN-F')">H07RN-F</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'TITANEX')">TITANEX</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07V-K')">H07V-K</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="anschluss_leiter">Leiter-Anzahl:</label>
+          <input type="text" id="anschluss_leiter" placeholder="z. B. 5G">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '5G')">5G</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '3G')">3G</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '4G')">4G</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="anschluss_qs">Querschnitt:</label>
+          <input type="text" inputmode="decimal" id="anschluss_qs" placeholder="z. B. 6 mm²">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1,5 mm²')">1,5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '2,5 mm²')">2,5 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '4 mm²')">4 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '6 mm²')">6 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '10 mm²')">10 mm²</button>
+            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '16 mm²')">16 mm²</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. NETZMESSUNG JE ÜBERGABEPUNKT -->
+    <h2 class="kat-messen" id="abschnitt-messen">5. Messtechnische Feststellungen je Übergabepunkt</h2>
     <!-- Der frueher hier genannte Spannungsfall (&le; 4 % nach DIN VDE 0100-520)
          wurde entfernt: es gibt kein Eingabefeld dafuer, der Wert wird weder
          erfasst noch geprueft. Ein Grenzwert im Hinweistext, den das Formular
@@ -195,8 +261,24 @@
     <div id="feedsContainer"></div>
     <button type="button" class="btn btn-secondary" onclick="addFeedCard()">+ Übergabepunkt hinzufügen</button>
 
-    <!-- 5. ERDUNG -->
-    <h2 class="kat-erdung" id="abschnitt-erdung">5. Durchgängigkeit Potenzialausgleich / Erdung</h2>
+    <!-- 6. ERPROBEN -->
+    <!-- [8.0.0] NEU: fehlte bisher komplett in diesem Formular. Analog zum
+         Erproben-Abschnitt in vde0100.html, aber OHNE "Funktion Anlage",
+         "Drehfeld CEE" und "Polarität/Steckdosenbelegung" - die kommen laut
+         Zieltabelle nur bei der Anlagenprüfung vor, nicht am Übergabepunkt. -->
+    <h2 class="kat-sicht" id="abschnitt-erproben">6. Erproben (Funktionsprüfung)</h2>
+    <p class="limit-hint" style="margin:-4px 0 8px;">
+      Die RCD-Prüftaste prüft die Mechanik und ist ein anderer Nachweis als die Messung von I<sub>&Delta;mess</sub>/t<sub>A</sub>.
+      Punkte, die an diesem Übergabepunkt nicht vorkommen, bleiben auf „n.a.“.
+    </p>
+    <div class="grid kat-block kat-sicht">
+      <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+    </div>
+
+    <!-- 7. ERDUNG -->
+    <h2 class="kat-erdung" id="abschnitt-erdung">7. Durchgängigkeit Potenzialausgleich / Erdung</h2>
     <div class="kat-block kat-erdung">
     <div class="grid">
       <div class="form-group">
@@ -229,8 +311,8 @@
     </div>
     </div>
 
-    <!-- 6. BEWERTUNG -->
-    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">6. Gesamtbeurteilung & Freigabe</h2>
+    <!-- 8. BEWERTUNG -->
+    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">8. Gesamtbeurteilung & Freigabe</h2>
     <div class="grid">
       <div class="form-group">
         <label for="res_maengel">Gesamtbewertung Mängel:</label>
@@ -260,7 +342,7 @@
     </div>
 
     <!-- 7. ÜBERGABE -->
-    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">7. Übergabebestätigung & Unterschriften</h2>
+    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">9. Übergabebestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
       <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
       <div class="form-group">
@@ -342,7 +424,9 @@
       { selector: '#abschnitt-stammdaten-1', label: 'Stammdaten' },
       { selector: '#abschnitt-stammdaten-2', label: 'Stammdaten' },
       { selector: '#abschnitt-sicht', label: 'Sichtprüfung' },
+      { selector: '#abschnitt-anschlusskabel', label: 'Anschlusskabel' },
       { selector: '#abschnitt-messen', label: 'Übergabepunkte' },
+      { selector: '#abschnitt-erproben', label: 'Erproben' },
       { selector: '#abschnitt-erdung', label: 'Erdung / Potenzialausgleich' },
       { selector: '#abschnitt-ergebnis-1', label: 'Gesamtbewertung' },
       { selector: '#abschnitt-ergebnis-2', label: 'Gesamtbewertung' }
@@ -354,6 +438,11 @@
     // 4.7.1: ganzes Formular als Fortschrittsanzeige gelb/gruen markieren.
     alleFelder: true
   });
+
+  // 8.0.0: eigene Gebäude/Bereich-Einträge (aus dem "Verwalten"-Dialog) beim
+  // Laden ins Dropdown einfuegen - siehe gebaeudeOptionenAktualisieren() in
+  // storage.js.
+  gebaeudeOptionenAktualisieren('gebaeude_select');
 
   const pads = initSignaturePadsAnschluss();
   padUebergeber = pads.uebergeber;

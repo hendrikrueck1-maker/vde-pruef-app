@@ -263,6 +263,7 @@ function addFeedCard(data = {}) {
           <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${attrEsc(data.rcd_idn)}" placeholder="z. B. 30 mA" oninput="validateFeedNorms(${cardCounter})">
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '30 mA'); validateFeedNorms(${cardCounter})">30 mA</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '100 mA'); validateFeedNorms(${cardCounter})">100 mA</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '300 mA'); validateFeedNorms(${cardCounter})">300 mA</button>
           </div>
         </div>
@@ -754,7 +755,7 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
    * leer (kein Drehfeld ohne Drehstrom) - nur bei Drehstrom-Karten wird eine
    * Auswahl verlangt. */
   if (!isBlank) {
-    const offeneAuswahl = ersteLeereAuswahl(['.sicht-item', '#pa_angeschlossen', '#res_maengel',
+    const offeneAuswahl = ersteLeereAuswahl(['.sicht-item', '.erp-item', '#pa_angeschlossen', '#res_maengel',
        '#res_leistung_ausreichend', '#res_freigabe']);
     if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
 
@@ -815,6 +816,32 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
             'genau die Fehler, die hinter einem fremden Übergabepunkt liegen.\n\n' +
             'Das PDF wurde deshalb nicht erstellt.');
       feeds[ohneNpe[0] - 1]?.querySelector('.c-unpe')?.focus();
+      return;
+    }
+  }
+
+  /* [8.0.0, Teil 6.5] Netzmessung: echte Pflichtfeld-Sperre bei
+   * Nicht-Festanschluss (Steckstelle/Baustromverteiler/Generator/Sonstiges).
+   * Bisher war U L1-N & Co. an jedem Uebergabepunkt rein optional - bei einem
+   * "Festanschluss / Zaehlerschrank" ist das vertretbar (die Netzqualitaet
+   * ist Sache des Netzbetreibers), aber bei jeder anderen Einspeisungsart
+   * (insbesondere einer Steckstelle an einem Baustromverteiler oder Generator)
+   * ist die tatsaechlich gemessene Netzspannung/-frequenz die einzige
+   * eigenstaendige Pruefung dieser Einspeisung - ein Protokoll ohne diesen
+   * Wert wuerde eine ungeprüfte Einspeisung freigeben. */
+  if (!isBlank && document.getElementById('einspeisung_art')?.value !== 'Festanschluss / Zählerschrank') {
+    const feedsNetz = Array.from(document.querySelectorAll('#feedsContainer .feed-card'));
+    const ohneNetzmessung = feedsNetz
+      .map((karte, i) => (String(karte.querySelector('.c-u-l1n')?.value || '').trim() === '' ? i + 1 : null))
+      .filter(n => n !== null);
+    if (ohneNetzmessung.length) {
+      await appAlert('Netzmessung (U L1–N) fehlt bei Übergabepunkt ' + ohneNetzmessung.join(', ') + '.\n\n' +
+            'Bei jeder Einspeisungsart außer "Festanschluss / Zählerschrank" (hier: "' +
+            (document.getElementById('einspeisung_art')?.value || '-') + '") ist die tatsächlich ' +
+            'gemessene Netzspannung die einzige eigenständige Prüfung dieser Einspeisung ' +
+            '(Baustromverteiler, Generator, sonstige provisorische Versorgung).\n\n' +
+            'Das PDF wurde deshalb nicht erstellt.');
+      feedsNetz[ohneNetzmessung[0] - 1]?.querySelector('.c-u-l1n')?.focus();
       return;
     }
   }
@@ -946,11 +973,13 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   /* --- SEKTION 1B: NETZSYSTEM, PRÜFINTERVALL & ANSCHLUSSLEISTUNG ---------
    * [7.4.0, Punkt 1/4] Netzspannung/Hausanschluss-Schnellauswahl (analog
    * vde0100.html) sowie das neue Pruefintervall-Feld. */
-  const SEK1B_H = 18;
+  // [8.0.0] Hoehe +ZA fuer die neue dritte Zeile ("Grund der Pruefung").
+  const SEK1B_H = 18 + ZA;
   drawKategorieBox(doc, { y, h: SEK1B_H, titel: "NETZSPANNUNG, HAUSANSCHLUSS & PRÜFINTERVALL", kat: 'stamm' });
   const z1b = (i) => y + 10 + i * ZA;
   drawFeldZeile(doc, "Netzspannung (V):",        feldWert('netzspannung') || '230 / 400',    spL, z1b(0), 60, isBlank);
   drawFeldZeile(doc, "Anschlussleistung (kVA):", feldWert('anschlussleistung_vertrag'),      spL, z1b(1), 60, isBlank);
+  drawFeldZeile(doc, "Grund der Prüfung:",       feldWert('pruefgrund'),                     spL, z1b(2), 60, isBlank);
   drawFeldZeile(doc, "Hausanschluss/Speisepunkt:", feldWert('hausanschluss'),                spL + 65, z1b(0), 110, isBlank);
   const pruefintervallSelectAP = document.getElementById('pruefintervall');
   const pruefintervallTextAP = isBlank ? '' : (pruefintervallSelectAP ? cleanStr(pruefintervallSelectAP.options[pruefintervallSelectAP.selectedIndex].text) : '');
@@ -1000,6 +1029,19 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   });
 
   y += SEK2_H + 6;
+
+  /* --- SEKTION 2B: ANSCHLUSSKABEL DER ANLAGE ------------------------------
+   * [8.0.0] NEU: analog zu vde0100.html - einmaliges Kabel zum
+   * Uebergabepunkt, als durchgehende Zeile (wie im Leerformular dort). */
+  const SEK2B_H = 12;
+  drawKategorieBox(doc, { y, h: SEK2B_H, titel: "ANSCHLUSSKABEL DER ANLAGE", kat: 'sicht' });
+  const kabelAnschlussAP = kommaZahl([feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
+    .filter(p => p).join(' '));
+  drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
+                             : "Anschlusskabel (Typ / Adern / Querschnitt):",
+                kabelAnschlussAP, PDF_MARGIN_LEFT + 3, y + 9, 177, isBlank);
+
+  y += SEK2B_H + 6;
 
   // SEKTION 3: ÜBERGABEPUNKTE TABELLE (Kategorie "messen" = gruen)
   const katMessen = drawKategorieTitel(doc, "3. MESSTECHNISCHE PRÜFUNGEN JE ÜBERGABEPUNKT", y, 'messen');
@@ -1234,6 +1276,32 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   }));
 
   let finalY = doc.lastAutoTable.finalY + 6;
+
+  /* --- SEKTION 3B: ERPROBEN (FUNKTIONSPRÜFUNG) ----------------------------
+   * [8.0.0] NEU: fehlte bisher komplett in diesem Formular. Analog zum
+   * Erproben-Abschnitt in vde0100.html, aber nur mit den drei Punkten, die
+   * laut Zieltabelle am Übergabepunkt vorkommen (Schutzeinrichtungen,
+   * RCD-Prüftaste, Drehrichtung Motoren). */
+  const SEK3B_H = 12;
+  finalY = pdfPlatzPruefen(doc, finalY, SEK3B_H + 8);
+  drawKategorieBox(doc, { y: finalY, h: SEK3B_H, titel: "ERPROBEN (FUNKTIONSPRÜFUNG)", kat: 'sicht' });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  const erpEls = document.querySelectorAll('.erp-item');
+  const erpLabelsAP = ["Schutzeinrichtungen", "RCD-Prüftaste", "Drehrichtung Motoren"];
+  const ERP_LABEL_X = [23, 82, 141];
+  const ERP_CB_X    = [46, 105, 164];
+  erpLabelsAP.forEach((label, i) => {
+    doc.setFontSize(7);
+    drawFittedText(doc, label + ':', ERP_LABEL_X[i], finalY + 9, 24, 7, 5.4);
+    doc.setFontSize(6.4);
+    drawCheckbox(doc, ERP_CB_X[i], finalY + 9, "i.O.", !isBlank && erpEls[i]?.value === "i.O.");
+    drawCheckbox(doc, ERP_CB_X[i] + 11, finalY + 9, "n.i.O.", !isBlank && erpEls[i]?.value === "n.i.O.", true);
+    drawCheckbox(doc, ERP_CB_X[i] + 22, finalY + 9, "n.a.", !isBlank && erpEls[i]?.value === "n.a.");
+  });
+  doc.setFontSize(7);
+
+  finalY += SEK3B_H + 6;
 
   /* --- SEKTION 4: ERDUNG / POTENZIALAUSGLEICH & FREIGABE ------------------
    * Neu: Messpunkt/Bezugspunkt sowie Freitextzeilen fuer eigene Messstellen. */
@@ -1523,9 +1591,10 @@ function ANSCHLUSS_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('AP', 
 // hier) - 'netzfrequenz' entfaellt ersatzlos (je Karte 'frequenz').
 const ANSCHLUSS_FIELD_IDS = [
   'auftraggeber', 'anlage_bez', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
-  'pruefintervall', 'res_termin_date',
+  'pruefintervall', 'res_termin_date', 'pruefgrund',
   'firma_vermieter', 'vnb', 'bereitsteller_ansprechpartner', 'bereitsteller_telefon', 'einspeisung_art', 'einspeisung_sonstiges',
   'uebergabe_standort', 'anschlussleistung_vertrag', 'netzspannung', 'hausanschluss',
+  'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'pa_angeschlossen', 'erdung_re', 'pa_messpunkt',
   'res_maengel', 'res_leistung_ausreichend',
   'res_freigabe', 'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum',
@@ -1549,6 +1618,11 @@ function collectAnschlussState() {
   state.gebaeude = document.getElementById('gebaeude_custom').value;
   state.res_termin_bestaetigt = !!document.getElementById('res_termin_bestaetigt')?.checked;
   state.sicht = Array.from(document.querySelectorAll('.sicht-item')).map(s => s.value);
+  // [8.0.0] NEU: Erproben-Abschnitt (fehlte bisher komplett in diesem
+  // Formular) - analog zu js/pdf-generator.js (vde0100.html): ueber .erp-item
+  // statt feste IDs, damit neue Pruefpunkte automatisch mitwachsen.
+  state.erproben = {};
+  document.querySelectorAll('.erp-item').forEach(el => { state.erproben[el.id] = el.value; });
 
   // [7.4.0, Punkt 2] Alle neuen Karten-Messfelder ergaenzt (netzart,
   // u_l1n..u_l13, riso, zln, ik2, gefaehrdung, umess, pa_durchg,
@@ -1626,6 +1700,15 @@ function restoreAnschlussState(state) {
   const sichtEls = document.querySelectorAll('.sicht-item');
   (state.sicht || []).forEach((val, i) => { if (sichtEls[i]) sichtEls[i].value = val; });
 
+  // [8.0.0] NEU: Erproben-Abschnitt restaurieren (ueber ID, nicht Index -
+  // robuster gegenueber spaeter hinzugefuegten Punkten, analog vde0100.html).
+  if (state.erproben) {
+    Object.entries(state.erproben).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+  }
+
   if (state.feeds && state.feeds.length) {
     document.getElementById('feedsContainer').innerHTML = '';
     cardCounter = 0;
@@ -1674,7 +1757,13 @@ function autosaveProtocol() {
       bezeichnung: entwurfBezeichnung('AP', () => ({
         anlage: document.getElementById('uebergabe_standort')?.value,
         gebaeude: document.getElementById('gebaeude_custom')?.value
-      }))
+      })),
+      // [8.0.0, Teil 6.4] Einzelteile zusaetzlich zur zusammengesetzten
+      // "bezeichnung" fuer die Spalten in "Offene Prüfungen" (index.html).
+      standort: document.getElementById('uebergabe_standort')?.value || document.getElementById('auftraggeber')?.value || '',
+      gebaeude: document.getElementById('gebaeude_custom')?.value || '',
+      anlage: document.getElementById('anlage_bez')?.value || '',
+      anzahl: document.querySelectorAll('.feed-card').length
     });
   } catch (e) {}
 }

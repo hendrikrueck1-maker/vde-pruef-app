@@ -1,5 +1,28 @@
 let cardCounter = 0;
 
+/* [8.0.0] Prüffristen-Schnellauswahl für vde0100.html - analog zu
+ * updateNaechsterTermin() (geraetepruefung.html) bzw.
+ * updateNaechsterTerminAnschluss() (anschlusspruefung.html), hier nur mit
+ * eigenem Funktionsnamen, da alle drei Formulare js/pdf-utils.js gemeinsam
+ * laden und ein gleichnamiges globales Funktions-Symbol sonst kollidieren
+ * wuerde, sobald mehrere dieser Skripte irgendwann gemeinsam eingebunden
+ * werden. Basis ist das eingetragene Prüfdatum (#datum), "heute" nur als
+ * Rückfallwert, solange noch kein Prüfdatum gesetzt ist. */
+function updateNaechsterTerminVde0100() {
+  const intervallFeld = document.getElementById('pruefintervall');
+  if (!intervallFeld) return;
+  const monate = parseInt(intervallFeld.value, 10);
+  if (!monate) return;
+  const datumFeld = document.getElementById('datum');
+  const basis = (datumFeld && datumFeld.value) ? new Date(datumFeld.value + 'T00:00:00') : new Date();
+  const next = isNaN(basis.getTime()) ? new Date() : basis;
+  next.setMonth(next.getMonth() + monate);
+  const zielFeld = document.getElementById('res_termin_date');
+  if (zielFeld) {
+    zielFeld.value = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0');
+  }
+}
+
 /* Pruefstrom fuer Ausloesestrom/Ausloesezeit: bei einer NEUEN Karte (data.rcd_pruefstrom
  * === undefined) ist "5x In (max. 40 ms)" der in der Praxis fast immer verwendete
  * Pruefstrom und wird jetzt vorbelegt, damit er nicht bei jedem Stromkreis erneut
@@ -62,11 +85,26 @@ function toggleTotlegung(select) {
 }
 
 function toggleMessSections(header) {
-  // Wird sowohl vom Messpruefungs-Block einer totgelegten Karte
-  // (.c-mess-sections) als auch vom RCD-Messwerte-Block (.c-rcd-messwerte)
-  // verwendet - beide teilen sich dieselbe Kopfzeilen-Struktur.
-  const wrapper = header.closest('.c-mess-sections, .c-rcd-messwerte');
-  if (wrapper) wrapper.classList.toggle('mess-sections-collapsed');
+  // Wird vom Messpruefungs-Block einer totgelegten Karte (.c-mess-sections),
+  // vom RCD-Messwerte-Block (.c-rcd-messwerte) UND [8.0.0] vom neuen
+  // Schutzeinrichtungs-Basisdaten-Aufklappmenue (.c-schutz-basisdaten)
+  // verwendet - alle drei teilen sich dieselbe Kopfzeilen-Struktur.
+  const wrapper = header.closest('.c-mess-sections, .c-rcd-messwerte, .c-schutz-basisdaten');
+  if (!wrapper) return;
+  const jetztEingeklappt = wrapper.classList.toggle('mess-sections-collapsed');
+  /* [8.0.0] Beim AUFKLAPPEN des Basisdaten-Menues den aktuellen Stand aus
+   * den "echten" Einzelfeldern uebernehmen - so zeigt das Menue auch dann
+   * den richtigen Wert, wenn der Nutzer bisher ausschliesslich unten in
+   * Absicherung/RCD eingetragen hat (kein Live-Sync bei jedem Tastendruck
+   * in die andere Richtung, um Cursor-Spruenge in den Einzelfeldern zu
+   * vermeiden - stattdessen Abgleich beim Oeffnen). */
+  if (!jetztEingeklappt && wrapper.classList.contains('c-schutz-basisdaten')) {
+    const card = wrapper.closest('.circuit-card');
+    const cardId = card ? card.id.replace('circuit_', '') : null;
+    if (cardId && typeof schutzBasisdatenAusEinzelfeldernUebernehmen === 'function') {
+      schutzBasisdatenAusEinzelfeldernUebernehmen(cardId);
+    }
+  }
 }
 
 /* RCD-MESSWERTE EIN-/AUSKLAPPEN JE NACH "OHNE RCD" (4.7.1)
@@ -140,6 +178,65 @@ function addCircuitCard(data = {}) {
       </div>
     </div>
 
+    <!-- [8.0.0] SCHUTZEINRICHTUNGS-BASISDATEN (Aufklappmenü, zusaetzlich zu
+         den Einzelfeldern weiter unten in Absicherung/RCD). Standardmaessig
+         eingeklappt, damit erfahrene Nutzer wie bisher direkt in den
+         Einzelfeldern arbeiten koennen; wer stattdessen zuerst alle
+         Typenschild-Basisdaten des Stromkreises an EINER Stelle erfassen
+         will, klappt hier auf. Beide Eingabewege spiegeln sich gegenseitig
+         (analog zur Seriennummer-Synchronisierung aus 7.4.0 Punkt 8) - egal
+         wo etwas eingetragen wird, taucht es an beiden Stellen auf. -->
+    <div class="c-schutz-basisdaten mess-sections-collapsed">
+      <div class="mess-sections-header" onclick="toggleMessSections(this)">
+        <span class="mess-sections-titel">Schutzeinrichtungs-Basisdaten (Absicherung, RCD-Typ, I<sub>n</sub>, I<sub>&Delta;n</sub>)</span>
+        <span class="mess-sections-hinweis">Optionale Sammelansicht – Werte lassen sich auch einzeln unten in „Absicherung“/„RCD“ eintragen. Zum Aufklappen hier klicken</span>
+        <span class="mess-sections-chevron">▾</span>
+      </div>
+      <div class="grid">
+        <div class="form-group">
+          <label for="basis_sich_${cardCounter}">Absicherung (Typ / Nennstrom):</label>
+          <input type="text" class="c-basis-sich" id="basis_sich_${cardCounter}" placeholder="z. B. B 16A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'sich')">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'B 16A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">B 16A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'B 10A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">B 10A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'C 16A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">C 16A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'C 32A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">C 32A</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="basis_rcd_typ_${cardCounter}">RCD Typ:</label>
+          <input type="text" class="c-basis-rcd-typ" id="basis_rcd_typ_${cardCounter}" placeholder="z. B. Typ A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ B'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ B</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ B+'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ B+</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ F'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ F</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Ohne RCD'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Ohne RCD</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="basis_rcd_in_${cardCounter}">Bemessungsstrom I<sub>n</sub> (RCD):</label>
+          <input type="text" class="c-basis-rcd-in" id="basis_rcd_in_${cardCounter}" placeholder="z. B. 40 A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '16 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">16 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '25 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">25 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '40 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">40 A</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '63 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">63 A</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="basis_rcd_idn_${cardCounter}">Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
+          <input type="text" class="c-basis-rcd-idn" id="basis_rcd_idn_${cardCounter}" placeholder="z. B. 30 mA" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">
+          <div class="quick-btn-group">
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '10 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">10 mA</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '30 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">30 mA</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '100 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">100 mA</button>
+            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '300 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">300 mA</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MESSPRUEFUNGEN (4.7.0): ein gemeinsam einklappbarer Block. Wird der
          Stromkreis weiter unten als "Mangel festgestellt / totgelegt"
          markiert, sind diese Messwerte per Definition nicht mehr relevant
@@ -172,12 +269,32 @@ function addCircuitCard(data = {}) {
           <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('riso', 'fluke1663').icon}<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span></div>
           <div class="grid">
             <div class="form-group">
+              <!-- [8.0.0] NEU: "Verbraucher angeschlossen?" - zusaetzlich zur
+                   bestehenden Pruefspannungs-Auswahl. Waehlt der Nutzer "ohne
+                   Verbraucher", wird die Pruefspannung automatisch auf 250 V
+                   vorbelegt (haeufigster Praxisfall bei angeschlossenen
+                   Verbrauchern/empfindlicher Elektronik), bleibt aber manuell
+                   uebersteuerbar (z. B. SELV/PELV-Sonderfall). -->
+              <label for="riso_verbraucher_${cardCounter}">Verbraucher angeschlossen?</label>
+              <select class="c-riso-verbraucher" id="riso_verbraucher_${cardCounter}" onchange="risoVerbraucherGeaendert(${cardCounter})">
+                <option value="" selected>&ndash; bitte wählen &ndash;</option>
+                <option value="ja">Ja, Verbraucher angeschlossen</option>
+                <option value="nein">Nein, ohne Verbraucher geprüft</option>
+              </select>
+              <div class="limit-hint">Bei „ohne Verbraucher“ wird die Prüfspannung automatisch auf 250 V vorgewählt &ndash; bei Bedarf (z. B. SELV/PELV) unten weiterhin manuell änderbar.</div>
+            </div>
+            <div class="form-group">
               <label for="riso_mode_${cardCounter}">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
               <select class="c-riso-mode" id="riso_mode_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
                 <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
                 <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
                 <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
-                <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung (kein Normfall)</option>
+                <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>
+                <!-- [8.0.0] NEU: eigene Option fuer "ohne Verbraucher" (siehe
+                     riso_verbraucher-Auswahl oben) - bewusst getrennt von der
+                     bestehenden "Praxismessung MIT Verbrauchern"-Option, da
+                     beides technisch 250 V aber unterschiedliche Gruende sind. -->
+                <option value="250 V DC (ohne Verbraucher geprüft)">250 V DC &ndash; ohne Verbraucher geprüft (kein Normfall)</option>
               </select>
             </div>
             <div class="form-group">
@@ -276,6 +393,7 @@ function addCircuitCard(data = {}) {
           <div class="quick-btn-group">
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '10 mA'); validateCardNorms(${cardCounter})">10 mA</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '30 mA'); validateCardNorms(${cardCounter})">30 mA</button>
+            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '100 mA'); validateCardNorms(${cardCounter})">100 mA</button>
             <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '300 mA'); validateCardNorms(${cardCounter})">300 mA</button>
           </div>
         </div>
@@ -383,6 +501,7 @@ function addCircuitCard(data = {}) {
   }
 
   if (data.riso_mode) card.querySelector('.c-riso-mode').value = data.riso_mode;
+  if (data.riso_verbraucher) card.querySelector('.c-riso-verbraucher').value = data.riso_verbraucher;
   // Pruefstrom: bei einer neuen Karte (data.rcd_pruefstrom === undefined) ist
   // "5" bereits per <option selected> vorbelegt (siehe pruefstromSel oben) -
   // das darf hier NICHT ueberschrieben werden. Ein wiederhergestellter,
@@ -422,6 +541,7 @@ function dupliziereStromkreis(cardDomId) {
     qs: w('.c-querschnitt'),
     sich: w('.c-sich-typ'),
     riso_mode: w('.c-riso-mode'),
+    riso_verbraucher: w('.c-riso-verbraucher'),
     rcd_typ: w('.c-rcd-typ'),
     rcd_in: w('.c-rcd-in'),
     rcd_idn: w('.c-rcd-idn'),
@@ -434,6 +554,71 @@ function dupliziereStromkreis(cardDomId) {
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
   const neu = document.querySelector('#circuitsContainer .circuit-card:last-child .c-bez');
   if (neu) { neu.focus(); neu.select(); }
+}
+
+/* [8.0.0] Reagiert auf die neue "Verbraucher angeschlossen?"-Auswahl bei der
+ * R_ISO-Messung: bei "Nein, ohne Verbraucher geprüft" wird die Prüfspannung
+ * automatisch auf 250 V vorgewählt (haeufigster Praxisfall). Der Nutzer kann
+ * das Prüfspannungs-Dropdown danach jederzeit manuell uebersteuern (z. B.
+ * SELV/PELV-Sonderfall) - diese Funktion setzt den Wert nur EINMAL beim
+ * Umschalten auf "ohne Verbraucher", nicht bei jeder weiteren Aenderung. */
+function risoVerbraucherGeaendert(cardId) {
+  const card = document.getElementById(`circuit_${cardId}`);
+  if (!card) return;
+  const verbraucherElem = card.querySelector('.c-riso-verbraucher');
+  const modeElem = card.querySelector('.c-riso-mode');
+  if (verbraucherElem && modeElem && verbraucherElem.value === 'nein') {
+    modeElem.value = '250 V DC (ohne Verbraucher geprüft)';
+  }
+  validateCardNorms(cardId);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+/* [8.0.0] Schutzeinrichtungs-Basisdaten-Aufklappmenue: spiegelt die vier
+ * Sammel-Felder (Absicherung, RCD-Typ, I_n, I_dn) 1:1 in die jeweils
+ * "echten" Einzelfelder weiter unten in der Karte (Absicherung/RCD-Sektion)
+ * und umgekehrt - beide Eingabewege bleiben synchron, egal wo etwas
+ * eingetragen wird (additiv, ersetzt keine bestehenden Felder). richtung
+ * ('sich' | 'rcd_typ' | 'rcd_in' | 'rcd_idn') sagt, WELCHES Feld sich
+ * gerade geaendert hat, damit nicht bei jedem Tastendruck alle vier Felder
+ * unnoetig neu geschrieben werden (das wuerde die Cursor-Position im
+ * jeweils jetzt jeweils NICHT editierten Feld zerstoeren). */
+function schutzBasisdatenGeaendert(cardId, feld) {
+  const card = document.getElementById(`circuit_${cardId}`);
+  if (!card) return;
+  const paare = {
+    sich:    ['.c-basis-sich',    '.c-sich-typ'],
+    rcd_typ: ['.c-basis-rcd-typ', '.c-rcd-typ'],
+    rcd_in:  ['.c-basis-rcd-in',  '.c-rcd-in'],
+    rcd_idn: ['.c-basis-rcd-idn', '.c-rcd-idn']
+  };
+  const paar = paare[feld];
+  if (!paar) return;
+  const basisElem = card.querySelector(paar[0]);
+  const zielElem = card.querySelector(paar[1]);
+  if (basisElem && zielElem) zielElem.value = basisElem.value;
+  if (feld === 'rcd_typ' && typeof syncRcdMesswerteAnzeige === 'function') syncRcdMesswerteAnzeige(cardId);
+  validateCardNorms(cardId);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+/* Umgekehrte Richtung: die "echten" Einzelfelder in die Basisdaten-Sammel-
+ * ansicht uebernehmen - aufgerufen beim Anlegen/Wiederherstellen/Duplizieren
+ * einer Karte, damit das Aufklappmenue von Anfang an denselben Stand zeigt. */
+function schutzBasisdatenAusEinzelfeldernUebernehmen(cardId) {
+  const card = document.getElementById(`circuit_${cardId}`);
+  if (!card) return;
+  const paare = [
+    ['.c-basis-sich',    '.c-sich-typ'],
+    ['.c-basis-rcd-typ', '.c-rcd-typ'],
+    ['.c-basis-rcd-in',  '.c-rcd-in'],
+    ['.c-basis-rcd-idn', '.c-rcd-idn']
+  ];
+  paare.forEach(([basisSel, zielSel]) => {
+    const basisElem = card.querySelector(basisSel);
+    const zielElem = card.querySelector(zielSel);
+    if (basisElem && zielElem) basisElem.value = zielElem.value;
+  });
 }
 
 function validateCardNorms(cardId) {
@@ -800,8 +985,8 @@ function fillExampleDataStamm(auftraggeberPraefix) {
   // Sicht-/Erprobungspruefung: alle Punkte i.O. setzen (Pflichtfelder ohne
   // Default) - wird von den "mit Maengeln"-Varianten gezielt ueberschrieben.
   ['sicht_betriebsmittel', 'sicht_kabel', 'sicht_zugang', 'sicht_schaltgeraete',
-   'sicht_kennzeichnung', 'sicht_doku', 'sicht_pa', 'sicht_basisschutz',
-   'sicht_typenschild', 'sicht_brandschott', 'sicht_leiterverb', 'sicht_gst'
+   'sicht_kennzeichnung', 'sicht_pa', 'sicht_basisschutz',
+   'sicht_typenschild', 'sicht_brandschott', 'sicht_leiterverb'
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
   ['erp_anlage', 'erp_schutz'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
 
@@ -1303,10 +1488,14 @@ async function generatePDFInner(isBlank = false) {
    * Damit der Beschreibungstext nicht mehr unter die Kaestchen laeuft, sind
    * die Bezeichnungen gekuerzt UND die Kaestchen stehen weiter rechts;
    * zusaetzlich verkleinert drawFittedText zu lange Texte automatisch. */
-  /* Besichtigen: 12 Punkte in 3 Spalten x 4 Zeilen, Erproben: 8 Punkte in
-   * 3 Spalten x 3 Zeilen. Jeder Punkt hat jetzt drei Zustaende - "n.a." ist
-   * noetig, weil es Brandabschottungen, Gebaeudesystemtechnik oder Motoren
-   * nicht an jeder Anlage gibt und ein erzwungenes i.O./n.i.O. dort falsch waere. */
+  /* [8.0.0] "Doku/Warnung" (vormals Punkt 6) und "Gebaeudesystemtechnik"
+   * (vormals Punkt 12) ersatzlos gestrichen - Besichtigen jetzt 10 statt 12
+   * Punkte, Erproben 7 statt 8 (auch "Funktion Gebaeudesystemtechnik" dort
+   * entfernt). Besichtigen: 10 Punkte in 3 Spalten x 4 Zeilen (letzte Spalte
+   * nur 2 Zeilen), Erproben: 7 Punkte in 3 Spalten x 3 Zeilen (letzte Spalte
+   * nur 1 Zeile). Jeder Punkt hat weiterhin drei Zustaende - "n.a." ist
+   * noetig, weil es Brandabschottungen oder Motoren nicht an jeder Anlage
+   * gibt und ein erzwungenes i.O./n.i.O. dort falsch waere. */
   const SICHT_ZA = 4.3;
   const SEK2_H = 47;   // 4.5.0: 51 -> 47 mm, Inhalt endet bei y+45,5 (siehe C1)
   drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht' });
@@ -1317,8 +1506,8 @@ async function generatePDFInner(isBlank = false) {
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
     "1. Betriebsmittel", "2. Kabel/Leitungen", "3. Zugänglichkeit", "4. Schaltgeräte",
-    "5. Kennzeichnung", "6. Doku/Warnung", "7. Zus. Potenzialausgl.", "8. Basisschutz",
-    "9. Typenschild", "10. Brandabschottung", "11. Leiterverbindungen", "12. Gebäudesystemt."
+    "5. Kennzeichnung", "6. Zus. Potenzialausgl.", "7. Basisschutz",
+    "8. Typenschild", "9. Brandabschottung", "10. Leiterverbindungen"
   ];
   // 4.7.0: Spalten neu berechnet (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
   // Zwei Zwischenstaende hatten noch Ueberlappungen: zuerst ueberdeckte das
@@ -1366,7 +1555,7 @@ async function generatePDFInner(isBlank = false) {
   const erpLabels = [
     "Funktion Anlage", "Schutzeinrichtungen", "Drehfeld CEE (rechts)",
     "Polarität/Belegung", "RCD-Prüftaste", "Sicherheitsbeleuchtung",
-    "Drehrichtung Motoren", "Gebäudesystemtechnik"
+    "Drehrichtung Motoren"
   ];
   erpLabels.forEach((label, i) => {
     const spalte = Math.floor(i / 3);
@@ -2043,7 +2232,7 @@ const AUTOSAVE_FIELD_IDS = [
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
   'erdung_re', 'erdung_messpunkt',
-  'pruefumfang',
+  'pruefumfang', 'pruefintervall',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
   'res_bemerkungen', 'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
@@ -2075,6 +2264,7 @@ function collectProtocolState() {
     qs: card.querySelector('.c-querschnitt').value,
     rpe: card.querySelector('.c-rpe').value,
     riso_mode: card.querySelector('.c-riso-mode').value,
+    riso_verbraucher: card.querySelector('.c-riso-verbraucher')?.value || '',
     riso: card.querySelector('.c-riso').value,
     sich: card.querySelector('.c-sich-typ').value,
     zs: card.querySelector('.c-zs').value,
@@ -2200,7 +2390,13 @@ function autosaveProtocol() {
       bezeichnung: entwurfBezeichnung('PR', () => ({
         anlage: document.getElementById('anlage_bez')?.value,
         gebaeude: document.getElementById('gebaeude_custom')?.value
-      }))
+      })),
+      // [8.0.0, Teil 6.4] Einzelteile zusaetzlich zur zusammengesetzten
+      // "bezeichnung" fuer die Spalten in "Offene Prüfungen" (index.html).
+      standort: document.getElementById('auftraggeber')?.value || '',
+      gebaeude: document.getElementById('gebaeude_custom')?.value || '',
+      anlage: document.getElementById('anlage_bez')?.value || '',
+      anzahl: document.querySelectorAll('.circuit-card').length
     });
   } catch (e) {}
 }

@@ -79,6 +79,9 @@ function archivPdfAblegen(blob, meta) {
     dateiname: meta.dateiname || 'Protokoll.pdf',
     erstellt: jetzt.toISOString(),
     pruefdatum: meta.pruefdatum || '',
+    // [8.0.0, Teil 6.4] Standort zusaetzlich zu Gebaeude/Bereich, damit
+    // Archiv und Entwurfsliste auch Standort/Prüfort anzeigen koennen.
+    standort: meta.standort || '',
     gebaeude: meta.gebaeude || '',
     pruefer: meta.pruefer || '',
     ergebnis: meta.ergebnis || '',
@@ -196,6 +199,13 @@ function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
     dateiname: dateiname || '',
     isBlank: !!isBlank,
     pruefdatum: archivFeld('datum'),
+    // [8.0.0, Teil 6.4] Standort: in allen drei Formularen bereits im Feld
+    // "Auftraggeber / Prüfort" bzw. "Auftraggeber / Veranstaltungsort"
+    // erfasst (Feld-ID ueberall gleich: 'auftraggeber'). Zusaetzlich bei der
+    // Anschlusspruefung 'uebergabe_standort' (Standort/Bezeichnung des
+    // konkreten Uebergabepunkts), falls ausgefuellt aussagekraeftiger als der
+    // allgemeine Auftraggeber-Text.
+    standort: archivFeld('uebergabe_standort') || archivFeld('auftraggeber'),
     gebaeude: archivFeld('gebaeude_custom') || archivFeld('anlage_bez') || archivFeld('veranstaltung'),
     // [7.3.0, Nutzerwunsch #7] Bisher ging die Anlagenbezeichnung (z. B.
     // "Hauptverteilung Unterbühne UV-1") unter, sobald zusaetzlich ein
@@ -491,7 +501,7 @@ const ARCHIV_KEY_ENTFERNEN = ['rcd_pruefstrom'];
 const ARCHIV_ERP_STANDARDWERT = {
   erp_anlage: 'i.O.', erp_schutz: 'i.O.',
   erp_drehfeld: 'n.a.', erp_polaritaet: 'n.a.', erp_prueftaste: 'n.a.',
-  erp_sicherheitsbel: 'n.a.', erp_motoren: 'n.a.', erp_gst: 'n.a.'
+  erp_sicherheitsbel: 'n.a.', erp_motoren: 'n.a.'
 };
 
 /* Geht rekursiv durch den gespeicherten Formularstand.

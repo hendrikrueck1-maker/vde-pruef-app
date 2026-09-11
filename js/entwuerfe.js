@@ -85,6 +85,15 @@ function entwurfMerken(praefix, entwurfId, meta) {
     praefix: praefix,
     protokollnummer: (meta && meta.protokollnummer) || '',
     bezeichnung: (meta && meta.bezeichnung) || '',
+    // [8.0.0, Teil 6.4] Zusaetzlich zur bisherigen zusammengesetzten
+    // "bezeichnung" (weiterhin fuer die Kachel-/Schnellzugriffs-Buttons auf
+    // index.html genutzt) jetzt auch die Einzelteile separat, damit
+    // renderOffenePruefungen() sie wie im Archiv einzeln/spaltenartig zeigen
+    // kann (Standort, Gebäude/Bereich, Anlage, typspezifische Anzahl).
+    standort: (meta && meta.standort) || '',
+    gebaeude: (meta && meta.gebaeude) || '',
+    anlage: (meta && meta.anlage) || '',
+    anzahl: (meta && meta.anzahl) || 0,
     zuletzt: Date.now(),
     abgeschlossen: bisherigesFlag
   };
@@ -176,6 +185,22 @@ function entwurfWechseln(praefix, entwurfId) {
 function entwurfAusUrlUebernehmen(praefix) {
   try {
     const params = new URLSearchParams(window.location.search);
+
+    // [8.0.0, Teil 6.3] Grüner Button "Neues Protokoll" direkt in der
+    // Protokolltyp-Kachel (index.html) verlinkt hierher mit "?neu=1" - legt
+    // sofort und ohne Rueckfrage einen frischen, leeren Entwurf an und macht
+    // ihn zum aktiven, BEVOR aktivenEntwurfSicherstellen() greift (die sonst
+    // einfach den zuletzt aktiven Entwurf fortsetzen wuerde). Bewusst ohne
+    // Bestaetigungsdialog: der Klick auf der Startseite ist bereits die
+    // eindeutige, bewusste Nutzerentscheidung - anders als der bestehende
+    // "+ Neues Formular"-Button MITTEN im Formular (neuesProtokoll() u.ae. in
+    // storage.js/anschluss-generator.js/geraete-generator.js), der auch
+    // unbeabsichtigt getroffen werden und laufende Eingaben verwerfen koennte.
+    if (params.get('neu') === '1') {
+      neuenEntwurfAnlegen(praefix); // legt an UND macht ihn zum aktiven Entwurf
+      return;
+    }
+
     const id = params.get('entwurf');
     if (!id) return;
 
@@ -269,11 +294,21 @@ function renderOffenePruefungen(containerId) {
     const datei = ENTWURF_DATEI[e.praefix] || 'index.html';
     const typLabel = PROTOKOLL_PRAEFIXE[e.praefix] || e.praefix;
     const titel = e.protokollnummer ? (e.protokollnummer + (e.bezeichnung ? ' – ' + esc(e.bezeichnung) : '')) : esc(e.bezeichnung || typLabel);
+    // [8.0.0, Teil 6.4] Zusatzzeile mit Standort/Gebäude/Bereich/Anlage sowie
+    // typspezifischer Anzahl (Stromkreise/Geräte/Übergabepunkte) - analog zur
+    // Sub-Zeile im Archiv (siehe archiv.html zeileBauen()). archivTyp() ist
+    // schon vor dem ersten Aufruf von renderOffenePruefungen() geladen
+    // (js/archiv.js wird auf index.html vor dem Inline-Skript eingebunden).
+    const einheit = (typeof archivTyp === 'function') ? archivTyp(e.praefix).einheit : '';
+    const zusatz = [e.standort, e.gebaeude, e.anlage, e.anzahl ? e.anzahl + ' ' + einheit : '']
+      .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; })
+      .map(esc).join(' · ');
     return (
       '<div class="offene-pruefung-zeile' + (e.abgeschlossen ? ' ist-abgeschlossen' : '') + '">' +
         '<div class="offene-pruefung-info">' +
           '<span class="offene-pruefung-typ">' + esc(typLabel) + '</span>' +
           '<strong>' + titel + '</strong>' +
+          (zusatz ? '<span class="offene-pruefung-zusatz">' + zusatz + '</span>' : '') +
           '<span class="offene-pruefung-zeit">zuletzt bearbeitet ' + formatZuletzt(e.zuletzt) + '</span>' +
           '<label class="offene-pruefung-abschluss">' +
             '<input type="checkbox"' + (e.abgeschlossen ? ' checked' : '') +

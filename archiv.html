@@ -239,8 +239,13 @@
     // zwei Protokolle im selben Gebaeude in der Liste unterscheidbar sind -
     // nur bei vde0100.html vorhanden, bei den anderen beiden Formulartypen
     // bleibt e.anlage leer und faellt per filter(Boolean) einfach weg.
-    sub.textContent = [typ.label, e.gebaeude, e.anlage, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
-      .filter(Boolean).join(' · ');
+    // [8.0.0, Teil 6.4] Standort zusaetzlich zu Gebaeude/Bereich und Anlage
+    // anzeigen. e.standort faellt in der Praxis oft mit e.gebaeude/e.anlage
+    // zusammen (kurze Auftraggeber-Angabe) - filter(Boolean) blendet dann
+    // trotzdem nur echte Duplikate aus, wenn die Texte exakt gleich sind.
+    sub.textContent = [typ.label, e.standort, e.gebaeude, e.anlage, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
+      .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; })
+      .join(' · ');
     mitte.appendChild(sub);
     zeile.appendChild(mitte);
 
