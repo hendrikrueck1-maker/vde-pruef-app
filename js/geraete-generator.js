@@ -14,7 +14,14 @@ let cardCounter = 0;
 
 function updateNaechsterTermin() {
   const monate = parseInt(document.getElementById('pruefintervall').value, 10);
-  const next = new Date();
+  // [7.4.0, Korrektur] Basis war bisher new Date() ("heute") - dadurch driftete
+  // der berechnete Prueftermin vom tatsaechlich eingetragenen Pruefdatum weg,
+  // sobald das Protokoll nicht am selben Tag fertiggestellt/exportiert wurde
+  // (z. B. am Folgetag). Korrekt ist das Pruefdatum (#datum) als Basis, mit
+  // "heute" nur als Rueckfallwert, solange noch kein Pruefdatum gesetzt ist.
+  const datumFeld = document.getElementById('datum');
+  const basis = (datumFeld && datumFeld.value) ? new Date(datumFeld.value + 'T00:00:00') : new Date();
+  const next = isNaN(basis.getTime()) ? new Date() : basis;
   next.setMonth(next.getMonth() + monate);
   // Lokale Monatsangabe: valueAsDate rechnet auch bei <input type="month"> in
   // UTC und lag in den ersten Stunden des Monats einen Monat daneben.
@@ -339,7 +346,8 @@ function initSignaturePads() {
 }
 
 function fillExampleDataGeraete() {
-  document.getElementById('pruefungsnummer').value = 'GP-2026-033';
+  // [7.4.0, Punkt 7] 'pruefungsnummer' entfernt, ersetzt durch 'anlage_bez'.
+  document.getElementById('anlage_bez').value = 'Gerätepark Bühnentechnik';
   document.getElementById('pruefer').value = 'Max Mustermann (Elektrofachkraft)';
   // [M1/M2] Auftraggeber gehoert zu den Mindestangaben (erstesLeerePflichtfeld,
   // siehe generatePDFGeraeteInner) und muss deshalb auch im Beispieldatensatz
@@ -590,7 +598,6 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   };
 
   const protokollNr = getVal('protokollnummer', "GP-JJJJ-MM-TT-XXX");
-  const pruefNr = getVal('pruefungsnummer', "__________");
   const datum = isBlank ? "" : (formatDatum(document.getElementById('datum').value) || "");
   /* Das Feld ist ein <input type="month"> und liefert "JJJJ-MM".
    * FRUEHER war es ein type="date"-Feld, in das updateNaechsterTermin() einen
@@ -609,9 +616,11 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const pruegerQualiKurz = pruegerQualiVal.startsWith('Elektrotechnisch') ? 'EuP unter Aufsicht einer EFK' : pruegerQualiVal;
   // Im Leerformular bleiben die Kopf-Felder leer -> dort erscheinen Schreiblinien
   const kopfProtokollNr = isBlank ? "" : protokollNr;
-  // Auch im AUSGEFUELLTEN Protokoll darf kein Ausfuell-Platzhalter stehen: ist
-  // die Prueflings-ID leer, zeichnet kopfFeld() dort eine Schreiblinie.
-  const kopfPruefNr = isBlank ? "" : feldWert('pruefungsnummer');
+  // [7.4.0, Punkt 7] Kein "Prüflings-ID"-Feld mehr (pruefungsnummer entfernt,
+  // siehe Änderungsbericht 7.4.0, Punkt 7) - die Kopfbox zeigt stattdessen
+  // "Anlage/Objekt" (analog zur Anschlussprüfung, pruefNrLabel siehe
+  // drawProtokollSeitenkoepfe() in js/pdf-utils.js).
+  const kopfPruefNr = isBlank ? "" : feldWert('anlage_bez');
 
   drawProtokollHeader(doc, GERAETE_KOPF);
 
@@ -621,7 +630,11 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
    * Kompakt: 5 Zeilen je Spalte. Protokoll-Nr. und Prueflings-ID stehen in
    * der Kopfbox oben rechts und werden hier nicht wiederholt. */
   const ZA = 4.6;
-  const SEK1_H = 31;
+  // [7.4.0, Punkt 11] Von 31 auf 35 mm vergroessert: eine fuenfte Zeile
+  // "Anlage/Objekt" kam hinzu (ersetzt die entfernte "Prüflings-ID", siehe
+  // Punkt 7) - fuer die Archiv-Anzeige (Punkt 11) analog zu vde0100.html/
+  // anschlusspruefung.html.
+  const SEK1_H = 35;
   drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
 
   doc.setFontSize(7.2);
@@ -644,9 +657,10 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
 
   const z1 = (i) => y + 10 + i * ZA;
   drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Anlage/Objekt:",    feldWert('anlage_bez'),      spL, z1(1), spB, isBlank);
+  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(2), spB, isBlank);
+  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(3), spB, isBlank);
+  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(4), spB, isBlank);
 
   drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
   drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(1), spB, isBlank);
@@ -1071,7 +1085,8 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   }
 
   drawProtokollSeitenkoepfe(doc, {
-    ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, datum, revision: GERAETE_REVISION
+    ...GERAETE_KOPF, protokollNr: kopfProtokollNr, pruefNr: kopfPruefNr, pruefNrLabel: "Anlage/Objekt:",
+    datum, revision: GERAETE_REVISION
   });
 
   const filename = isBlank
@@ -1100,8 +1115,10 @@ entwurfAusUrlUebernehmen('GP');
 let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('GP', 'vde_autosave_gp');
 function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AKTUELLER_ENTWURF_ID); }
 
+// [7.4.0, Punkt 7] 'pruefungsnummer' entfernt, 'anlage_bez' neu (siehe
+// Änderungsbericht 7.4.0, Punkt 7/11).
 const GERAETE_FIELD_IDS = [
-  'auftraggeber', 'pruefungsnummer', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
+  'auftraggeber', 'anlage_bez', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
   'pruefart', 'pruefintervall', 'res_termin_date',
   'pruefumfang',
   'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',

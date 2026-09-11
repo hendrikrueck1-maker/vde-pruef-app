@@ -223,6 +223,19 @@ function entwurfBezeichnung(praefix, fieldGetter) {
 
 const ENTWURF_DATEI = { PR: 'vde0100.html', AP: 'anschlusspruefung.html', GP: 'geraetepruefung.html' };
 
+/* [7.4.0, Punkt 6] Liefert den zuletzt bearbeiteten, NICHT abgeschlossenen
+ * Entwurf ueber alle drei Protokolltypen hinweg (oder null, wenn es keinen
+ * gibt) - Grundlage fuer den Button "Letztes weitermachen" auf index.html.
+ * Bewusst dieselbe Datenquelle wie renderOffenePruefungen() (kein separater
+ * Mechanismus), damit beide Stellen immer denselben Entwurf als "zuletzt"
+ * ausweisen. */
+function letzterOffenerEntwurf() {
+  const alle = ['PR', 'AP', 'GP'].flatMap(entwuerfeFuerTyp).filter(e => !e.abgeschlossen);
+  if (!alle.length) return null;
+  alle.sort((a, b) => (b.zuletzt || 0) - (a.zuletzt || 0));
+  return alle[0];
+}
+
 /* Rendert die Liste "Offene Prüfungen" in ein Container-Element (z. B. auf
  * index.html). Jede Zeile fuehrt per Link direkt zum betroffenen Formular
  * mit dem passenden ?entwurf=<id> - ein Klick oeffnet also GENAU diesen

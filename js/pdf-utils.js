@@ -1893,7 +1893,7 @@ function drawProtokollHeader(doc, { titel, normzeile }) {
 // Infobox oben rechts inkl. Protokoll-Nr., Prueflings-ID, Datum und Seitenzahl,
 // plus Revisionsvermerk in der Fusszeile.
 // Muss nach dem Erzeugen aller Seiten aufgerufen werden.
-function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr, datum, revision }) {
+function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr, pruefNrLabel, datum, revision }) {
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -1916,9 +1916,22 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
       doc.setTextColor(...PDF_PRIMARY);
       doc.text(label, 127.5, yy);
       const lw = doc.getStringUnitWidth(label) * 6.8 / doc.internal.scaleFactor;
-      const wertText = wert === undefined || wert === null ? '' : String(wert).trim();
+      let wertText = wert === undefined || wert === null ? '' : String(wert).trim();
       if (wertText) {
         doc.setFont("helvetica", "normal");
+        // [7.4.0-Fix] Werte wie "Anlage/Objekt" sind freier Text und koennen -
+        // anders als die bisherige kurze "Prüflings-ID" - beliebig lang sein.
+        // Ohne Begrenzung lief der Text ueber den rechten Rand der Kopfbox
+        // hinaus (Box endet bei x=202.5mm). Auf die verfuegbare Breite kuerzen
+        // und mit "…" kennzeichnen, statt die Box zu sprengen.
+        const maxWidth = 202.5 - (127.5 + lw + 1.5) - 1;
+        while (wertText.length > 1 &&
+               (doc.getStringUnitWidth(wertText) * 6.8 / doc.internal.scaleFactor) > maxWidth) {
+          wertText = wertText.slice(0, -1);
+        }
+        if (wertText !== String(wert).trim() && wertText.length > 1) {
+          wertText = wertText.slice(0, -1) + '…';
+        }
         doc.text(wertText, 127.5 + lw + 1.5, yy);
       } else {
         doc.setDrawColor(...PDF_LINE);
@@ -1929,7 +1942,11 @@ function drawProtokollSeitenkoepfe(doc, { titel, normzeile, protokollNr, pruefNr
     };
 
     kopfFeld("Protokoll-Nr.:", protokollNr, 8);
-    kopfFeld("Prüflings-ID:", pruefNr, 11.5);
+    // [7.4.0, Punkt 1] Die Anschlussprüfung hat kein "Prüflings-ID"-Feld mehr
+    // (siehe Änderungsbericht 7.4.0, Punkt 1) - der Aufrufer kann das Label
+    // per pruefNrLabel auf "Anlage/Objekt:" umbeschriften, statt eine leere
+    // Schreiblinie unter einem nicht mehr existierenden Feldnamen zu zeigen.
+    kopfFeld((pruefNrLabel || "Prüflings-ID:"), pruefNr, 11.5);
     kopfFeld("Datum:", datum, 15);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(6.8);

@@ -99,7 +99,13 @@
         </select>
       </div>
 
-      <div class="form-group"><label for="pruefungsnummer">Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. GP-2026-001"></div>
+      <!-- [7.4.0, Punkt 7] "Prüflings-ID" (pruefungsnummer) entfernt: bei
+           mehreren Geräten je Protokoll gab es ohnehin keine sinnvolle
+           1:1-Zuordnung zu einer einzelnen Prüflings-ID (siehe
+           Änderungsbericht 7.4.0, Punkt 7). Ersetzt durch "Anlage/Objekt"
+           (Punkt 11: einheitliches Feld für die Archiv-Anzeige, analog zu
+           vde0100.html/anschlusspruefung.html). -->
+      <div class="form-group"><label for="anlage_bez">Anlage / Objekt:</label><input type="text" id="anlage_bez" placeholder="z. B. Gerätepark Bühnentechnik"></div>
       <div class="form-group">
         <label for="protokollnummer">Protokoll-Nr.:</label>
         <input type="text" id="protokollnummer" placeholder="z. B. GP-2026-08-11-001">
@@ -113,7 +119,7 @@
           <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
         </select>
       </div>
-      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum"></div>
+      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTermin()"></div>
       <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
@@ -246,7 +252,7 @@
 
   initStatusleiste({
     typLabel: 'Geräteprüfung',
-    bezFeldIds: ['auftraggeber', 'gebaeude_custom'],
+    bezFeldIds: ['auftraggeber', 'anlage_bez', 'gebaeude_custom'],
     kartenSelector: '.feed-card',
     kartenLabelSelector: '.feed-header span',
     kartenContainerSelector: '#devicesContainer',

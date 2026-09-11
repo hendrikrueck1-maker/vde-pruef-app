@@ -353,8 +353,9 @@ function zusatzIconsEinbinden() {
   }
 
   // [7.3.0, Nutzerwunsch #5] Bestaetigungs-Checkbox unter #res_termin_date
-  // einfuegen (nur in vde0100.html/geraetepruefung.html vorhanden -
-  // anschlusspruefung.html hat kein res_termin_date-Feld, siehe oben).
+  // einfuegen. [7.4.0, Punkt 4] Seit anschlusspruefung.html ebenfalls ein
+  // #res_termin_date-Feld hat, greift dieser generische Code jetzt auch
+  // dort, sobald der Platzhalter-Div im Formular vorhanden ist (siehe oben).
   const terminBestaetigungPlatzhalter = document.getElementById('pruefdatum_bestaetigung_platzhalter');
   if (terminBestaetigungPlatzhalter && !terminBestaetigungPlatzhalter.innerHTML) {
     terminBestaetigungPlatzhalter.innerHTML = pruefterminBestaetigungHtml();
@@ -490,10 +491,14 @@ if (typeof document !== 'undefined') {
  *  der Termin faelschlich den Eindruck erweckt, er gehoere zu den
  *  Stammdaten, die vor der eigentlichen Pruefung feststehen.
  *
- *  anschlusspruefung.html hat bewusst KEIN #res_termin_date-Feld (ein
- *  Uebergabepunkt fuer eine einzelne Veranstaltung hat keinen eigenen
- *  wiederkehrenden Pruefzyklus im selben Sinne) - dort wird nur die
- *  ausklappbare Fristen-Uebersicht angezeigt. */
+ *  [7.4.0, Punkt 4] anschlusspruefung.html hatte bisher bewusst KEIN
+ *  #res_termin_date-Feld (Begruendung: ein Uebergabepunkt fuer eine einzelne
+ *  Veranstaltung hat keinen eigenen wiederkehrenden Pruefzyklus). Das hat sich
+ *  geaendert: die Anschlusspruefung hat jetzt ein eigenes Pruefintervall-Feld
+ *  mit automatischer Terminberechnung, analog zu den anderen beiden
+ *  Formularen (siehe Aenderungsbericht 7.4.0, Punkt 4) - der Text unten wurde
+ *  entsprechend angepasst und erklaert nicht mehr "es gibt keinen Zyklus",
+ *  sondern was das neue Intervall-Feld bedeutet. */
 const PRUEFFRISTEN_TEXT_VDE0100 =
   'Ortsfeste elektrische Anlagen nach DIN VDE 0105-100: die Wiederholungsprüfungsfrist richtet sich nach ' +
   'Betriebsart, Umgebungsbedingungen und einer betrieblichen Gefährdungsbeurteilung (häufig 1–4 Jahre je nach ' +
@@ -506,10 +511,14 @@ const PRUEFFRISTEN_TEXT_GERAETE =
   'Auf-/Abbau, Transport, raue Umgebung) ist eine Frist von 12 Monaten üblich – bei besonders beanspruchten Geräten ' +
   '(z. B. häufig bewegte Anschlussleitungen) kann eine kürzere Frist angezeigt sein.';
 const PRUEFFRISTEN_TEXT_ANSCHLUSS =
-  'Ein Übergabepunkt der Stromversorgung wird in der Regel je Veranstaltung/Nutzungszeitraum neu geprüft, bevor er ' +
-  'in Betrieb genommen wird (DIN VDE 0100-704/-711/-740) – ein fester Wiederholungszyklus wie bei ortsfesten Anlagen ' +
-  'oder Geräten ist hier deshalb nicht vorgesehen. Die fest installierte Anlage HINTER dem Übergabepunkt unterliegt ' +
-  'weiterhin der regulären Wiederholungsprüfungsfrist nach DIN VDE 0105-100 (siehe Prüfprotokoll elektrischer Anlagen).';
+  'Ein Übergabepunkt der Stromversorgung wird grundsätzlich vor jeder Inbetriebnahme neu geprüft (DIN VDE ' +
+  '0100-704/-711/-740). Das Prüfintervall-Feld unten dient dabei zwei Zwecken: bei einer wiederkehrend genutzten ' +
+  'Einspeisestelle (z. B. ein fest vorgehaltener Baustromverteiler oder Speisepunkt) markiert es, bis wann diese ' +
+  'Einspeisestelle selbst planmäßig erneut zu prüfen ist – unabhängig von der jeweils nächsten Veranstaltung. Bei ' +
+  'einem einmaligen Übergabepunkt einer einzelnen Veranstaltung kann als Intervall die kürzeste verfügbare Option ' +
+  'gewählt werden; maßgeblich bleibt in jedem Fall die erneute Prüfung vor der nächsten Inbetriebnahme. Die fest ' +
+  'installierte Anlage HINTER dem Übergabepunkt unterliegt unverändert der regulären Wiederholungsprüfungsfrist ' +
+  'nach DIN VDE 0105-100 (siehe Prüfprotokoll elektrischer Anlagen).';
 
 /* praefix: 'PR' (vde0100), 'GP' (geraetepruefung), 'AP' (anschlusspruefung) -
  * bestimmt Text und ob eine Termin-Anzeige eingeblendet wird. */

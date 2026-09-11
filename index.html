@@ -103,7 +103,19 @@
         </select>
       </div>
       <div class="form-group"><label for="m_messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="m_messgeraet"></div>
-      <div class="form-group"><label for="m_seriennummer">Seriennummer Messgerät:</label><input type="text" id="m_seriennummer"></div>
+      <!-- [7.4.0, Punkt 8] Bisher EINE gemeinsame Seriennummer fuer beide
+           Pruefgeraete - dadurch stand faelschlich dieselbe Nummer sowohl bei
+           der Anlagen-/Anschlusspruefung (Installationstester, Fluke 1663)
+           als auch bei der Geraetepruefung (Geraetetester, Fluke 6500-2), wenn
+           beide Geraete parallel im Einsatz waren. Jetzt zwei getrennte
+           Felder - js/storage.js (applyMasterDataToForm) uebernimmt beim
+           Oeffnen eines Formulars automatisch die zum Formulartyp passende
+           Nummer in das dortige Feld "Seriennummer Messgerät". Das alte Feld
+           "m_seriennummer" bleibt aus Kompatibilitaetsgruenden bestehen (siehe
+           Aenderungsbericht 7.4.0, Punkt 8), ist aber nicht mehr sichtbar. -->
+      <div class="form-group"><label for="m_seriennummer_installationstester">Seriennummer Installationstester (Fluke 1663):</label><input type="text" id="m_seriennummer_installationstester" placeholder="für Anlagen- und Anschlussprüfung"></div>
+      <div class="form-group"><label for="m_seriennummer_geraetetester">Seriennummer Gerätetester (Fluke 6500-2):</label><input type="text" id="m_seriennummer_geraetetester" placeholder="für Geräteprüfung"></div>
+      <input type="hidden" id="m_seriennummer">
       <div class="form-group"><label for="m_ort">Ort der Unterzeichnung:</label><input type="text" id="m_ort"></div>
     </div>
     
@@ -113,6 +125,15 @@
   </form>
 
   <h2 class="kat-messen">2. Protokoll starten</h2>
+  <!-- [7.4.0, Punkt 6] Zwei prominente Schnellzugriffs-Buttons vor der
+       Protokolltyp-Auswahl: "Letztes weitermachen" fuehrt direkt zum zuletzt
+       bearbeiteten, noch offenen Entwurf (unabhaengig vom Protokolltyp) -
+       bisher musste man dafuer erst zu Abschnitt 4 "Offene Prüfungen"
+       herunterscrollen. "Neues Protokoll" springt zur Kachelauswahl darunter
+       (kein neuer Mechanismus - nutzt dieselbe bestehende Kachel-/Autosave-
+       Infrastruktur aus entwuerfe.js/storage.js, siehe Änderungsbericht
+       7.4.0, Punkt 6). -->
+  <div class="start-schnellzugriff" id="startSchnellzugriff" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;"></div>
   <div class="protocol-grid" id="protocolGrid"></div>
 
   <h2 class="kat-ergebnis">3. Archiv – erstellte Protokolle</h2>
@@ -184,6 +205,27 @@
   loadMasterDataToDashboard();
   renderProtokollKacheln();
   renderOffenePruefungen('offenePruefungenListe');
+  renderStartSchnellzugriff();
+
+  /* [7.4.0, Punkt 6] "Neues Protokoll" / "Letztes weitermachen" -------------
+   * Nutzt ausschliesslich bestehende Bausteine: letzterOffenerEntwurf() und
+   * ENTWURF_DATEI (js/entwuerfe.js) fuer den Sprung zum zuletzt bearbeiteten
+   * Entwurf, ein einfacher Scroll-Anker fuer "Neues Protokoll" - kein
+   * paralleler Autosave-/Fortsetzungsmechanismus. */
+  function renderStartSchnellzugriff() {
+    const el = document.getElementById('startSchnellzugriff');
+    if (!el) return;
+    const letzter = (typeof letzterOffenerEntwurf === 'function') ? letzterOffenerEntwurf() : null;
+    let html = '<a href="#protocolGrid" class="btn btn-success" style="text-decoration:none;">+ Neues Protokoll</a>';
+    if (letzter) {
+      const datei = (typeof ENTWURF_DATEI !== 'undefined' && ENTWURF_DATEI[letzter.praefix]) || 'index.html';
+      const typLabel = (typeof PROTOKOLL_PRAEFIXE !== 'undefined' && PROTOKOLL_PRAEFIXE[letzter.praefix]) || letzter.praefix;
+      const bez = letzter.protokollnummer ? (letzter.protokollnummer + (letzter.bezeichnung ? ' – ' + letzter.bezeichnung : '')) : letzter.bezeichnung;
+      html += '<a href="' + datei + '?entwurf=' + encodeURIComponent(letzter.id) + '" class="btn" style="text-decoration:none;">' +
+        '▶ Letztes weitermachen: ' + typLabel + (bez ? ' – ' + bez : '') + '</a>';
+    }
+    el.innerHTML = html;
+  }
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
   document.getElementById('app_betrieb_name').textContent = (typeof APP_BETRIEB_NAME !== 'undefined' && APP_BETRIEB_NAME) ? APP_BETRIEB_NAME : '';
   archivUebersichtLaden();

@@ -419,11 +419,16 @@ function archivPdfTeilen(eintraege) {
  * ------------------------------------------------------------------------ */
 var ARCHIV_UEBERNEHMEN = [
   /* --- Kopf- und Stammdaten (alle drei Protokolltypen) --- */
-  'auftraggeber', 'gebaeude', 'gebaeude_custom', 'anlage_bez', 'veranstaltung',
-  'pruefungsnummer', 'pruefer',
+  // [7.4.0, Punkt 1/7] 'pruefungsnummer' entfernt (Feld existiert nur noch in
+  // vde0100.html - dort NICHT in dieser Liste, weil es eine je Protokoll neu
+  // zu vergebende Kennung ist, kein beschreibendes Stammdatum). 'veranstaltung'
+  // entfernt (nur noch in Alt-Archivdaten vorhanden, siehe archivMetaSammeln()
+  // Fallback-Kette). 'firma_vermieter'/'netzspannung' neu (Punkt 1/2).
+  'auftraggeber', 'gebaeude', 'gebaeude_custom', 'anlage_bez',
+  'pruefer',
   'pruefnorm', 'pruefgrund', 'pruefart', 'pruefintervall',
-  'netzsystem', 'einspeisung', 'einspeisung_art', 'einspeisung_sonstiges',
-  'hausanschluss', 'vnb',
+  'netzsystem', 'netzspannung', 'einspeisung', 'einspeisung_art', 'einspeisung_sonstiges',
+  'hausanschluss', 'firma_vermieter', 'vnb',
   'bereitsteller_ansprechpartner', 'bereitsteller_telefon',
   'uebergabe_standort', 'anschlussleistung_vertrag',
   'messgeraet', 'seriennummer',

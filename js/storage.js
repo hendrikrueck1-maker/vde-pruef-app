@@ -64,6 +64,14 @@ function sicherSetItem(key, value) {
 // Ein zusaetzliches eigenes Adressfeld je Formular haette PDF-Layout und
 // Formularstruktur aller drei Protokolle veraendert - das war nicht verlangt,
 // die Adresse muss nur in den zentralen Stammdaten erfasst werden koennen.
+// [7.4.0, Punkt 8] 'seriennummer' (EIN gemeinsames Feld fuer beide Geraete)
+// bleibt als Alt-/Kompatibilitaetsfeld bestehen (aeltere Sicherungen/bereits
+// gespeicherte Stammdaten nutzen nur dieses), zusaetzlich gibt es jetzt zwei
+// GETRENNTE Seriennummern: Installationstester (Fluke 1663, fuer
+// vde0100.html/anschlusspruefung.html) und Geraetetester (Fluke 6500-2, fuer
+// geraetepruefung.html) - siehe applyMasterDataToForm() unten, wo je nach
+// Formulartyp die passende Nummer in das gemeinsame Formularfeld
+// "seriennummer" uebernommen wird.
 const MASTERDATA_FIELD_IDS = ['auftraggeber', 'vnb', 'hausanschluss', 'pruefer', 'pruefer_qualifikation', 'messgeraet', 'seriennummer', 'unterschrift_ort'];
 
 function getMasterData() {
@@ -86,6 +94,9 @@ function getMasterData() {
     pruefer_qualifikation: "",
     messgeraet: "",
     seriennummer: "",
+    // [7.4.0, Punkt 8] Getrennte Seriennummern je Pruefgeraet.
+    seriennummer_installationstester: "",
+    seriennummer_geraetetester: "",
     ort: ""
   };
 }
@@ -104,7 +115,10 @@ async function saveMasterData(erfolgMelden = false) {
     pruefer: document.getElementById('m_pruefer').value,
     pruefer_qualifikation: document.getElementById('m_pruefer_qualifikation')?.value || '',
     messgeraet: document.getElementById('m_messgeraet').value,
-    seriennummer: document.getElementById('m_seriennummer').value,
+    seriennummer: document.getElementById('m_seriennummer')?.value || '',
+    // [7.4.0, Punkt 8] Getrennte Seriennummern je Pruefgeraet.
+    seriennummer_installationstester: document.getElementById('m_seriennummer_installationstester')?.value || '',
+    seriennummer_geraetetester: document.getElementById('m_seriennummer_geraetetester')?.value || '',
     ort: document.getElementById('m_ort').value
   };
   // 5.0.0: sicherSetItem() statt direktem localStorage.setItem() - siehe
@@ -130,7 +144,10 @@ function loadMasterDataToDashboard() {
   document.getElementById('m_pruefer').value = data.pruefer || '';
   if (document.getElementById('m_pruefer_qualifikation')) document.getElementById('m_pruefer_qualifikation').value = data.pruefer_qualifikation || '';
   document.getElementById('m_messgeraet').value = data.messgeraet || '';
-  document.getElementById('m_seriennummer').value = data.seriennummer || '';
+  if (document.getElementById('m_seriennummer')) document.getElementById('m_seriennummer').value = data.seriennummer || '';
+  // [7.4.0, Punkt 8] Getrennte Seriennummern je Pruefgeraet.
+  if (document.getElementById('m_seriennummer_installationstester')) document.getElementById('m_seriennummer_installationstester').value = data.seriennummer_installationstester || '';
+  if (document.getElementById('m_seriennummer_geraetetester')) document.getElementById('m_seriennummer_geraetetester').value = data.seriennummer_geraetetester || '';
   document.getElementById('m_ort').value = data.ort || '';
 }
 
@@ -153,7 +170,20 @@ function applyMasterDataToForm() {
   setIfPresent('pruefer', data.pruefer || '');
   setIfPresent('pruefer_qualifikation', data.pruefer_qualifikation || '');
   setIfPresent('messgeraet', data.messgeraet || '');
-  setIfPresent('seriennummer', data.seriennummer || '');
+  // [7.4.0, Punkt 8] Je nach Formulartyp die passende, getrennt erfasste
+  // Seriennummer in das gemeinsame Formularfeld "Seriennummer Messgerät"
+  // uebernehmen: Installationstester (Fluke 1663) fuer Anlagen-/
+  // Anschlusspruefung, Geraetetester (Fluke 6500-2) fuer die Geraetepruefung.
+  // Erkennung ueber dieselbe Container-ID wie in infokarten.js
+  // (zusatzIconsEinbinden) - eindeutig pro Formulartyp vorhanden. Ist noch
+  // keine der beiden getrennten Nummern erfasst, faellt der Wert auf das
+  // alte gemeinsame Feld "seriennummer" zurueck (Rueckwaertskompatibilitaet
+  // mit vor 7.4.0 gespeicherten Stammdaten).
+  const istGeraetepruefungsformular = !!document.getElementById('devicesContainer');
+  const passendeSeriennummer = istGeraetepruefungsformular
+    ? (data.seriennummer_geraetetester || data.seriennummer || '')
+    : (data.seriennummer_installationstester || data.seriennummer || '');
+  setIfPresent('seriennummer', passendeSeriennummer);
   setIfPresent('unterschrift_ort', data.ort || '');
 }
 
