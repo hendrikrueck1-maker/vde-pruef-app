@@ -310,7 +310,7 @@ PRUEFSCHRITTE.pruefer_qualifikation = {
 PRUEFSCHRITTE.sicht_erp_item = {
   gruppe: 'Sichtprüfung / Erproben',
   titel: 'Einzelner Sicht-/Erproben-Prüfpunkt (i.O. / n.i.O. / n.a.)',
-  beschreibung: 'Wiederverwendetes <select>-Grundgerüst für jeden einzelnen Prüfpunkt der Sichtprüfung/Erprobung. id, Label und Klasse (sicht-item/erp-item) werden pro Aufruf übergeben.',
+  beschreibung: 'Wiederverwendetes <select>-Grundgerüst für jeden einzelnen Prüfpunkt der Sichtprüfung/Erprobung. id, Label und Klasse (sicht-item/erp-item) werden pro Aufruf übergeben. [9.5.0, Welle 3] ctx.wert erlaubt eine Werte-Vorbelegung (Geräte-Karte, aus einem wiederhergestellten data-Objekt), ctx.ohneNa lässt die "n.a."-Option weg (Funktionsprüfung der Geräte-Karte kennt kein n.a.).',
   verwendetIn: ['vde0100', 'anschluss', 'geraete'],
   html: function (ctx) {
     ctx = ctx || {};
@@ -319,11 +319,19 @@ PRUEFSCHRITTE.sicht_erp_item = {
     var klasse = ctx.klasse || 'sicht-item';
     var nummer = ctx.nummer ? ctx.nummer + '. ' : '';
     var iconSpan = ctx.iconId ? '<span id="' + ctx.iconId + '"></span>' : '';
+    // [9.5.0, Welle 3] Werte-Vorbelegung fuer die Geräte-Karte (dupliziereGeraet()/
+    // Wiederherstellen aus Autosave/Archiv setzen data.sicht_*/data.funktion, siehe
+    // js/geraete-generator.js addDeviceCard()). Ohne ctx.wert (Standardfall in
+    // vde0100.html/anschlusspruefung.html) bleibt das Verhalten unveraendert: die
+    // leere erste Option ist selected.
+    function sel(wert) { return ctx.wert === wert ? ' selected' : ''; }
+    var leerSelected = ctx.wert ? '' : ' selected';
+    var naOption = ctx.ohneNa ? '' : ('<option' + sel('n.a.') + '>n.a.</option>');
     return (
       '<div class="form-group"><label for="' + id + '">' + iconSpan + nummer + label + ':</label>' +
       '<select class="' + klasse + '" id="' + id + '" onchange="sichtErpNiOPruefen(this)">' +
-      '<option value="" selected>– bitte wählen –</option>' +
-      '<option>i.O.</option><option>n.i.O.</option><option>n.a.</option>' +
+      '<option value=""' + leerSelected + '>– bitte wählen –</option>' +
+      '<option' + sel('i.O.') + '>i.O.</option><option' + sel('n.i.O.') + '>n.i.O.</option>' + naOption +
       '</select></div>'
     );
   }
@@ -641,6 +649,374 @@ PRUEFSCHRITTE.rcd_messwerte = {
       '' + beruehrungsspannungHtml +
       '  </div>\n' +
       '</div>'
+    );
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * 13. SCHUTZLEITER- & ISOLATIONSWIDERSTAND (RPE/RISO-MESSBLOCK)
+ * ---------------------------------------------------------------------------
+ * [9.5.0, Welle 3] Bisher in ZWEI Varianten hartcodiert:
+ *   - pdf-generator.js addCircuitCard(): Titel "1. Schutzleiter- &
+ *     Isolationswiderstand" (nur .sub-title, ohne mess-karte-titel), RPE-/
+ *     RISO-Eingabefelder OHNE id (nur Klasse), dafuer MIT value="${attrEsc(
+ *     data.*)}"-Vorbelegung, oninput ruft validateCardNorms(cardCounter) auf,
+ *     riso_verbraucher/riso_mode HABEN eine id mit "_"+cardCounter-Suffix,
+ *     riso_verbraucher hat zusaetzlich onchange="risoVerbraucherGeaendert(
+ *     cardCounter)" sowie die Klasse c-riso-verbraucher, UND je Messgroesse
+ *     (rpe/riso) haengt eine Fluke-1663-Icon/Anleitungs-Karte dran
+ *     (messgroesseBlock('rpe'|'riso', 'fluke1663')).
+ *   - anschlusspruefung.html (Übergabepunkt, Abschnitt 5.0): Titel "5.0
+ *     Schutzleiterwiderstand & Isolationswiderstand" (mit mess-karte-titel +
+ *     titel-text-Span, KEIN Icon), RPE-/RISO-Felder HABEN eine feste id ohne
+ *     Suffix (rpe/riso_verbraucher/riso_mode/riso), OHNE value-Vorbelegung,
+ *     oninput ruft validateFeedNorms() auf, riso_verbraucher hat WEDER Klasse
+ *     noch onchange-Handler, KEINE Fluke-Anleitungskarten.
+ * ctx-Parameter bilden beide Faelle 1:1 ab (siehe Kommentare je Feld unten).
+ * WICHTIG: ctx.mitCardId steuert nur die Feld-IDs/Werte/Handler - ob Icon und
+ * Fluke-Anleitungskarten erscheinen, entscheidet ctx.mitMessgroessenkarten
+ * (Default: gleich ctx.mitCardId, da bislang beides zusammen auftrat; explizit
+ * trennbar fuer den Fall, dass sich das einmal aendert).
+ * ------------------------------------------------------------------------ */
+PRUEFSCHRITTE.rpe_riso_messblock = {
+  gruppe: 'Messwerte',
+  titel: 'Schutzleiter- & Isolationswiderstand (R_PE / R_ISO)',
+  beschreibung: 'RPE-Messfeld + RISO-Messgruppe (Verbraucher angeschlossen?, Prüfspannung, Messwert). In der Stromkreis-Karte mit Fluke-1663-Anleitungskarten und Werte-Vorbelegung (data.*), am Übergabepunkt ohne Vorbelegung und mit festen IDs ohne Kartennummer-Suffix.',
+  verwendetIn: ['vde0100', 'anschluss'],
+  html: function (ctx) {
+    ctx = ctx || {};
+    var mitCardId = !!ctx.mitCardId;
+    var s = ctx.idSuffix || ''; // '' am Übergabepunkt, '_'+cardCounter im Stromkreis
+    var data = ctx.data || {};
+    var validateAufruf = mitCardId ? ('validateCardNorms(' + ctx.cardIdAusdruck + ')') : 'validateFeedNorms()';
+    var mitKarten = ctx.mitMessgroessenkarten !== undefined ? !!ctx.mitMessgroessenkarten : mitCardId;
+    var rpeInfo = mitKarten && typeof messgroesseBlock === 'function' ? messgroesseBlock('rpe', 'fluke1663') : { icon: '', karten: '' };
+    var risoInfo = mitKarten && typeof messgroesseBlock === 'function' ? messgroesseBlock('riso', 'fluke1663') : { icon: '', karten: '' };
+
+    // Titel: Stromkreis-Karte "1. ..." (schlicht), Übergabepunkt "5.0 ..."
+    // (mit mess-karte-titel + titel-text-Span). ctx.titelNummer/ctx.titelText
+    // erlauben beides ohne Verzweigung im Baustein selbst.
+    var titelText = ctx.titelText || 'Schutzleiter- & Isolationswiderstand';
+    var titelHtml = mitCardId
+      ? '<div class="sub-title">' + (ctx.titelNummer || '1.') + ' ' + titelText + '</div>'
+      : '<div class="sub-title mess-karte-titel"><span class="titel-text">' + (ctx.titelNummer || '5.0') + ' ' + titelText + '</span></div>';
+
+    // RPE-Feld: Stromkreis-Karte hat kein <label for>/keine id am Input (nur
+    // Klasse) + value-Vorbelegung; Übergabepunkt hat feste id "rpe" + <label
+    // for="rpe">, keine Vorbelegung.
+    var rpeLabelHtml = mitCardId
+      ? '<label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>'
+      : '<label for="rpe' + s + '">R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>';
+    var rpeInputIdAttr = mitCardId ? '' : (' id="rpe' + s + '"');
+    var rpeValueAttr = mitCardId ? (' value="' + attrEsc(data.rpe) + '"') : '';
+
+    var risoVerbraucherIdAttr = ' id="riso_verbraucher' + s + '"';
+    var risoVerbraucherKlasseAttr = mitCardId ? ' class="c-riso-verbraucher"' : '';
+    var risoVerbraucherOnchangeAttr = mitCardId ? (' onchange="risoVerbraucherGeaendert(' + ctx.cardIdAusdruck + ')"') : '';
+    var risoVerbraucherLabelHtml = mitCardId
+      ? '<label for="riso_verbraucher' + s + '">Verbraucher angeschlossen?</label>'
+      : '<label for="riso_verbraucher' + s + '">Verbraucher angeschlossen?</label>';
+    // [Nutzerwunsch] Kommentar nur in der Stromkreis-Karte-Variante relevant
+    // (siehe Original in pdf-generator.js) - hier als HTML-Kommentar erhalten,
+    // damit ein Blick in den erzeugten Quelltext denselben Hintergrund liefert.
+    var risoVerbraucherKommentar = mitCardId
+      ? '<!-- [Nutzerwunsch] "Verbraucher angeschlossen?" ist weiterhin eine reine Angabe/Dokumentation, setzt aber die Prüfspannung unten NICHT mehr automatisch - beide Felder sind jetzt unabhaengig voneinander frei waehlbar (siehe risoVerbraucherGeaendert() in js/pdf-generator.js). -->\n              '
+      : '';
+
+    var risoModeIdAttr = ' id="riso_mode' + s + '"';
+    var risoModeOnchangeAttr = ' onchange="' + validateAufruf + '"';
+    var risoInputIdAttr = mitCardId ? '' : (' id="riso' + s + '"');
+    var risoValueAttr = mitCardId
+      ? (' value="' + attrEsc(data.riso !== undefined && data.riso !== '' ? data.riso : '>') + '"')
+      : '';
+
+    return (
+      '<div class="sub-section">\n' +
+      (mitCardId
+        ? '    <!-- MESSWERTE: R_PE & R_ISO\n' +
+          '         Zwei klar getrennte Gruppen: sonst wirkte am Desktop die Prüfspannung\n' +
+          '         wie eine Angabe zu R_PE, obwohl sie zum Isolationswiderstand gehört. -->\n'
+        : '') +
+      '      ' + titelHtml + '\n' +
+      '      <div class="mess-gruppen">\n' +
+      '        <div class="mess-gruppe">\n' +
+      '          <div class="mess-gruppe-titel' + (mitCardId ? ' mess-karte-titel' : '') + '">' + (mitCardId ? (rpeInfo.icon + '<span class="titel-text">Schutzleiter R<sub>PE</sub></span>') : 'Schutzleiter R<sub>PE</sub>') + '</div>\n' +
+      '          <div class="form-group">\n' +
+      '            ' + rpeLabelHtml + '\n' +
+      '            <input type="text" inputmode="decimal" class="c-rpe"' + rpeInputIdAttr + rpeValueAttr + ' placeholder="z. B. 0,11" oninput="' + validateAufruf + '">\n' +
+      '            <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>\n' +
+      '          </div>\n' +
+      '          ' + rpeInfo.karten + '\n' +
+      '        </div>\n' +
+      '        <div class="mess-gruppe">\n' +
+      '          <div class="mess-gruppe-titel' + (mitCardId ? ' mess-karte-titel' : '') + '">' + (mitCardId ? (risoInfo.icon + '<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span>') : 'Isolationswiderstand R<sub>ISO</sub>') + '</div>\n' +
+      '          <div class="grid">\n' +
+      '            <div class="form-group">\n' +
+      '              ' + risoVerbraucherKommentar +
+      '              ' + risoVerbraucherLabelHtml + '\n' +
+      '              <select' + risoVerbraucherKlasseAttr + risoVerbraucherIdAttr + risoVerbraucherOnchangeAttr + '>\n' +
+      '                <option value="" selected>&ndash; bitte wählen &ndash;</option>\n' +
+      '                <option value="ja">Ja, Verbraucher angeschlossen</option>\n' +
+      '                <option value="nein">Nein, ohne Verbraucher geprüft</option>\n' +
+      '              </select>\n' +
+      '            </div>\n' +
+      '            <div class="form-group">\n' +
+      '              <label for="riso_mode' + s + '">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>\n' +
+      '              <select class="c-riso-mode"' + risoModeIdAttr + risoModeOnchangeAttr + '>\n' +
+      '                <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>\n' +
+      '                <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>\n' +
+      '                <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>\n' +
+      '                <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>\n' +
+      (mitCardId
+        ? '                <!-- [8.0.0] NEU: eigene Option fuer "ohne Verbraucher" (siehe\n' +
+          '                     riso_verbraucher-Auswahl oben) - bewusst getrennt von der\n' +
+          '                     bestehenden "Praxismessung MIT Verbrauchern"-Option, da\n' +
+          '                     beides technisch 250 V aber unterschiedliche Gruende sind. -->\n'
+        : '') +
+      '                <option value="250 V DC (ohne Verbraucher geprüft)">250 V DC &ndash; ohne Verbraucher geprüft (kein Normfall)</option>\n' +
+      '              </select>\n' +
+      '            </div>\n' +
+      '            <div class="form-group">\n' +
+      '              <label' + (mitCardId ? '' : ' for="riso' + s + '"') + '>Messwert R<sub>ISO</sub> (M&Omega;):</label>\n' +
+      '              <input type="text" inputmode="decimal" class="c-riso"' + risoInputIdAttr + risoValueAttr + ' placeholder="z. B. > 500" oninput="' + validateAufruf + '">\n' +
+      '            </div>\n' +
+      '          </div>\n' +
+      '          ' + risoInfo.karten + '\n' +
+      '        </div>\n' +
+      '      </div>\n' +
+      '    </div>'
+    );
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * 14. NETZMESSUNG - SPANNUNGSGRID (U L1-N ... U L1-L3)
+ * ---------------------------------------------------------------------------
+ * [9.5.0, Welle 3] Die sechs Spannungsmess-Felder (U L1-N, L2-N, L3-N, L1-L2,
+ * L2-L3, L1-L3) sind in vde0100.html (Abschnitt "Netzmessung", innerhalb
+ * <details id="netzmessung_block">) und im Übergabepunkt-Block von
+ * anschlusspruefung.html (Abschnitt 5.1) inhaltlich identisch (Label-Texte,
+ * Platzhalter, die Klasse netzmessung-drehstrom-feld an L2-N bis L1-L3), aber
+ * mit unterschiedlichen IDs/Klassen an den Gruppen-<div>s und unterschiedlichem
+ * oninput-Handler:
+ *   - vde0100.html: Gruppen-<div>s haben eigene IDs (netzmessung_gruppe_l1n
+ *     usw.), Inputs OHNE Klasse, oninput="validateNetzspannungsfeld('u_l1n')"
+ *     (Handler bekommt nur die Feld-ID), das L1-N-Label steckt in einem
+ *     <span id="netzmessung_l1n_label"> (wird bei 1-phasig umbenannt, siehe
+ *     updateNetzmessungNetzart()).
+ *   - anschlusspruefung.html: Gruppen-<div>s OHNE eigene ID, Inputs MIT Klasse
+ *     (c-u-l1n usw.), oninput="validateFeedNetzspannungsfeld('u-l1n','u_l1n')"
+ *     (Handler bekommt zusaetzlich einen Bindestrich-Namen fuer die PDF-
+ *     Ausgabe), das L1-N-Label steckt in <span class="c-l1n-label"> (wird von
+ *     updateFeedNetzart() umbenannt).
+ * WICHTIG: Das direkt daneben stehende U-N-PE-Feld ist trotz aehnlichem Zweck
+ * NICHT Teil dieses Bausteins - Label, Platzhalter, Pflicht-Badge und
+ * oninput-Ziel unterscheiden sich zwischen beiden Formularen so grundlegend
+ * (siehe docs/Aenderungsbericht 9.5.0), dass eine Zusammenfassung dort mehr
+ * Verzweigungen als Ersparnis gebracht haette - es bleibt bewusst in den
+ * jeweiligen Formularen/Karten stehen. Ebenso bleiben Netzart-Dropdown,
+ * Frequenz, Art des Speisepunkts/Steckverbindung (nur vde0100) und Drehfeld
+ * (nur Übergabepunkt) unveraendert an ihrer bisherigen Stelle, da sie NICHT
+ * an derselben Position/Struktur in beiden Formularen vorkommen (siehe
+ * Analyse in docs/ERWEITERN.md).
+ * ------------------------------------------------------------------------ */
+PRUEFSCHRITTE.netzmessung_spannungsgrid = {
+  gruppe: 'Netzsystem',
+  titel: 'Netzmessung – Spannungsgrid (U L1-N … U L1-L3)',
+  beschreibung: 'Die sechs Spannungsmessfelder der Netzmessung (L-N/L-L). In vde0100.html mit eigenen Gruppen-IDs und validateNetzspannungsfeld(id), am Übergabepunkt mit c-u-*-Klassen und validateFeedNetzspannungsfeld(bindestrich-id, id). Das U-N-PE-Feld selbst ist wegen zu großer Unterschiede bewusst NICHT Teil dieses Bausteins.',
+  verwendetIn: ['vde0100', 'anschluss'],
+  html: function (ctx) {
+    ctx = ctx || {};
+    var mitGruppenId = !!ctx.mitGruppenId; // vde0100: true: netzmessung_gruppe_lXX
+    var mitKlasse = !!ctx.mitKlasse;       // anschluss: true: c-u-lXX an den Inputs
+    var l1nLabelHtml = ctx.l1nLabelSpanKlasse
+      ? '<span class="' + ctx.l1nLabelSpanKlasse + '">U L1&ndash;N (V):</span>'
+      : '<span id="' + (ctx.l1nLabelSpanId || 'netzmessung_l1n_label') + '">U L1&ndash;N (V):</span>';
+
+    // onInput(fieldId, bindestrichId) liefert das exakte oninput-Attribut je
+    // Formular - ctx.onInputFn bestimmt NUR den Funktionsnamen und ob der
+    // Bindestrich-Zweitparameter mitgegeben wird (Übergabepunkt) oder nicht
+    // (vde0100), siehe Kommentar oben.
+    function onInput(feldId, bindestrichId) {
+      if (ctx.mitBindestrichArg) {
+        return ctx.onInputFn + "('" + bindestrichId + "', '" + feldId + "')";
+      }
+      return ctx.onInputFn + "('" + feldId + "')";
+    }
+
+    var felder = [
+      { id: 'u_l1n', bindestrich: 'u-l1n', label: 'U L1&ndash;N (V):', platzhalter: '230', drehstromFeld: false, gruppenId: 'netzmessung_gruppe_l1n', erstesLabel: true },
+      { id: 'u_l2n', bindestrich: 'u-l2n', label: 'U L2&ndash;N (V):', platzhalter: '230', drehstromFeld: true, gruppenId: 'netzmessung_gruppe_l2n' },
+      { id: 'u_l3n', bindestrich: 'u-l3n', label: 'U L3&ndash;N (V):', platzhalter: '230', drehstromFeld: true, gruppenId: 'netzmessung_gruppe_l3n' },
+      { id: 'u_l12', bindestrich: 'u-l12', label: 'U L1&ndash;L2 (V):', platzhalter: '400', drehstromFeld: true, gruppenId: 'netzmessung_gruppe_l12' },
+      { id: 'u_l23', bindestrich: 'u-l23', label: 'U L2&ndash;L3 (V):', platzhalter: '400', drehstromFeld: true, gruppenId: 'netzmessung_gruppe_l23' },
+      { id: 'u_l13', bindestrich: 'u-l13', label: 'U L1&ndash;L3 (V):', platzhalter: '400', drehstromFeld: true, gruppenId: 'netzmessung_gruppe_l13' }
+    ];
+
+    return felder.map(function (f) {
+      var klasseAttr = 'form-group' + (f.drehstromFeld ? ' netzmessung-drehstrom-feld' : '');
+      var gruppenIdAttr = mitGruppenId ? (' id="' + f.gruppenId + '"') : '';
+      var inputKlasseAttr = mitKlasse ? (' class="c-' + f.id.replace('_', '-') + '"') : '';
+      var labelInner = f.erstesLabel ? l1nLabelHtml : f.label;
+      return (
+        '<div class="' + klasseAttr + '"' + gruppenIdAttr + '>' +
+        '<label for="' + f.id + '">' + labelInner + '</label>' +
+        '<input type="text" inputmode="decimal" pattern="[0-9]*"' + inputKlasseAttr + ' id="' + f.id + '" placeholder="' + f.platzhalter + '" oninput="' + onInput(f.id, f.bindestrich) + '">' +
+        '</div>'
+      );
+    }).join('\n        ');
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * 15. POTENZIALAUSGLEICH (KONZEPT, ERDUNGSWIDERSTAND, MESSPUNKT, DURCHGÄNGIGKEIT)
+ * ---------------------------------------------------------------------------
+ * [9.5.0, Welle 3] Der Feld-Innenteil (die fuenf/sechs Formularfelder
+ * innerhalb des jeweils umgebenden .grid) ist bis auf wenige Details 1:1
+ * identisch zwischen vde0100.html (Abschnitt 7, "Durchgängigkeit
+ * Potenzialausgleich / Erdung") und anschluss-generator.js/anschlusspruefung.html
+ * (Abschnitt 5.2, "Durchgängigkeit Potenzialausgleich"):
+ *   - pa_angeschlossen: BYTE-IDENTISCH in beiden.
+ *   - erdung_re: Label am Übergabepunkt mit Zusatz ", falls gemessen", dort
+ *     ruft oninput validateErdungAnschluss() statt validateErdung() auf
+ *     (ctx.erdungReOnInput, ctx.erdungReMitZusatz).
+ *   - Messpunkt-Freitextfeld: eigene ID (erdung_messpunkt/pa_messpunkt),
+ *     eigener Platzhalter UND eigene Schnellwahl-Buttons-Liste je Formular
+ *     (ctx.messpunktId, ctx.messpunktPlatzhalter, ctx.messpunktButtons).
+ *   - pa_durchg: BYTE-IDENTISCH in beiden.
+ *   - R_PA (Übergabepunkt-Widerstand): NUR am Übergabepunkt vorhanden, in
+ *     vde0100.html gibt es dieses Feld nicht (ctx.mitRpa).
+ * Der AEUSSERE Rahmen (h2 + .kat-block.kat-erdung in vde0100.html vs.
+ * .sub-section + .sub-title am Übergabepunkt) ist NICHT Teil dieses
+ * Bausteins - beide Rahmen sind zu verschieden (unterschiedliche
+ * Ueberschriften-Ebene, unterschiedliche Icons/Titel-Nummerierung), eine
+ * Zusammenfassung dort haette nur Verzweigungen ohne echten Nutzen erzeugt.
+ * Der Baustein liefert deshalb NUR den Inhalt des <div class="grid">...</div>.
+ * ------------------------------------------------------------------------ */
+PRUEFSCHRITTE.potenzialausgleich_messfelder = {
+  gruppe: 'Erdung & Potenzialausgleich',
+  titel: 'Potenzialausgleich – Konzept, Erdungswiderstand, Messpunkt, Durchgängigkeit',
+  beschreibung: 'Grid-Inhalt (ohne äußeren Rahmen): Konzept-Dropdown, Erdungswiderstand R_E, Messpunkt-Freitext mit formularabhängiger Schnellwahl, Durchgängigkeit i.O./n.i.O./n.a. Am Übergabepunkt zusätzlich R_PA (dort per ctx.mitRpa aktiviert).',
+  verwendetIn: ['vde0100', 'anschluss'],
+  html: function (ctx) {
+    ctx = ctx || {};
+    var erdungReOnInput = ctx.erdungReOnInput || 'validateErdung';
+    var erdungReLabel = 'Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]' + (ctx.erdungReMitZusatz ? ', falls gemessen' : '') + ':';
+    var messpunktId = ctx.messpunktId || 'erdung_messpunkt';
+    var messpunktPlatzhalter = ctx.messpunktPlatzhalter || 'z. B. HES im Keller / PA-Schiene UV-1';
+    var messpunktButtons = ctx.messpunktButtons || [
+      { wert: 'HES (Haupterdungsschiene)', label: 'HES' },
+      { wert: 'Potenzialausgleichsschiene (PAS)', label: 'PA-Schiene' },
+      { wert: 'Hauptverteilung HV', label: 'HV' },
+      { wert: 'Unterverteilung UV', label: 'UV' },
+      { wert: 'Fundamenterder', label: 'Fundamenterder' },
+      { wert: 'Blitzschutzanlage / Erdungsfestpunkt', label: 'Blitzschutz' },
+      { wert: 'Hauptschutzleiter PE', label: 'Hauptschutzleiter' },
+      { wert: 'Hauptwasserleitung', label: 'Hauptwasserleitung' },
+      { wert: 'Heizungsanlage', label: 'Heizung' },
+      { wert: 'Gasleitung (Isolierstück beachten)', label: 'Gasleitung' },
+      { wert: 'Klima-/Lüftungsanlage', label: 'Klima/Lüftung' },
+      { wert: 'Gebäudekonstruktion / Stahlbau', label: 'Gebäudekonstr.' },
+      { wert: 'Traverse / Tribüne', label: 'Traverse/Tribüne' },
+      { wert: 'Bühnenwagen / Drehbühne', label: 'Bühnenwagen' },
+      { wert: 'Kabelpritsche / Kabeltrasse', label: 'Kabeltrasse' }
+    ];
+    var buttonsHtml = messpunktButtons.map(function (b) {
+      return '<button type="button" class="quick-btn" onclick="setValue(\'' + messpunktId + '\', \'' + b.wert + '\')">' + b.label + '</button>';
+    }).join('\n          ');
+
+    var rpaHtml = '';
+    if (ctx.mitRpa) {
+      rpaHtml =
+        '\n      <div class="form-group">\n' +
+        '        <label for="pa_widerstand">R<sub>PA</sub> (&Omega;), falls gemessen:</label>\n' +
+        '        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,20">\n' +
+        '      </div>';
+    }
+
+    return (
+      '<div class="form-group">\n' +
+      '        <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>\n' +
+      '        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>\n' +
+      '      </div>\n' +
+      '      <div class="form-group">\n' +
+      '        <label for="erdung_re">' + erdungReLabel + '</label>\n' +
+      '        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="' + erdungReOnInput + '()">\n' +
+      '      </div>\n' +
+      '      <div class="form-group grid-full">\n' +
+      '        <label for="' + messpunktId + '">Messpunkt / Bezugspunkt der Messung:</label>\n' +
+      '        <input type="text" id="' + messpunktId + '" placeholder="' + messpunktPlatzhalter + '">\n' +
+      '        <div class="quick-btn-group">\n' +
+      '          ' + buttonsHtml + '\n' +
+      '        </div>\n' +
+      '      </div>\n' +
+      '      <div class="form-group">\n' +
+      '        <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>\n' +
+      '        <select class="c-pa-durchg" id="pa_durchg">\n' +
+      '          <option value="" selected>– bitte wählen –</option>\n' +
+      '          <option>i.O.</option>\n' +
+      '          <option>n.i.O.</option>\n' +
+      '          <option>n.a.</option>\n' +
+      '        </select>\n' +
+      '      </div>' + rpaHtml
+    );
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * 16. GERÄTE-MESSBLOCK (R_PE, R_ISO, ABLEITSTROM, MESSMETHODE)
+ * ---------------------------------------------------------------------------
+ * [9.5.0, Welle 3] Bisher als Template-String in addDeviceCard()
+ * (js/geraete-generator.js) hartcodiert. Diese Feldgruppe ist strukturell
+ * eigenstaendig (einfache form-group-Felder statt der mess-gruppen/
+ * riso_verbraucher-Struktur der Stromkreis-/Übergabepunkt-Variante, dafür mit
+ * Ableitstrom + Messmethode, die es dort nicht gibt) - deshalb ein eigener
+ * Baustein statt einer Erweiterung von PRUEFSCHRITTE.rpe_riso_messblock, der
+ * sonst mit einer weiteren Sonderform ueberladen wuerde, ohne dass echte
+ * Duplikation zwischen Geräte- und Stromkreis-/Übergabepunkt-Variante besteht.
+ * Der Baustein bekommt cardCounter als ctx.cardIdAusdruck (Pflicht) fuer alle
+ * id-Suffixe/Handler-Aufrufe sowie ctx.data fuer die Werte-Vorbelegung einer
+ * wiederhergestellten/duplizierten Karte (wie bisher per attrEsc(data.*)).
+ * Die drei Fluke-6500-Anleitungskarten (rpe/riso/ableitstrom) bleiben
+ * AUSSERHALB dieses Bausteins in geraete-generator.js (dort ohnehin schon per
+ * messgroesseBlock()/infokarteInhaltHtml()/MESSGROESSEN_INFO aufgerufen -
+ * keine Verdopplung noetig, siehe Kommentar dort).
+ * ------------------------------------------------------------------------ */
+PRUEFSCHRITTE.geraete_messblock = {
+  gruppe: 'Messwerte',
+  titel: 'Geräte-Messblock (R_PE, R_ISO, Ableitstrom, Messmethode)',
+  beschreibung: 'Vier Messfelder der Geräteprüfung (Schutzleiterwiderstand, Isolationswiderstand, Ableitstrom, Messmethode). Werte-Vorbelegung über ctx.data (wie bisher attrEsc(data.*)). Die Fluke-6500-Anleitungskarten bleiben außerhalb des Bausteins in geraete-generator.js.',
+  verwendetIn: ['geraete'],
+  html: function (ctx) {
+    ctx = ctx || {};
+    var c = ctx.cardIdAusdruck;
+    var data = ctx.data || {};
+    var validateAufruf = 'validateDeviceNorms(' + c + ')';
+    var risoWert = data.riso !== undefined && data.riso !== '' ? data.riso : '>';
+    return (
+      '<div class="grid">\n' +
+      '        <div class="form-group">\n' +
+      '          <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_' + c + '"></span>:</label>\n' +
+      '          <input type="text" inputmode="decimal" class="c-rpe" value="' + attrEsc(data.rpe) + '" placeholder="z. B. 0,20" oninput="' + validateAufruf + '">\n' +
+      '        </div>\n' +
+      '        <div class="form-group">\n' +
+      '          <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_' + c + '"></span>:</label>\n' +
+      '          <input type="text" inputmode="decimal" class="c-riso" value="' + attrEsc(risoWert) + '" placeholder="z. B. > 100" oninput="' + validateAufruf + '">\n' +
+      '        </div>\n' +
+      '        <div class="form-group">\n' +
+      '          <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_' + c + '"></span>:</label>\n' +
+      '          <input type="text" inputmode="decimal" class="c-ableitstrom" value="' + attrEsc(data.ableitstrom) + '" placeholder="z. B. 0,3" oninput="' + validateAufruf + '">\n' +
+      '        </div>\n' +
+      '        <div class="form-group">\n' +
+      '          <label for="ableit_methode_' + c + '">Messmethode Ableitstrom:</label>\n' +
+      '          <select class="c-ableit-methode" id="ableit_methode_' + c + '" onchange="ableitMethodeGeaendert(' + c + ')">\n' +
+      '            <option>Ersatzableitstrom</option>\n' +
+      '            <option>Differenzstrommessung</option>\n' +
+      '            <option>Direktmessung Berührungsstrom</option>\n' +
+      '          </select>\n' +
+      '          <div class="limit-hint" id="ableit_methode_hint_' + c + '"></div>\n' +
+      '        </div>\n' +
+      '      </div>'
     );
   }
 };

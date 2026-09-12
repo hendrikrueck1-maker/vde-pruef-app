@@ -90,17 +90,17 @@ function addDeviceCard(data = {}) {
     <div class="sub-section">
       <div class="sub-title">1. Besichtigen</div>
       <div class="grid">
-        <div class="form-group"><label for="sicht_gehaeuse_${cardCounter}">Gehäuse / Isolierung / Lüftungsschlitze:</label><select class="c-sicht-item" id="sicht_gehaeuse_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_gehaeuse ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_gehaeuse === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_gehaeuse === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_gehaeuse === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_leitung_${cardCounter}">Anschlussleitung / Stecker / Zugentlastung:</label><select class="c-sicht-item" id="sicht_leitung_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_leitung ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_leitung === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_leitung === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_leitung === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_kennz_${cardCounter}">Kennzeichnung / Typenschild lesbar:</label><select class="c-sicht-item" id="sicht_kennz_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_kennz ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_kennz === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_kennz === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_kennz === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
-        <div class="form-group"><label for="sicht_reparatur_${cardCounter}">Keine unsachgemäßen Reparaturen / Überhitzung:</label><select class="c-sicht-item" id="sicht_reparatur_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.sicht_reparatur ? ' selected' : ''}>– bitte wählen –</option><option${data.sicht_reparatur === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.sicht_reparatur === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option><option${data.sicht_reparatur === 'n.a.' ? ' selected' : ''}>n.a.</option></select></div>
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'sicht_gehaeuse_' + cardCounter, label: 'Gehäuse / Isolierung / Lüftungsschlitze', klasse: 'c-sicht-item', wert: data.sicht_gehaeuse })}
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'sicht_leitung_' + cardCounter, label: 'Anschlussleitung / Stecker / Zugentlastung', klasse: 'c-sicht-item', wert: data.sicht_leitung })}
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'sicht_kennz_' + cardCounter, label: 'Kennzeichnung / Typenschild lesbar', klasse: 'c-sicht-item', wert: data.sicht_kennz })}
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'sicht_reparatur_' + cardCounter, label: 'Keine unsachgemäßen Reparaturen / Überhitzung', klasse: 'c-sicht-item', wert: data.sicht_reparatur })}
       </div>
     </div>
 
     <div class="sub-section">
       <div class="sub-title">2. Erproben</div>
       <div class="grid">
-        <div class="form-group"><label for="funktion_${cardCounter}">Funktionsprüfung:</label><select class="c-funktion erp-item" id="funktion_${cardCounter}" onchange="sichtErpNiOPruefen(this)"><option value=""${!data.funktion ? ' selected' : ''}>– bitte wählen –</option><option${data.funktion === 'i.O.' ? ' selected' : ''}>i.O.</option><option${data.funktion === 'n.i.O.' ? ' selected' : ''}>n.i.O.</option></select></div>
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'funktion_' + cardCounter, label: 'Funktionsprüfung', klasse: 'c-funktion erp-item', wert: data.funktion, ohneNa: true })}
       </div>
     </div>
 
@@ -112,29 +112,9 @@ function addDeviceCard(data = {}) {
            Kurzanleitung (messgroesseBlock(...).karten weiter unten) bleiben
            unveraendert bestehen. -->
       <div class="sub-title mess-karte-titel"><span class="titel-text">3. Messen</span></div>
-      <div class="grid">
-        <div class="form-group">
-          <label>R<sub>PE</sub> (&Omega;) <span class="limit-hint" id="rpe_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,20" oninput="validateDeviceNorms(${cardCounter})">
-        </div>
-        <div class="form-group">
-          <label>R<sub>ISO</sub> (M&Omega;) <span class="limit-hint" id="riso_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso !== undefined && data.riso !== '' ? data.riso : '>')}" placeholder="z. B. > 100" oninput="validateDeviceNorms(${cardCounter})">
-        </div>
-        <div class="form-group">
-          <label>Ableitstrom (mA) <span class="limit-hint" id="ableit_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-ableitstrom" value="${attrEsc(data.ableitstrom)}" placeholder="z. B. 0,3" oninput="validateDeviceNorms(${cardCounter})">
-        </div>
-        <div class="form-group">
-          <label for="ableit_methode_${cardCounter}">Messmethode Ableitstrom:</label>
-          <select class="c-ableit-methode" id="ableit_methode_${cardCounter}" onchange="ableitMethodeGeaendert(${cardCounter})">
-            <option>Ersatzableitstrom</option>
-            <option>Differenzstrommessung</option>
-            <option>Direktmessung Berührungsstrom</option>
-          </select>
-          <div class="limit-hint" id="ableit_methode_hint_${cardCounter}"></div>
-        </div>
-      </div>
+      <!-- [Welle 3 / Prüfschritt-Bibliothek] Baustein zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.geraete_messblock). -->
+      ${PRUEFSCHRITTE.geraete_messblock.html({ cardIdAusdruck: cardCounter, data: data })}
       ${messgroesseBlock('rpe', 'fluke6500').karten}
       ${messgroesseBlock('riso', 'fluke6500').karten}
       ${(typeof MESSGROESSEN_INFO !== 'undefined' && MESSGROESSEN_INFO.ableitstrom)

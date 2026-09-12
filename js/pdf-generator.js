@@ -188,59 +188,18 @@ function addCircuitCard(data = {}) {
       <span class="mess-sections-chevron">▾</span>
     </div>
     <!-- MESSWERTE: R_PE & R_ISO
-         Zwei klar getrennte Gruppen: sonst wirkte am Desktop die Prüfspannung
-         wie eine Angabe zu R_PE, obwohl sie zum Isolationswiderstand gehört. -->
-    <div class="sub-section">
-      <div class="sub-title">1. Schutzleiter- & Isolationswiderstand</div>
-      <div class="mess-gruppen">
-        <div class="mess-gruppe">
-          <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('rpe', 'fluke1663').icon}<span class="titel-text">Schutzleiter R<sub>PE</sub></span></div>
-          <div class="form-group">
-            <label>R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-            <input type="text" inputmode="decimal" class="c-rpe" value="${attrEsc(data.rpe)}" placeholder="z. B. 0,11" oninput="validateCardNorms(${cardCounter})">
-            <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
-          </div>
-          ${messgroesseBlock('rpe', 'fluke1663').karten}
-        </div>
-        <div class="mess-gruppe">
-          <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('riso', 'fluke1663').icon}<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span></div>
-          <div class="grid">
-            <div class="form-group">
-              <!-- [Nutzerwunsch] "Verbraucher angeschlossen?" ist weiterhin
-                   eine reine Angabe/Dokumentation, setzt aber die
-                   Prüfspannung unten NICHT mehr automatisch - beide Felder
-                   sind jetzt unabhaengig voneinander frei waehlbar (siehe
-                   risoVerbraucherGeaendert() in js/pdf-generator.js). -->
-              <label for="riso_verbraucher_${cardCounter}">Verbraucher angeschlossen?</label>
-              <select class="c-riso-verbraucher" id="riso_verbraucher_${cardCounter}" onchange="risoVerbraucherGeaendert(${cardCounter})">
-                <option value="" selected>&ndash; bitte wählen &ndash;</option>
-                <option value="ja">Ja, Verbraucher angeschlossen</option>
-                <option value="nein">Nein, ohne Verbraucher geprüft</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="riso_mode_${cardCounter}">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
-              <select class="c-riso-mode" id="riso_mode_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
-                <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
-                <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
-                <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
-                <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>
-                <!-- [8.0.0] NEU: eigene Option fuer "ohne Verbraucher" (siehe
-                     riso_verbraucher-Auswahl oben) - bewusst getrennt von der
-                     bestehenden "Praxismessung MIT Verbrauchern"-Option, da
-                     beides technisch 250 V aber unterschiedliche Gruende sind. -->
-                <option value="250 V DC (ohne Verbraucher geprüft)">250 V DC &ndash; ohne Verbraucher geprüft (kein Normfall)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Messwert R<sub>ISO</sub> (M&Omega;):</label>
-              <input type="text" inputmode="decimal" class="c-riso" value="${attrEsc(data.riso !== undefined && data.riso !== '' ? data.riso : '>')}" placeholder="z. B. > 500" oninput="validateCardNorms(${cardCounter})">
-            </div>
-          </div>
-          ${messgroesseBlock('riso', 'fluke1663').karten}
-        </div>
-      </div>
-    </div>
+         [Welle 3 / Prüfschritt-Bibliothek] Baustein zentral in
+         js/pruefschritte.js (PRUEFSCHRITTE.rpe_riso_messblock). mitCardId:true
+         + idSuffix/cardIdAusdruck erzeugen exakt dieselben IDs/Werte/Aufrufe
+         wie vorher hier hart codiert (Werte-Vorbelegung ueber ctx.data,
+         Fluke-1663-Anleitungskarten ueber ctx.mitMessgroessenkarten:true). -->
+    ${PRUEFSCHRITTE.rpe_riso_messblock.html({
+      idSuffix: '_' + cardCounter,
+      mitCardId: true,
+      cardIdAusdruck: cardCounter,
+      data: data,
+      titelNummer: '1.'
+    })}
 
     <!-- MESSWERTE: ABSICHERUNG -->
     <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in

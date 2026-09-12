@@ -157,12 +157,12 @@
       keine Prüfplakette an einer bauseitigen Steckvorrichtung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label for="sicht_uebergabe_1">1. Verteiler / Zählerschrank:</label><select class="sicht-item" id="sicht_uebergabe_1" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_2">2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item" id="sicht_uebergabe_2" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_3">3. Zuleitung / Kabel / Steckverbinder unbeschädigt:</label><select class="sicht-item" id="sicht_uebergabe_3" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_4">4. Kennzeichnung:</label><select class="sicht-item" id="sicht_uebergabe_4" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_5">5. Witterungsschutz (falls außen):</label><select class="sicht-item" id="sicht_uebergabe_5" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_6">6. Berührungsschutz:</label><select class="sicht-item" id="sicht_uebergabe_6" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_1","label":"Verteiler / Zählerschrank","nummer":1,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_2","label":"Steckvorrichtungen / Kupplungen","nummer":2,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_3","label":"Zuleitung / Kabel / Steckverbinder unbeschädigt","nummer":3,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_4","label":"Kennzeichnung","nummer":4,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_5","label":"Witterungsschutz (falls außen)","nummer":5,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_uebergabe_6","label":"Berührungsschutz","nummer":6,"klasse":"sicht-item"}'></div>
     </div>
 
     <!-- 4. ANSCHLUSSKABEL DER ANLAGE -->
@@ -238,59 +238,18 @@
            komplett - 1:1 nach dem Muster der Stromkreis-Karte (pdf-generator.js,
            addCircuitCard()) übernommen, inkl. Prüfspannungs-Dropdown. IDs ohne
            Zähler-Suffix, da es (wie beim restlichen Übergabepunkt-Block) nur
-           genau einen Übergabepunkt pro Formular gibt. -->
-      <div class="sub-section">
-        <div class="sub-title mess-karte-titel"><span class="titel-text">5.0 Schutzleiterwiderstand &amp; Isolationswiderstand</span></div>
-        <div class="mess-gruppen">
-          <div class="mess-gruppe">
-            <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
-            <div class="form-group">
-              <label for="rpe">R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
-              <input type="text" inputmode="decimal" class="c-rpe" id="rpe" placeholder="z. B. 0,11" oninput="validateFeedNorms()">
-              <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
-            </div>
-          </div>
-          <div class="mess-gruppe">
-            <div class="mess-gruppe-titel">Isolationswiderstand R<sub>ISO</sub></div>
-            <div class="grid">
-              <div class="form-group">
-                <label for="riso_verbraucher">Verbraucher angeschlossen?</label>
-                <select id="riso_verbraucher">
-                  <option value="" selected>&ndash; bitte wählen &ndash;</option>
-                  <option value="ja">Ja, Verbraucher angeschlossen</option>
-                  <option value="nein">Nein, ohne Verbraucher geprüft</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="riso_mode">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
-                <select class="c-riso-mode" id="riso_mode" onchange="validateFeedNorms()">
-                  <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
-                  <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
-                  <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
-                  <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>
-                  <option value="250 V DC (ohne Verbraucher geprüft)">250 V DC &ndash; ohne Verbraucher geprüft (kein Normfall)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="riso">Messwert R<sub>ISO</sub> (M&Omega;):</label>
-                <input type="text" inputmode="decimal" class="c-riso" id="riso" placeholder="z. B. > 500" oninput="validateFeedNorms()">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+           genau einen Übergabepunkt pro Formular gibt.
+           [9.5.0, Welle 3] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.rpe_riso_messblock) - Default-ctx (ohne mitCardId)
+           entspricht 1:1 dem hier bisher hartcodierten HTML. -->
+      <div data-pruefschritt="rpe_riso_messblock" data-ctx='{"titelNummer":"5.0","titelText":"Schutzleiterwiderstand &amp; Isolationswiderstand"}'></div>
 
       <!-- 5.1 NETZMESSUNG -->
       <div class="sub-section">
         <div class="sub-title mess-karte-titel" id="netzmessung_icon_wrap"><span class="titel-text">5.1 Netzmessung &ndash; Spannungen, Frequenz &amp; N&ndash;PE</span></div>
         <p class="limit-hint" style="margin:0 0 8px;">Sollwerte: L gegen N je 230 V (&plusmn;10&nbsp;%) · L gegen L je 400 V (&plusmn;10&nbsp;%) · N gegen PE 0 V · Frequenz 50 Hz.</p>
         <div class="grid">
-          <div class="form-group"><label for="u_l1n"><span class="c-l1n-label">U L1&ndash;N (V):</span></label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l1n" id="u_l1n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l1n', 'u_l1n')"></div>
-          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l2n" id="u_l2n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l2n', 'u_l2n')"></div>
-          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l3n" id="u_l3n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l3n', 'u_l3n')"></div>
-          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l12" id="u_l12" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l12', 'u_l12')"></div>
-          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l23" id="u_l23" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l23', 'u_l23')"></div>
-          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l13" id="u_l13" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l13', 'u_l13')"></div>
+          <div data-pruefschritt="netzmessung_spannungsgrid" data-ctx='{"mitKlasse":true,"onInputFn":"validateFeedNetzspannungsfeld","mitBindestrichArg":true,"l1nLabelSpanKlasse":"c-l1n-label"}'></div>
           <div class="form-group">
             <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
             <input type="text" inputmode="decimal" class="c-unpe" id="unpe" placeholder="z. B. 0,3" oninput="validateFeedNorms()">
@@ -310,49 +269,14 @@
 
       <!-- 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH -->
       <!-- [9.0.0] Wieder Teil des Übergabepunkt-Blocks (Nutzerwunsch), nicht
-           mehr eigener globaler Formularabschnitt wie zeitweise in 8.0.0. -->
+           mehr eigener globaler Formularabschnitt wie zeitweise in 8.0.0.
+           [9.5.0, Welle 3] Feldgruppe zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.potenzialausgleich_messfelder), hier mit eigener
+           Messpunkt-Schnellwahl-Liste + zusätzlichem R_PA-Feld (ctx.mitRpa). -->
       <div class="sub-section">
         <div class="sub-title">5.2 Durchgängigkeit Potenzialausgleich (Messwert dieses Übergabepunkts)</div>
         <div class="grid">
-          <div class="form-group">
-            <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>
-            <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
-          </div>
-          <div class="form-group">
-            <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
-            <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdungAnschluss()">
-          </div>
-          <div class="form-group grid-full">
-            <label for="pa_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
-            <input type="text" id="pa_messpunkt" placeholder="z. B. PA-Schiene im Übergabeverteiler">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'PE-Schiene Übergabeverteiler')">PE-Schiene Übergabe</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Baustromverteiler')">Baustromverteiler</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Zählerschrank / Hausanschlusskasten')">Zählerschrank</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Generator-Sternpunkt')">Generator-Sternpunkt</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Erdspieß / Tiefenerder')">Erdspieß</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Fundamenterder')">Fundamenterder</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'CEE-Verteiler Bühne')">CEE-Verteiler</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bauzaun / Absperrung')">Bauzaun</button>
-              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bühnenpodest / Bühnenwagen')">Bühnenpodest</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>
-            <select class="c-pa-durchg" id="pa_durchg">
-              <option value="" selected>– bitte wählen –</option>
-              <option>i.O.</option>
-              <option>n.i.O.</option>
-              <option>n.a.</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="pa_widerstand">R<sub>PA</sub> (&Omega;), falls gemessen:</label>
-            <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,20">
-          </div>
+          <div data-pruefschritt="potenzialausgleich_messfelder" data-ctx='{"erdungReOnInput":"validateErdungAnschluss","erdungReMitZusatz":true,"messpunktId":"pa_messpunkt","messpunktPlatzhalter":"z. B. PA-Schiene im Übergabeverteiler","messpunktButtons":[{"wert":"HES (Haupterdungsschiene)","label":"HES"},{"wert":"Potenzialausgleichsschiene (PAS)","label":"PA-Schiene"},{"wert":"PE-Schiene Übergabeverteiler","label":"PE-Schiene Übergabe"},{"wert":"Baustromverteiler","label":"Baustromverteiler"},{"wert":"Zählerschrank / Hausanschlusskasten","label":"Zählerschrank"},{"wert":"Generator-Sternpunkt","label":"Generator-Sternpunkt"},{"wert":"Erdspieß / Tiefenerder","label":"Erdspieß"},{"wert":"Fundamenterder","label":"Fundamenterder"},{"wert":"CEE-Verteiler Bühne","label":"CEE-Verteiler"},{"wert":"Traverse / Tribüne","label":"Traverse/Tribüne"},{"wert":"Bauzaun / Absperrung","label":"Bauzaun"},{"wert":"Bühnenpodest / Bühnenwagen","label":"Bühnenpodest"}],"mitRpa":true}'></div>
         </div>
       </div>
 
@@ -389,10 +313,10 @@
       Punkte, die an diesem Übergabepunkt nicht vorkommen, bleiben auf „n.a.“.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_schutz","label":"Schutzeinrichtungen","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_polaritaet","label":"Polarität / Steckdosenbelegung","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_prueftaste","label":"RCD-Prüftaste betätigt","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_motoren","label":"Drehrichtung Motoren","klasse":"erp-item"}'></div>
     </div>
 
     <!-- 7. GESAMTBEURTEILUNG & FREIGABE -->

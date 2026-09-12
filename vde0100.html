@@ -192,12 +192,7 @@
         <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.</div>
       </div>
       <div class="grid">
-        <div class="form-group" id="netzmessung_gruppe_l1n"><label for="u_l1n"><span id="netzmessung_l1n_label">U L1&ndash;N (V):</span></label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l1n" placeholder="230" oninput="validateNetzspannungsfeld('u_l1n')"></div>
-        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l2n"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l2n" placeholder="230" oninput="validateNetzspannungsfeld('u_l2n')"></div>
-        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l3n"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l3n" placeholder="230" oninput="validateNetzspannungsfeld('u_l3n')"></div>
-        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l12"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l12" placeholder="400" oninput="validateNetzspannungsfeld('u_l12')"></div>
-        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l23"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l23" placeholder="400" oninput="validateNetzspannungsfeld('u_l23')"></div>
-        <div class="form-group netzmessung-drehstrom-feld" id="netzmessung_gruppe_l13"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_l13" placeholder="400" oninput="validateNetzspannungsfeld('u_l13')"></div>
+        <div data-pruefschritt="netzmessung_spannungsgrid" data-ctx='{"mitGruppenId":true,"onInputFn":"validateNetzspannungsfeld","l1nLabelSpanId":"netzmessung_l1n_label"}'></div>
         <div class="form-group"><label for="u_npe">U N&ndash;PE (V) [Sollwert 0 V]:</label><input type="text" inputmode="decimal" pattern="[0-9]*" id="u_npe" placeholder="0" oninput="validateNetzmessung()"></div>
         <div class="form-group"><label for="netzfrequenz">Frequenz (Hz):</label><input type="text" inputmode="decimal" id="netzfrequenz" placeholder="z. B. 50 Hz"><div class="limit-hint" id="freq_hint"></div></div>
       </div>
@@ -210,16 +205,16 @@
       keine Gebäudesystemtechnik an einer mobilen Verteilung). n.a. geht nicht in die Gesamtbewertung ein.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label for="sicht_betriebsmittel">1. Betriebsmittel:</label><select class="sicht-item" id="sicht_betriebsmittel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_kabel">2. Kabel & Leitungen:</label><select class="sicht-item" id="sicht_kabel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_zugang">3. Zugänglichkeit:</label><select class="sicht-item" id="sicht_zugang" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_schaltgeraete">4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_kennzeichnung">5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_pa">6. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_basisschutz">7. Berührungsschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_typenschild">8. Typenschild:</label><select class="sicht-item" id="sicht_typenschild" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_brandschott">9. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_leiterverb">10. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_betriebsmittel","label":"Betriebsmittel","nummer":1,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_kabel","label":"Kabel &amp; Leitungen","nummer":2,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_zugang","label":"Zugänglichkeit","nummer":3,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_schaltgeraete","label":"Schaltgeräte","nummer":4,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_kennzeichnung","label":"Kennzeichnung","nummer":5,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_pa","label":"Zusätzlicher Potenzialausgleich","nummer":6,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_basisschutz","label":"Berührungsschutz","nummer":7,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_typenschild","label":"Typenschild","nummer":8,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_brandschott","label":"Brandabschottung","nummer":9,"klasse":"sicht-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"sicht_leiterverb","label":"Leiterverbindungen","nummer":10,"klasse":"sicht-item"}'></div>
     </div>
 
     <!-- 4. ANSCHLUSSKABEL DER ANLAGE -->
@@ -267,13 +262,13 @@
       Punkte, die an dieser Anlage nicht vorkommen, bleiben auf „n.a.“.
     </p>
     <div class="grid kat-block kat-sicht">
-      <div class="form-group"><label for="erp_anlage">Funktion Anlage:</label><select class="erp-item" id="erp_anlage" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_drehfeld"><span id="drehfeld_icon"></span>Drehfeld CEE (rechts):</label><select class="erp-item" id="erp_drehfeld" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_anlage","label":"Funktion Anlage","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_schutz","label":"Schutzeinrichtungen","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_drehfeld","label":"Drehfeld CEE (rechts)","klasse":"erp-item","iconId":"drehfeld_icon"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_polaritaet","label":"Polarität / Steckdosenbelegung","klasse":"erp-item"}'></div>
       <div class="form-group" id="drehfeld_infokarten" style="grid-column: 1 / -1;"></div>
-      <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_prueftaste","label":"RCD-Prüftaste betätigt","klasse":"erp-item"}'></div>
+      <div data-pruefschritt="sicht_erp_item" data-ctx='{"id":"erp_motoren","label":"Drehrichtung Motoren","klasse":"erp-item"}'></div>
     </div>
 
     <!-- 7. ERDUNG & POTENZIALAUSGLEICH -->
@@ -283,50 +278,11 @@
       <!-- [9.4.0, Gap-Analyse Masterliste] "Potenzialausgleich grundsätzlich
            vorhanden (Konzept)" fehlte in vde0100.html komplett - existierte
            bisher nur am Übergabepunkt (anschlusspruefung.html, #pa_angeschlossen).
-           1:1 übernommen. -->
-      <div class="form-group">
-        <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>
-        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
-      </div>
-      <div class="form-group">
-        <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
-        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdung()">
-      </div>
-      <div class="form-group grid-full">
-        <label for="erdung_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
-        <input type="text" id="erdung_messpunkt" placeholder="z. B. HES im Keller / PA-Schiene UV-1">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptverteilung HV')">HV</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Unterverteilung UV')">UV</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Fundamenterder')">Fundamenterder</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Blitzschutzanlage / Erdungsfestpunkt')">Blitzschutz</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptschutzleiter PE')">Hauptschutzleiter</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Hauptwasserleitung')">Hauptwasserleitung</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Heizungsanlage')">Heizung</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Gasleitung (Isolierstück beachten)')">Gasleitung</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Klima-/Lüftungsanlage')">Klima/Lüftung</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Gebäudekonstruktion / Stahlbau')">Gebäudekonstr.</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Bühnenwagen / Drehbühne')">Bühnenwagen</button>
-          <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Kabelpritsche / Kabeltrasse')">Kabeltrasse</button>
-        </div>
-      </div>
-      <!-- [9.4.0, Gap-Analyse Masterliste] "Durchgängigkeit Potenzialausgleich"
-           als eigenes i.O./n.i.O.-Messfeld fehlte in vde0100.html - bisher gab
-           es nur die Sichtprüfung "Zusätzlicher Potenzialausgleich" (#sicht_pa)
-           und den Erdungswiderstand, aber kein Messergebnis der Durchgängigkeit
-           selbst. 1:1 aus anschlusspruefung.html (#pa_durchg) übernommen. -->
-      <div class="form-group">
-        <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>
-        <select class="c-pa-durchg" id="pa_durchg">
-          <option value="" selected>– bitte wählen –</option>
-          <option>i.O.</option>
-          <option>n.i.O.</option>
-          <option>n.a.</option>
-        </select>
-      </div>
+           1:1 übernommen. [9.5.0, Welle 3] Feldgruppe (Konzept, Erdungswiderstand,
+           Messpunkt+Schnellwahl, Durchgängigkeit) zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.potenzialausgleich_messfelder) - Default-ctx entspricht
+           1:1 dem hier bisher hartcodierten HTML. -->
+      <div data-pruefschritt="potenzialausgleich_messfelder"></div>
     </div>
     </div>
 
