@@ -10,11 +10,6 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <script src="js/app-config.js"></script>
-  <!-- [9.2.0] Diese Seite bleibt oft laenge offen (Testwerkbank mit mehreren
-       Formular-iframes) - ein automatischer Reload bei SW-Update wuerde
-       jederzeit den gerade offenen Testtab verwerfen. Muss VOR pwa.js
-       stehen, siehe dortige Erlaeuterung zu PWA_KEIN_AUTO_RELOAD. -->
-  <script>window.PWA_KEIN_AUTO_RELOAD = true;</script>
   <script src="js/pwa.js" defer></script>
   <script src="js/pruefschritte.js"></script>
 
@@ -94,57 +89,76 @@
     }
     .ps-keine-treffer { color: var(--secondary); font-size: 0.88rem; font-style: italic; }
 
-    /* ---------------- Testwerkbank (9.2.0) ---------------- */
-    .wb-umschalter {
-      display: flex;
-      gap: 8px;
-      margin: 32px 0 16px;
-      border-top: 2px solid #e2e8f0;
-      padding-top: 20px;
-    }
-    .wb-tab {
-      flex: 0 0 auto;
-      padding: 8px 16px;
-      border: 1px solid #cbd5e1;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .wb-tab.aktiv { background: #fff; color: var(--primary); border-color: var(--primary); position: relative; top: 1px; }
-    .wb-hinweis {
-      background: #fff7ed;
-      border-left: 4px solid #ea580c;
+    /* ---------------- Gesamtliste aller Felder ---------------- */
+    .fl-intro {
+      background: #f8fafc;
+      border-left: 4px solid var(--primary);
       border-radius: 2px;
-      padding: 10px 14px;
-      margin-bottom: 14px;
-      font-size: 0.86rem;
+      padding: 12px 16px;
+      margin: 32px 0 16px;
+      font-size: 0.92rem;
       line-height: 1.5;
-      color: #7c2d12;
+      border-top: 2px solid #e2e8f0;
     }
-    .wb-panel {
-      border: 1px solid var(--primary);
-      border-radius: 0 6px 6px 6px;
-      overflow: hidden;
+    .fl-suche {
+      width: 100%;
+      max-width: 420px;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+    .fl-gruppe { margin-bottom: 30px; }
+    .fl-gruppe-titel {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--primary);
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    .fl-feld {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
       background: #fff;
     }
-    .wb-panel[hidden] { display: none; }
-    .wb-iframe-wrap { position: relative; width: 100%; }
-    .wb-iframe-wrap iframe {
-      display: block;
-      width: 100%;
-      border: 0;
-      min-height: 600px;
+    .fl-feld-kopf {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
     }
-    .wb-lade-hinweis {
-      padding: 40px 20px;
-      text-align: center;
-      color: var(--secondary);
-      font-size: 0.9rem;
+    .fl-feld-name { font-weight: 600; font-size: 0.95rem; }
+    .fl-feld-typ { font-size: 0.8rem; color: var(--secondary); font-style: italic; margin-bottom: 6px; }
+    .fl-badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #64748b;
+      white-space: nowrap;
     }
+    .fl-badge.aktiv { background: #dcfce7; color: #166534; }
+    .fl-badge.inaktiv { background: #f1f5f9; color: #94a3b8; }
+    .fl-optionen { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+    .fl-chip {
+      font-size: 0.78rem;
+      background: #eef2f7;
+      color: #334155;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: "Courier New", monospace;
+    }
+    .fl-dropdown-optionen .fl-chip { background: #e0f2fe; color: #075985; }
+    .fl-quick-optionen .fl-chip { background: #fef3c7; color: #92400e; }
+    .fl-feld-info { font-size: 0.86rem; color: #334155; line-height: 1.5; margin-top: 4px; }
+    .fl-keine-treffer { color: var(--secondary); font-size: 0.88rem; font-style: italic; }
   </style>
 </head>
 <body>
@@ -184,43 +198,276 @@
   <div id="ps_container"></div>
 
   <!-- ============================================================
-       TESTWERKBANK (9.2.0)
+       GESAMTLISTE ALLER FELDER (ersetzt die bisherige Testwerkbank)
        ------------------------------------------------------------
-       Zeigt die drei ECHTEN Formulare unveraendert in einem iframe -
-       kein zweiter, separat gepflegter Feld-Katalog noetig (der sonst
-       bei jeder Formular-Aenderung veralten wuerde). ?werkbank=1 in der
-       iframe-URL schaltet ausschliesslich das Schreiben in "Offene
-       Prüfungen"/Autosave ab (siehe js/entwuerfe.js, WERKBANK_MODUS) -
-       alle Felder, Schnellwahl-Buttons und Live-Validierungen
-       funktionieren exakt wie im echten Formular.
+       Reine Auflistung ALLER Formularfelder, Dropdowns und
+       Schnellauswahlen aus den drei echten Protokollen (vde0100.html,
+       anschlusspruefung.html, geraetepruefung.html) - inkl. Messungen,
+       Sichtprüfung/Erproben und Bewertung. Zu jedem Feld: Typ,
+       Dropdown-/Quick-Optionen (so wie im Formular hinterlegt) sowie
+       eine kurze Anleitung/Begründung, warum der Punkt zu prüfen ist.
+       Keine Formular-Vergleichstabelle (Ist/Soll) - nur die reine
+       Feldliste zum Nachschlagen/Testen aller Eingabemöglichkeiten.
        ============================================================ -->
-  <div class="wb-umschalter" role="tablist">
-    <button type="button" class="wb-tab aktiv" data-ziel="vde0100" role="tab" aria-selected="true">Anlage (VDE 0100)</button>
-    <button type="button" class="wb-tab" data-ziel="anschluss" role="tab" aria-selected="false">Anschlussprüfung</button>
-    <button type="button" class="wb-tab" data-ziel="geraete" role="tab" aria-selected="false">Geräteprüfung</button>
+  <div class="fl-intro">
+    Vollständige Auflistung aller Eingabefelder, Dropdown-Menüs und Schnellauswahl-Buttons
+    aus den drei Prüfprotokollen (Anlage/VDE&nbsp;0100, Anschlussprüfung, Geräteprüfung) –
+    zum gezielten Testen jedes einzelnen Feldes. Felder, die in mehreren Protokollen
+    identisch vorkommen (z.&nbsp;B. Gebäude/Bereich, Prüfintervall), sind mit Badges markiert,
+    wo sie überall erscheinen, und nur einmal aufgeführt. Bei jedem Feld steht kurz, <em>was</em>
+    geprüft wird und <em>warum</em> – bzw. welche Optionen die Dropdowns/Schnellwahlen anbieten.
   </div>
 
-  <div class="wb-hinweis">
-    <strong>Testwerkbank:</strong> Hier lädt das jeweils echte Formular –
-    zum Ausprobieren einzelner Felder, Schnellwahl-Buttons und
-    Live-Validierungen. Eingaben hier werden <strong>nicht gespeichert</strong>
-    und tauchen weder unter „Offene Prüfungen" noch im Archiv auf. Ein PDF
-    lässt sich hier trotzdem erzeugen (rein zum Ansehen) – es wird dabei
-    nichts abgelegt. Zum Bearbeiten einer echten Prüfung bitte die Kacheln
-    auf der Startseite nutzen.
-  </div>
+  <input type="search" id="fl_suche" class="fl-suche" placeholder="Feld suchen (Name, Protokoll, Optionswert)…">
 
-  <div class="wb-panel" id="wb_panel_vde0100">
-    <div class="wb-iframe-wrap">
-      <div class="wb-lade-hinweis" id="wb_lade_vde0100">Formular wird geladen…</div>
-    </div>
-  </div>
-  <div class="wb-panel" id="wb_panel_anschluss" hidden>
-    <div class="wb-iframe-wrap"></div>
-  </div>
-  <div class="wb-panel" id="wb_panel_geraete" hidden>
-    <div class="wb-iframe-wrap"></div>
-  </div>
+  <div id="fl_container"></div>
+
+  <script>
+  (function () {
+    // Badge-Kürzel für die drei Protokolle
+    var FL_LABEL = { vde0100: 'Anlage (VDE 0100)', anschluss: 'Anschlussprüfung', geraete: 'Geräteprüfung' };
+    var FL_REIHENFOLGE = ['vde0100', 'anschluss', 'geraete'];
+
+    // ---------------------------------------------------------------
+    // DATENMODELL: ein Eintrag pro Formularfeld.
+    //   typ: 'Text' | 'Zahl' | 'Datum' | 'Monat' | 'Dropdown' | 'Textfeld (mehrzeilig)' | 'Checkbox' | 'Unterschrift' | 'Foto'
+    //   optionen: Dropdown-Werte (falls vorhanden)
+    //   quick: Schnellauswahl-Buttons (falls vorhanden)
+    //   info: kurze Anleitung/Begründung
+    // ---------------------------------------------------------------
+    var FL_GRUPPEN = [
+      {
+        titel: '1. Allgemeine Angaben & Stammdaten',
+        felder: [
+          { name: 'Auftraggeber / Prüfort (bzw. Veranstaltungsort)', in: ['vde0100','anschluss','geraete'], typ: 'Text (Freitext, volle Zeilenbreite)', info: 'Adresse/Bezeichnung des Auftraggebers bzw. Veranstaltungsorts. Erscheint im Kopf des PDF-Protokolls.' },
+          { name: 'Gebäude / Bereich', in: ['vde0100','anschluss','geraete'], typ: 'Dropdown + Freitext bei "Sonstiges"', optionen: ['Gr. Haus','Werkstatt','Spiegelhalle','Münsterplatz','Probebühne','Sonstiges… (Freitext)'], info: 'Feste Standard-Bereiche des Stadttheaters. Eigene Zusatzeinträge lassen sich über "Verwalten" (Anschluss-/Geräteprüfung) bzw. zentral auf der Hauptseite (Anlagenprüfung) dauerhaft ergänzen.' },
+          { name: 'Anlage (Bezeichnung) / Anlage-Objekt', in: ['vde0100','anschluss','geraete'], typ: 'Textfeld (mitwachsend/Freitext)', info: 'Konkrete Anlage bzw. das geprüfte Objekt, z. B. "Hauptverteilung Unterbühne UV-1". Dient in Archiv/Statusleiste als Kurzbezeichnung der Prüfung.' },
+          { name: 'Prüflings-ID', in: ['vde0100'], typ: 'Text (Freitext)', info: 'Eindeutige Kennung des geprüften Prüflings/der Anlage, frei vergeben (z. B. PR-2026-001). Nur in der Anlagenprüfung vorhanden.' },
+          { name: 'Protokoll-Nr.', in: ['vde0100','anschluss','geraete'], typ: 'Text (automatisch vorbelegt, überschreibbar)', info: 'Wird automatisch vergeben (Präfix PR/AP/GP + Datum + laufende Nummer), kann aber jederzeit überschrieben werden. Erscheint im Kopf jeder PDF-Seite.' },
+          { name: 'Prüfer/-in (Name)', in: ['vde0100','anschluss','geraete'], typ: 'Text (Freitext)', info: 'Name der prüfenden Person, Pflichtangabe für die Konformitätsbestätigung.' },
+          { name: 'Qualifikation der prüfenden Person', in: ['vde0100','anschluss','geraete'], typ: 'Dropdown', optionen: ['– bitte wählen –','Elektrofachkraft (EFK)','Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK'], info: 'Dokumentiert, mit welcher Qualifikation geprüft wurde – relevant für die rechtliche Gültigkeit des Prüfergebnisses.' },
+          { name: 'Prüfdatum', in: ['vde0100','anschluss','geraete'], typ: 'Datum (Kalender, Standard: heute)', info: 'Datum der tatsächlichen Prüfung – Basis für die automatische Berechnung des nächsten Prüftermins.' },
+          { name: 'Verwendetes Prüfgerät', in: ['vde0100','anschluss','geraete'], typ: 'Text (Freitext)', info: 'Bezeichnung des eingesetzten Messgeräts (z. B. Fluke 1663 / Fluke 6500-2).' },
+          { name: 'Seriennummer Messgerät', in: ['vde0100','anschluss','geraete'], typ: 'Text (Freitext)', info: 'Seriennummer des Prüfgeräts – Rückverfolgbarkeit/Kalibriernachweis.' }
+        ]
+      },
+      {
+        titel: '2. Netzsystem, Netzbetreiber & Prüfart',
+        felder: [
+          { name: 'Prüfart / Norm', in: ['vde0100'], typ: 'Dropdown', optionen: ['DIN VDE 0100-600 (Erstprüfung)','DIN VDE 0105-100 (Wiederholungsprüfung) – Standard'], info: 'Legt fest, nach welcher Norm geprüft wird (Erst- oder Wiederholungsprüfung).' },
+          { name: 'Prüfart / Norm', in: ['anschluss'], typ: 'Dropdown', optionen: ['DIN VDE 0100-600 / -704 (Erstprüfung)','DIN VDE 0105-100 (Wiederholungsprüfung) – Standard'], info: 'Wie bei der Anlagenprüfung, ergänzt um -704 (Bau-/Veranstaltungsstromversorgung) für den Übergabepunkt.' },
+          { name: 'Prüfart', in: ['geraete'], typ: 'Dropdown', optionen: ['Wiederholungsprüfung (DIN EN 50699 / VDE 0702)','Prüfung nach Reparatur (DIN EN 50678 / VDE 0701)'], info: 'Unterscheidet turnusmäßige Wiederholungsprüfung von einer Prüfung nach Reparatur/Änderung eines Geräts.' },
+          { name: 'Grund der Prüfung', in: ['vde0100'], typ: 'Dropdown', optionen: ['Wiederholungsprüfung (Standard)','Neuanlage','Änderung','Erweiterung','Instandsetzung'], info: 'Dokumentiert den Anlass der Prüfung für die Bewertung/das Archiv.' },
+          { name: 'Grund der Prüfung', in: ['anschluss'], typ: 'Dropdown', optionen: ['Wiederholungsprüfung (Standard)','Neuanlage / Erstprüfung','Änderung','Erweiterung','Instandsetzung'], info: 'Wie Anlagenprüfung, für den Übergabepunkt.' },
+          { name: 'Grund der Prüfung', in: ['geraete'], typ: 'Dropdown', optionen: ['Wiederholungsprüfung (Standard)','Neuanschaffung / Erstprüfung','Reparatur','Instandsetzung'], info: 'Anlass der Geräteprüfung.' },
+          { name: 'Netzsystem', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['TN-S (Standard)','TN-C-S','TN-C','TT','IT'], info: 'Art des Erdungssystems der Anlage – bestimmt u. a. die Schutzmaßnahme gegen elektrischen Schlag.' },
+          { name: 'Netzspannung (V)', in: ['vde0100','anschluss'], typ: 'Text (Freitext, mit Formatierhilfe)', quick: ['230 V','230 / 400 V','400 V'], info: 'Nennspannung der Anlage/des Übergabepunkts.' },
+          { name: 'Frequenz (Hz)', in: ['vde0100'], typ: 'Text (Freitext)', info: 'Netzfrequenz, Sollwert 50 Hz. Bei Netzersatzanlage/Wechselrichter Pflichtangabe (echter Messwert), sonst optional.' },
+          { name: 'Art der Einspeisung', in: ['vde0100'], typ: 'Dropdown', optionen: ['Netz (VNB) – Standard','Netzersatzanlage (NEA / Aggregat)','Wechselrichter / Batteriespeicher'], info: 'Bestimmt, ob die Frequenzmessung Pflicht ist (bei NEA/Wechselrichter: Sollwert 50 Hz).' },
+          { name: 'Art der Einspeisung', in: ['anschluss'], typ: 'Dropdown (bei "Sonstiges" zusätzliches Freitextfeld)', optionen: ['Festanschluss / Zählerschrank','Baustromverteiler','Generator / Notstromaggregat','Sonstiges → Freitext "Herkunft der Einspeisung"'], info: 'Woher der Übergabepunkt gespeist wird.' },
+          { name: 'Verteilnetzbetreiber (VNB)', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', info: 'Der öffentliche Netzbetreiber am Anschlusspunkt (z. B. Stadtwerke Konstanz).' },
+          { name: 'Hausanschluss / Speisepunkt (Vorsicherung)', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['NH 3x100 A gL (HAK)','NH 3x63 A gL (HAK)','CEE 63 A Einspeisung','CEE 125 A Einspeisung','Netzersatzanlage (NEA)'], info: 'Oberste Schutzebene – bestimmt Selektivität und maximalen Kurzschlussstrom. Bei Open Air der Speisepunkt statt des Hausanschlusses.' },
+          { name: 'Firma / Vermieter', in: ['anschluss'], typ: 'Text (Freitext)', info: 'Firma, die den Übergabepunkt/die Stromversorgung bereitstellt (z. B. Veranstaltungstechnik-Verleiher).' },
+          { name: 'Ansprechpartner/-in (optional)', in: ['anschluss'], typ: 'Text (Freitext, optional)', info: 'Kontaktperson beim Bereitsteller.' },
+          { name: 'Telefon (optional)', in: ['anschluss'], typ: 'Text (Freitext, optional)', info: 'Telefonnummer der Kontaktperson.' },
+          { name: 'Standort / Bezeichnung Übergabepunkt', in: ['anschluss'], typ: 'Text (Freitext)', info: 'Wo genau sich der Übergabepunkt befindet (z. B. "Zählerschrank Bühneneingang").' },
+          { name: 'Anschlussleistung (kVA)', in: ['anschluss'], typ: 'Zahl (Freitext, dezimal)', info: 'Vereinbarte/verfügbare Anschlussleistung am Übergabepunkt.' }
+        ]
+      },
+      {
+        titel: '2a. Netzmessung am Speisepunkt (Anlagenprüfung, aufklappbar) / je Übergabepunkt (Anschlussprüfung)',
+        felder: [
+          { name: 'Netzart', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['Drehstrom (400 V, 3 Außenleiter) – Standard','1-phasiger Wechselstrom (230 V, z. B. Schukosteckdose)'], info: 'Steuert, ob die Drehstrom-Felder (L2, L3, L1-L2 usw.) überhaupt eingeblendet werden.' },
+          { name: 'Art des Speisepunkts', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['Fest verkabelt (Klemme/Verteiler)','Steckstelle (Kupplung/Steckdose/Verlängerung) – Standard'], info: 'Bei Steckstelle wird die Prüfung der Steckverbindung selbst zur Pflichtangabe.' },
+          { name: 'Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt)', in: ['vde0100','anschluss'], typ: 'Dropdown (nur bei Steckstelle sichtbar)', optionen: ['– bitte wählen –','i.O.','n.i.O.'], info: 'Pflichtangabe bei Versorgung über eine Steckstelle (z. B. CEE-Kupplung) – die Steckverbindung selbst muss zwingend mitgeprüft werden.' },
+          { name: 'U L1–N, U L2–N, U L3–N (V)', in: ['vde0100','anschluss'], typ: 'Zahl je Außenleiter gegen N', info: 'Sollwert je 230 V (±10 % nach DIN EN 50160). Findet Abweichungen der Netzspannung.' },
+          { name: 'U L1–L2, U L2–L3, U L1–L3 (V)', in: ['vde0100','anschluss'], typ: 'Zahl (nur bei Drehstrom sichtbar)', info: 'Sollwert je 400 V (±10 %). Nur bei Drehstrom-Netzart relevant.' },
+          { name: 'U N–PE (V) [Sollwert 0 V]', in: ['vde0100','anschluss'], typ: 'Zahl', info: 'Der einzige Wert, der eigenständig einen Fehler findet: ein hochohmiger PEN-Leiter oder eine Fremdeinspeisung. Sollwert 0 V.' },
+          { name: 'Frequenz (Hz)', in: ['anschluss'], typ: 'Zahl', info: 'Sollwert 50 Hz. Am Übergabepunkt Teil der Netzmessung, unter "1. Netzmessung – Spannungen, Frequenz & N-PE" einsortiert.' },
+          { name: 'Drehfeldrichtung (bei Drehstrom)', in: ['anschluss'], typ: 'Dropdown', optionen: ['– bitte wählen –','i.O. – rechtsdrehend','n.i.O. – linksdrehend','n.a.'], info: 'Prüft, ob die drei Außenleiter in der Reihenfolge L1-L2-L3 (Rechtsdrehfeld) liegen. Falsches Drehfeld lässt Drehstrommotoren (Bühnenzug, Lüfter, Pumpen) rückwärts laufen – bei CEE 16–125 A nach DIN VDE 0100-600 zwingend zu prüfen.' }
+        ]
+      },
+      {
+        titel: '3. Besichtigen (Sichtprüfung) – je Punkt: i.O. / n.i.O. / n.a.',
+        felder: [
+          { name: 'Betriebsmittel', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Allgemeiner Zustand der verbauten Betriebsmittel.' },
+          { name: 'Kabel & Leitungen', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Äußerer Zustand von Kabeln und Leitungen (Beschädigungen, Alterung).' },
+          { name: 'Zugänglichkeit', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Erreichbarkeit von Verteilern/Schaltgeräten im Betrieb und Notfall.' },
+          { name: 'Schaltgeräte', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Zustand und Funktion von Trenn-/Schaltgeräten.' },
+          { name: 'Kennzeichnung', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Beschriftung von Stromkreisen/Verteilern vorhanden und korrekt.' },
+          { name: 'Zusätzlicher Potenzialausgleich', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Vorhandensein/Zustand des zusätzlichen Potenzialausgleichs, wo gefordert.' },
+          { name: 'Berührungsschutz', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Abdeckungen/Berührungsschutz an aktiven Teilen vorhanden und unbeschädigt.' },
+          { name: 'Typenschild', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Vorhandensein und Lesbarkeit der Typenschilder.' },
+          { name: 'Brandabschottung', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Durchführungen durch Brandabschnitte fachgerecht abgeschottet (n.a., wenn nicht vorhanden, z. B. Open-Air-Bühne).' },
+          { name: 'Leiterverbindungen', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Klemmstellen/Verbindungen fest und korrekt ausgeführt.' },
+          { name: 'Verteiler / Zählerschrank', in: ['anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Zustand des Verteilers/Zählerschranks am Übergabepunkt.' },
+          { name: 'Steckvorrichtungen / Kupplungen', in: ['anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Zustand von CEE-Kupplungen/Steckdosen am Übergabepunkt.' },
+          { name: 'Zuleitung / Kabel / Steckverbinder unbeschädigt', in: ['anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Sichtprüfung der Zuleitung bis zum Übergabepunkt.' },
+          { name: 'Witterungsschutz (falls außen)', in: ['anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Schutzart/Gehäuse bei Außenaufstellung ausreichend (z. B. IP-Schutzklasse).' }
+        ]
+      },
+      {
+        titel: '3a. Anschlusskabel der Anlage',
+        felder: [
+          { name: 'Kabeltyp', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['NYM-J','H07RN-F','TITANEX','H07V-K'], info: 'Verwendeter Kabeltyp der Anschlussleitung.' },
+          { name: 'Leiter-Anzahl', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['5G','3G','4G'], info: 'Anzahl/Aufbau der Leiter (z. B. 5G = 5 Leiter inkl. PE).' },
+          { name: 'Querschnitt', in: ['vde0100','anschluss'], typ: 'Text (Freitext, dezimal)', quick: ['1,5 mm²','2,5 mm²','4 mm²','6 mm²','10 mm²','16 mm²'], info: 'Leitungsquerschnitt – relevant für zulässige Strombelastbarkeit und Spannungsfall.' }
+        ]
+      },
+      {
+        titel: '4. Messtechnische Prüfungen je Stromkreis (Anlagenprüfung) bzw. je Übergabepunkt (Anschlussprüfung)',
+        felder: [
+          { name: 'Bezeichnung / Zweck (Stromkreis)', in: ['vde0100'], typ: 'Text (Freitext)', info: 'Was der Stromkreis versorgt (z. B. "Schukosteckdose Tonregie").' },
+          { name: 'Bezeichnung Übergabepunkt', in: ['anschluss'], typ: 'Text (Freitext)', info: 'Bezeichnung des Übergabepunkts (z. B. "Bühnenversorgung Haupthaus").' },
+          { name: 'Kabeltyp / Leiter-Anzahl / Querschnitt (je Stromkreis)', in: ['vde0100'], typ: 'Text mit Schnellwahl', quick: ['NYM-J / H07RN-F / TITANEX / H07V-K', '3G / 5G / 4G', '1,5 / 2,5 / 4 / 6 mm²'], info: 'Leitungsdaten des einzelnen Stromkreises.' },
+          { name: 'Netzsystem (je Übergabepunkt)', in: ['anschluss'], typ: 'Dropdown', optionen: ['TN-S (Standard)','TN-C-S','TN-C','TT','IT'], info: 'Netzsystem speziell dieses Übergabepunkts.' },
+          { name: 'Netzart (je Übergabepunkt)', in: ['anschluss'], typ: 'Dropdown', optionen: ['Drehstrom (400 V, 3 Außenleiter) – Standard','1-phasiger Wechselstrom (230 V)'], info: 'Steuert Anzeige der Drehstrom-Felder für diesen Übergabepunkt.' },
+          { name: 'Verbraucher angeschlossen?', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['– bitte wählen –','Ja, Verbraucher angeschlossen','Nein, ohne Verbraucher geprüft'], info: 'Reine Dokumentation der Prüfsituation, beeinflusst die Prüfspannungs-Auswahl nicht automatisch.' },
+          { name: 'RPE (Ω) [betriebl. Richtwert ≤ 0,30 Ω]', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal)', info: 'Schutzleiterwiderstand: DIN VDE 0100-600 fordert Durchgängigkeit (Prüfstrom ≥ 200 mA), keinen festen Grenzwert – Schutzwirkung wird über ZS/IK bewertet. Ein zu hoher/unterbrochener Wert verhindert sicheres Abfließen des Fehlerstroms.' },
+          { name: 'Prüfspannung RISO (VDE 0100-600, Tab. 6.1)', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['500 V DC – bis 500 V (≥ 1,0 MΩ) – Standard','250 V DC – SELV/PELV (≥ 0,5 MΩ)','1000 V DC – über 500 V (≥ 1,0 MΩ)','250 V DC – Praxismessung mit Verbrauchern (kein Normfall)','250 V DC – ohne Verbraucher geprüft (kein Normfall)'], info: 'Legt fest, mit welcher Spannung der Isolationswiderstand gemessen wurde und welcher Mindestwert gilt.' },
+          { name: 'Messwert RISO (MΩ)', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal)', info: 'Isolationswiderstand zwischen aktiven Leitern und PE. Zu niedrig = Risiko für schleichende Fehlerströme, Erwärmung, Brandgefahr oder Berührungsgefahr, ohne dass zwangsläufig eine Sicherung auslöst.' },
+          { name: 'Absicherung (Typ / Nennstrom)', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['B 16A / B 10A / C 16A / C 32A (Stromkreis)', 'B 16A / B 32A / C 32A / C 63A (Übergabepunkt)'], info: 'Charakteristik und Nennstrom der vorgeschalteten Sicherung – Grundlage für den zulässigen ZS/IK-Grenzwert.' },
+          { name: 'ZS (Ω) – Schleifenimpedanz L–PE', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal, Pflichtfeld)', info: 'Bestimmt, ob die vorgeschaltete Sicherung im Fehlerfall schnell genug abschaltet (Schutz durch automatische Abschaltung, DIN VDE 0100-410). Bei zu hoher Impedanz löst die Sicherung nicht rechtzeitig aus.' },
+          { name: 'IK (A)', in: ['vde0100','anschluss'], typ: 'Zahl (wird aus ZS berechnet, überschreibbar)', info: 'Erwarteter Kurzschlussstrom. Muss den Mindestwert für die gewählte Absicherungscharakteristik erreichen (z. B. ≥5×In bei Typ B, ≥10×In bei Typ C).' },
+          { name: 'ZL-N (Ω) – Netzimpedanz (optional)', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal, optional)', info: 'Findet einen hochohmigen N-Leiter, den die L-PE-Messung nicht sieht. Nur eintragen, wenn tatsächlich gemessen.' },
+          { name: 'IK2 (A) – Kurzschlussstrom L–N', in: ['vde0100','anschluss'], typ: 'Zahl (errechnet sich aus ZL-N)', info: 'Ergänzender Kurzschlussstromwert L-N.' },
+          { name: 'RCD Typ', in: ['vde0100','anschluss'], typ: 'Text (Freitext, Basisdaten + Hauptfeld)', quick: ['Typ A','Typ B','Typ B+','Typ F (nur Stromkreis)','Ohne RCD'], info: 'Der eingestellte Typ muss dem Typenschild entsprechen (AC/A/F/B/B+), sonst ist das Prüfergebnis nicht aussagekräftig. Bei "Ohne RCD" klappen die RCD-Messwerte automatisch ein.' },
+          { name: 'Bemessungsstrom In (RCD)', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['16 A','25 A','40 A','63 A'], info: 'Nennstrom des RCD laut Typenschild.' },
+          { name: 'Bemessungsfehlerstrom IΔn', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['10 mA (nur Stromkreis)','30 mA','100 mA','300 mA'], info: 'Nennfehlerstrom des RCD – Basis für den zulässigen Auslösestrom-Bereich (0,5–1,0×IΔn).' },
+          { name: 'Auslösestrom IΔmess (mA)', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal)', info: 'Gemessener Strom, bei dem der RCD tatsächlich auslöst. Muss zwischen 0,5× und 1,0×IΔn liegen.' },
+          { name: 'Prüfstrom für Auslösestrom / Auslösezeit', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['– bitte wählen –','1 × IΔn (max. 300 ms)','2 × IΔn (max. 150 ms)','5 × IΔn (max. 40 ms) – Standard'], info: 'Bestimmt den zulässigen Grenzwert für die Auslösezeit tA.' },
+          { name: 'Auslösezeit tA (ms) [max. 40 ms bei 5×IΔn]', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal)', info: 'Ein RCD, der nicht oder zu spät auslöst, bietet keinen wirksamen Schutz gegen gefährliche Körperströme – die zentrale Schutzfunktion wäre wirkungslos, ohne von außen erkennbar zu sein.' },
+          { name: 'Spannungsart Netzeinspeisung', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['AC (Wechselstrom) – Standard','DC (Gleichstrom)'], info: 'Bestimmt den zulässigen Grenzwert der Berührungsspannung (AC oder DC).' },
+          { name: 'Bereich / Gefährdung', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['Normalbereich (50 V AC / 120 V DC)','Erhöhte Gefährdung (25 V AC / 60 V DC)'], info: 'Erhöhte Gefährdung z. B. Bühne, Open Air, feuchte/leitfähige Umgebung, Baustelle – senkt den zulässigen Grenzwert.' },
+          { name: 'Maximal zulässige Spannung UL', in: ['vde0100','anschluss'], typ: 'Text (schreibgeschützt, berechnet)', info: 'Wird automatisch aus Spannungsart + Gefährdungsbereich berechnet.' },
+          { name: 'Gemessene Berührungsspannung Umess (V)', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal)', info: 'Wird bei der RCD-Auslösezeitmessung automatisch mitgemessen (Fehlerspannung UF). Zeigt, ob im Fehlerfall die zulässige Grenze eingehalten wird.' },
+          { name: 'Potenzialausgleich grundsätzlich vorhanden (Konzept)', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['Ja','Nein','n.a.'], info: 'Konzeptionelle Angabe, unabhängig vom eigentlichen Messwert RPA/RE.' },
+          { name: 'Erdungswiderstand RE (Ω) [Richtwert ≤ 10 Ω]', in: ['vde0100','anschluss'], typ: 'Zahl (dezimal, falls gemessen)', info: 'Nur relevant, wenn tatsächlich gemessen (z. B. bei eigener Erdungsanlage/NEA).' },
+          { name: 'Messpunkt / Bezugspunkt der Messung', in: ['vde0100','anschluss'], typ: 'Text (Freitext)', quick: ['HES','PA-Schiene','HV / UV','Fundamenterder','Blitzschutz','Hauptschutzleiter','Hauptwasserleitung','Heizung','Gasleitung','Klima/Lüftung','Gebäudekonstr.','Traverse/Tribüne','Bühnenwagen','Kabeltrasse','(am Übergabepunkt zusätzlich: Baustromverteiler, Zählerschrank, Generator-Sternpunkt, Erdspieß, CEE-Verteiler, Bauzaun, Bühnenpodest)'], info: 'Wo genau die Potenzialausgleichs-/Erdungsmessung angesetzt wurde.' },
+          { name: 'Durchgängigkeit Potenzialausgleich', in: ['vde0100','anschluss'], typ: 'Dropdown', optionen: ['– bitte wählen –','i.O.','n.i.O.','n.a.'], info: 'Ein unterbrochener oder zu hochohmiger Potenzialausgleich verhindert, dass gefährliche Spannungsunterschiede zwischen berührbaren leitfähigen Teilen sicher ausgeglichen werden.' },
+          { name: 'RPA (Ω), falls gemessen (nur Übergabepunkt)', in: ['anschluss'], typ: 'Zahl (dezimal, optional)', info: 'Gemessener Potenzialausgleichs-Widerstand am Übergabepunkt.' },
+          { name: 'Ergebnis Stromkreisprüfung (nur Stromkreis-Karte)', in: ['vde0100'], typ: 'Dropdown', optionen: ['i.O. – Standard','n.i.O. – Mangel festgestellt (Stromkreis freigeschaltet/totgelegt)'], info: 'Bei n.i.O. klappen die Messfelder automatisch ein und ein Freitextfeld "Festgestellter Fehler / Grund der Totlegung" öffnet sich.' },
+          { name: 'Fotodokumentation (je Stromkreis/Übergabepunkt)', in: ['vde0100','anschluss'], typ: 'Foto-Upload (optional)', info: 'Bilder zur Dokumentation direkt an der jeweiligen Karte.' }
+        ]
+      },
+      {
+        titel: '5. Erproben (Funktionsprüfung) – je Punkt: i.O. / n.i.O. / n.a.',
+        felder: [
+          { name: 'Funktion Anlage', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Grundfunktion der Anlage im Betrieb.' },
+          { name: 'Schutzeinrichtungen', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Funktionsfähigkeit der Schutz- und Sicherheitseinrichtungen.' },
+          { name: 'Drehfeld CEE (rechts)', in: ['vde0100'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Gilt für CEE 16–125 A. Falsches Drehfeld lässt Drehstrommotoren rückwärts laufen (Bühnenzug, Lüfter, Pumpen).' },
+          { name: 'Polarität / Steckdosenbelegung', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Prüft L/N vertauscht, PE oder N offen – Gegenstück zur Drehfeldprüfung bei einphasigen Steckdosen, gefordert nach DIN VDE 0100-600.' },
+          { name: 'RCD-Prüftaste betätigt', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Prüft nur die Mechanik – ein anderer Nachweis als die Messung von IΔmess/tA.' },
+          { name: 'Drehrichtung Motoren', in: ['vde0100','anschluss'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Korrekte Drehrichtung angeschlossener Drehstrommotoren.' }
+        ]
+      },
+      {
+        titel: '6. Geräteprüfung – Angaben je Gerät (eigene Karte)',
+        felder: [
+          { name: 'Bezeichnung / Verwendungszweck', in: ['geraete'], typ: 'Text (Freitext)', info: 'Was das Gerät ist bzw. wofür es genutzt wird (z. B. "PAR-Scheinwerfer Lichtregie").' },
+          { name: 'Hersteller / Typ', in: ['geraete'], typ: 'Text (Freitext)', info: 'Herstellerangabe und Typbezeichnung.' },
+          { name: 'Inventar- / Seriennummer', in: ['geraete'], typ: 'Text (Freitext)', info: 'Eindeutige Kennung des Prüflings – wird beim Duplizieren einer Karte bewusst NICHT übernommen, da sie eindeutig bleiben muss.' },
+          { name: 'Schutzklasse', in: ['geraete'], typ: 'Dropdown', optionen: ['I (Schutzleiter) – Standard','II (Schutzisoliert)','III (Schutzkleinspannung)'], info: 'Bestimmt die zulässigen Grenzwerte für Isolationswiderstand und Ableitstrom.' },
+          { name: 'Anschlussleitung Länge (m)', in: ['geraete'], typ: 'Zahl (dezimal)', info: 'Nach DIN EN 50678/50699 steigt der RPE-Grenzwert mit der Leitungslänge (Grundwert bis 5 m, danach +0,1 Ω je 7,5 m).' },
+          { name: 'Gerät mit Heizelement (Checkbox)', in: ['geraete'], typ: 'Checkbox', info: 'Setzt automatisch den passenden RISO-Grenzwert; hängt mit dem Feld "Heizleistung" zusammen (gegenseitig synchronisiert).' },
+          { name: 'Heizleistung (kW), falls Heizelement', in: ['geraete'], typ: 'Zahl (dezimal)', info: 'Nach DIN EN 50699 darf der Ableitstrom bei Heizleistung > 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.' },
+          { name: 'Gehäuse / Isolierung / Lüftungsschlitze', in: ['geraete'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Sichtprüfung Gehäusezustand.' },
+          { name: 'Anschlussleitung / Stecker / Zugentlastung', in: ['geraete'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Sichtprüfung von Leitung, Stecker und Zugentlastung.' },
+          { name: 'Kennzeichnung / Typenschild lesbar', in: ['geraete'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Lesbarkeit von Typenschild/Kennzeichnung.' },
+          { name: 'Keine unsachgemäßen Reparaturen / Überhitzung', in: ['geraete'], typ: 'Dropdown i.O./n.i.O./n.a.', info: 'Hinweise auf unfachmännische Reparaturen oder thermische Schäden.' },
+          { name: 'Funktionsprüfung', in: ['geraete'], typ: 'Dropdown i.O./n.i.O.', info: 'Grundfunktion des Geräts im Betrieb.' },
+          { name: 'RPE (Ω)', in: ['geraete'], typ: 'Zahl (dezimal)', info: 'Schutzleiterwiderstand des Geräts. Ein zu hoher/unterbrochener Wert verhindert sicheres Abfließen des Fehlerstroms im Fehlerfall.' },
+          { name: 'RISO (MΩ)', in: ['geraete'], typ: 'Zahl (dezimal)', info: 'Isolationswiderstand des Geräts. Grenzwert je nach Schutzklasse (SK I ≥1,0 MΩ, mit Heizelement ≥0,3 / SK II ≥2,0 MΩ / SK III ≥0,25 MΩ).' },
+          { name: 'Ableitstrom (mA)', in: ['geraete'], typ: 'Zahl (dezimal)', info: 'Grenzwert je Schutzklasse (SK I ≤3,5 mA, bei Heizleistung >3,5 kW erhöht bis max. 10 mA / SK II und III ≤0,5 mA). Ein zu hoher Wert weist auf verschlechterte/überlastete Isolation hin.' },
+          { name: 'Messmethode Ableitstrom', in: ['geraete'], typ: 'Dropdown', optionen: ['Ersatzableitstrom','Differenzstrommessung','Direktmessung Berührungsstrom'], info: 'Bei Geräten mit Elektronik (LED, EVG, Netzteil, Dimmer, Endstufe) ist Ersatzableitstrom nicht aussagekräftig – dort Differenzstrom- oder Direktmessung verwenden.' }
+        ]
+      },
+      {
+        titel: '7. Gesamtbeurteilung, Prüfplakette & Prüftermin',
+        felder: [
+          { name: 'Prüfumfang', in: ['vde0100'], typ: 'Dropdown', optionen: ['Vollprüfung (100 % der Anlage) – Standard','Stichprobe – siehe Bemerkung für Umfang'], info: 'Nach DIN VDE 0105-100 bei Wiederholungsprüfungen anzugeben.' },
+          { name: 'Prüfumfang', in: ['anschluss'], typ: 'Text (Freitext)', info: 'Kurz benennen, was geprüft wurde – insbesondere bei Stichprobe/Teilprüfung.' },
+          { name: 'Prüfumfang', in: ['geraete'], typ: 'Dropdown', optionen: ['Vollprüfung (alle Geräte) – Standard','Stichprobe – siehe Bemerkung für Umfang'], info: 'Wie Anlagenprüfung, bezogen auf alle geprüften Geräte.' },
+          { name: 'Gesamtbewertung Mängel', in: ['vde0100','anschluss','geraete'], typ: 'Dropdown', optionen: ['Keine Mängel festgestellt','Mängel festgestellt und behoben (siehe Bemerkung)','Mängel festgestellt (siehe Bemerkung)'], info: 'Zusammenfassende Bewertung, muss zum Bemerkungsfeld und zur Freigabe passen.' },
+          { name: 'Anschlussleistung ausreichend für geplante Last', in: ['anschluss'], typ: 'Dropdown', optionen: ['Ja','Nein','n.a.'], info: 'Nur am Übergabepunkt: reicht die vorhandene Leistung für die geplante Veranstaltung.' },
+          { name: 'Prüfplakette erteilt', in: ['vde0100','anschluss','geraete'], typ: 'Dropdown', optionen: ['Ja','Nein'], info: 'Dokumentiert, ob eine Prüfplakette vergeben wurde.' },
+          { name: 'Prüfintervall + Schnellwahl', in: ['vde0100','anschluss','geraete'], typ: 'Dropdown + Schnellwahl-Buttons', optionen: ['1 Monat','2 Monate','3 Monate','1 Jahr (Standard)','2 Jahre','4 Jahre'], info: 'Bestimmt automatisch den "Nächsten Prüftermin" ab dem Prüfdatum.' },
+          { name: 'Nächster Prüftermin (Monat/Jahr)', in: ['vde0100','anschluss','geraete'], typ: 'Monat (automatisch berechnet, überschreibbar)', info: 'Ergibt sich aus dem Prüfintervall ab dem Prüfdatum, kann manuell überschrieben werden.' },
+          { name: 'Sicherer Gebrauch gewährleistet', in: ['vde0100'], typ: 'Dropdown', optionen: ['Ja (Anlage entspricht VDE-Regeln)','Nein (Sicherheitsrisiko)'], info: 'Zentrale Freigabe-Entscheidung der Prüfung.' },
+          { name: 'Sicherer Gebrauch gewährleistet', in: ['anschluss'], typ: 'Dropdown', optionen: ['Ja (Übergabepunkt freigegeben)','Nein (Sicherheitsrisiko)'], info: 'Freigabe-Entscheidung für den Übergabepunkt.' },
+          { name: 'Sicherer Gebrauch gewährleistet', in: ['geraete'], typ: 'Dropdown', optionen: ['Ja (Geräte entsprechen den Normen)','Nein (Sicherheitsrisiko)'], info: 'Freigabe-Entscheidung für die geprüften Geräte.' },
+          { name: 'Mängel / Bemerkungen / Auflagen', in: ['vde0100','anschluss','geraete'], typ: 'Textfeld (mehrzeilig, mitwachsend) + Foto-Upload', info: 'Freitext für alle Mängel, Auflagen oder sonstigen Bemerkungen; mit eigener Fotodokumentation.' }
+        ]
+      },
+      {
+        titel: '8. Konformitätsbestätigung & Unterschriften',
+        felder: [
+          { name: 'Ort der Unterzeichnung', in: ['vde0100','anschluss','geraete'], typ: 'Text (Freitext)', info: 'Ort, an dem das Protokoll unterzeichnet wird.' },
+          { name: 'Datum der Unterzeichnung', in: ['vde0100','anschluss','geraete'], typ: 'Datum (Standard: heute)', info: 'Wird unter beide Unterschriften gedruckt.' },
+          { name: 'Unterschrift Prüfer/-in', in: ['vde0100','anschluss','geraete'], typ: 'Unterschriften-Feld (Touch/Maus, löschbar)', info: 'Digitale Unterschrift der prüfenden Person.' },
+          { name: 'Unterschrift Auftraggeber / Betreiber', in: ['vde0100','anschluss','geraete'], typ: 'Unterschriften-Feld (Touch/Maus, löschbar)', info: 'Digitale Unterschrift des Auftraggebers/Betreibers.' },
+          { name: 'Leerformular: Anzahl Blätter', in: ['vde0100','geraete'], typ: 'Dropdown', optionen: ['1 Blatt','2 Blätter','3 Blätter','4 Blätter'], info: 'Nur für das leere Blanko-Protokoll zum Handausfüllen – Folgeblätter enthalten nur die Messtabelle.' }
+        ]
+      }
+    ];
+
+    function fl_esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function fl_badges(inArr) {
+      return FL_REIHENFOLGE.map(function (f) {
+        var aktiv = inArr.indexOf(f) !== -1;
+        return '<span class="fl-badge ' + (aktiv ? 'aktiv' : 'inaktiv') + '">' + FL_LABEL[f] + '</span>';
+      }).join('');
+    }
+
+    function fl_liste(arr, klasse) {
+      if (!arr || !arr.length) return '';
+      return '<div class="fl-optionen ' + klasse + '">' + arr.map(function (o) {
+        return '<span class="fl-chip">' + fl_esc(o) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function fl_baueFeld(feld) {
+      var suchtext = (feld.name + ' ' + feld.typ + ' ' + (feld.info || '') + ' ' +
+        (feld.optionen || []).join(' ') + ' ' + (feld.quick || []).join(' ') + ' ' +
+        feld.in.map(function (f) { return FL_LABEL[f]; }).join(' ')).toLowerCase().replace(/"/g, '&quot;');
+      var html = '<div class="fl-feld" data-suchtext="' + suchtext + '">';
+      html += '<div class="fl-feld-kopf"><span class="fl-feld-name">' + fl_esc(feld.name) + '</span>' + fl_badges(feld.in) + '</div>';
+      html += '<div class="fl-feld-typ">' + fl_esc(feld.typ) + '</div>';
+      if (feld.optionen) html += fl_liste(feld.optionen, 'fl-dropdown-optionen');
+      if (feld.quick) html += fl_liste(feld.quick, 'fl-quick-optionen');
+      if (feld.info) html += '<div class="fl-feld-info">' + feld.info + '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    function fl_render(filterText) {
+      var container = document.getElementById('fl_container');
+      var ft = (filterText || '').trim().toLowerCase();
+      var html = '';
+      var treffer = 0;
+      FL_GRUPPEN.forEach(function (gruppe) {
+        var felderHtml = gruppe.felder.filter(function (f) {
+          if (!ft) return true;
+          var hay = (f.name + ' ' + f.typ + ' ' + (f.info || '') + ' ' +
+            (f.optionen || []).join(' ') + ' ' + (f.quick || []).join(' ')).toLowerCase();
+          return hay.indexOf(ft) !== -1;
+        }).map(fl_baueFeld);
+        if (felderHtml.length === 0) return;
+        treffer += felderHtml.length;
+        html += '<div class="fl-gruppe"><div class="fl-gruppe-titel">' + fl_esc(gruppe.titel) + '</div>' + felderHtml.join('') + '</div>';
+      });
+      container.innerHTML = treffer > 0 ? html : '<p class="fl-keine-treffer">Keine Felder gefunden.</p>';
+    }
+
+    fl_render('');
+    document.getElementById('fl_suche').addEventListener('input', function (e) {
+      fl_render(e.target.value);
+    });
+  })();
+  </script>
 </div>
 
 <script>
@@ -279,89 +526,6 @@
   document.getElementById('ps_suche').addEventListener('input', function (e) {
     ps_render(e.target.value);
   });
-
-  /* ============================================================
-   * TESTWERKBANK (9.2.0)
-   * ------------------------------------------------------------
-   * Laedt je Formular EINMAL (beim ersten Umschalten auf den
-   * jeweiligen Tab) das echte HTML in einem iframe mit ?werkbank=1 -
-   * dieser Parameter schaltet ausschliesslich Autosave/"Offene
-   * Prüfungen" ab (siehe js/entwuerfe.js), aendert aber sonst nichts:
-   * alle Felder, Schnellwahl-Buttons, Pflichtfeld-Markierungen und
-   * Live-Validierungen sind exakt wie im echten Formular, weil es
-   * tatsaechlich dasselbe Formular ist - kein zweiter, separat
-   * gepflegter Nachbau. ============================================================ */
-  var WB_DATEIEN = { vde0100: 'vde0100.html', anschluss: 'anschlusspruefung.html', geraete: 'geraetepruefung.html' };
-  var wb_geladen = { vde0100: false, anschluss: false, geraete: false };
-
-  function wb_iframeHoeheAnpassen(iframe) {
-    try {
-      var doc = iframe.contentDocument;
-      if (!doc || !doc.body) return;
-      // NUR body.scrollHeight verwenden - documentElement.scrollHeight
-      // "sieht" die aktuelle iframe-Hoehe selbst mit (html fuellt den
-      // Viewport) und wuerde bei jedem Aufruf zusammen mit dem gerade
-      // gesetzten iframe.style.height immer weiter aufschaukeln
-      // (Rueckkopplungsschleife - beobachtet: Hoehe waechst ohne Ende).
-      var h = doc.body.scrollHeight;
-      var neu = h + 24;
-      // Nur aendern, wenn sich wirklich etwas veraendert hat (>4px
-      // Unterschied) - vermeidet Mikro-Anpassungen bei jedem Intervall-Tick,
-      // die den MutationObserver unnoetig erneut ausloesen wuerden.
-      var bisher = parseInt(iframe.style.height, 10) || 0;
-      if (h > 0 && Math.abs(neu - bisher) > 4) iframe.style.height = neu + 'px';
-    } catch (e) { /* Cross-Origin waere hier theoretisch moeglich, ist es aber nicht (gleiche Origin) */ }
-  }
-
-  function wb_ladeFormular(ziel) {
-    if (wb_geladen[ziel]) return;
-    wb_geladen[ziel] = true;
-    var panel = document.getElementById('wb_panel_' + ziel);
-    var wrap = panel.querySelector('.wb-iframe-wrap');
-    var iframe = document.createElement('iframe');
-    iframe.src = WB_DATEIEN[ziel] + '?werkbank=1';
-    iframe.title = 'Testwerkbank: ' + FORMULAR_LABEL[ziel];
-    wrap.innerHTML = '';
-    wrap.appendChild(iframe);
-
-    var beobachtung;
-    iframe.addEventListener('load', function () {
-      wb_iframeHoeheAnpassen(iframe);
-      // Formularinhalt aendert staendig seine Hoehe (Karten hinzufuegen/
-      // entfernen, Fehlertexte ein-/ausblenden, Aufklapp-Panels) - per
-      // MutationObserver auf den iframe-Body dauerhaft mitziehen, statt nur
-      // einmal beim Laden zu messen.
-      try {
-        var body = iframe.contentDocument && iframe.contentDocument.body;
-        if (body && window.MutationObserver) {
-          beobachtung = new MutationObserver(function () { wb_iframeHoeheAnpassen(iframe); });
-          beobachtung.observe(body, { attributes: true, childList: true, subtree: true });
-        }
-      } catch (e) {}
-      // Auch bei reinen Groessenaenderungen ohne DOM-Mutation (z.B. CSS
-      // transition) regelmaessig nachmessen - billig genug fuer ein Intervall.
-      setInterval(function () { wb_iframeHoeheAnpassen(iframe); }, 800);
-    });
-  }
-
-  function wb_tabWechseln(ziel) {
-    document.querySelectorAll('.wb-tab').forEach(function (tab) {
-      var aktiv = tab.getAttribute('data-ziel') === ziel;
-      tab.classList.toggle('aktiv', aktiv);
-      tab.setAttribute('aria-selected', aktiv ? 'true' : 'false');
-    });
-    ['vde0100', 'anschluss', 'geraete'].forEach(function (f) {
-      document.getElementById('wb_panel_' + f).hidden = (f !== ziel);
-    });
-    wb_ladeFormular(ziel);
-  }
-
-  document.querySelectorAll('.wb-tab').forEach(function (tab) {
-    tab.addEventListener('click', function () { wb_tabWechseln(tab.getAttribute('data-ziel')); });
-  });
-
-  // Erstes Formular (Anlage/VDE 0100) sofort laden, da sein Tab initial aktiv ist.
-  wb_ladeFormular('vde0100');
 </script>
 
 </body>
