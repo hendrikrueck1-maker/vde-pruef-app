@@ -59,7 +59,21 @@
   </div>
 
   <form id="anschlussForm">
-    <!-- 1. STAMMDATEN -->
+    <!-- ===========================================================================
+         [9.0.0] KOMPLETTER STRUKTURUMBAU (siehe Aenderungsbericht 9.0.0):
+         - Genau EIN Übergabepunkt pro Protokoll (keine .feed-card-Mehrfachkarten
+           mehr). Wer mehrere Übergabepunkte hat, füllt mehrere Protokolle aus.
+         - Potenzialausgleich/Erdung ist wieder Teil des Übergabepunkt-Blocks
+           (Unterpunkt der messtechnischen Feststellungen), nicht mehr ein
+           separater, globaler Abschnitt.
+         - Schutzeinrichtungs-Basisdaten als Aufklapp-Panel (Muster 1:1 aus
+           vde0100.html/js/pdf-generator.js übernommen, siehe .c-schutz-basisdaten).
+         - RCD-Messwerte klappen bei "Ohne RCD" automatisch ein (analog
+           .c-rcd-messwerte in vde0100.html).
+         - Reihenfolge/Feldbezeichnungen exakt wie vom Nutzer vorgegeben.
+         ========================================================================== -->
+
+    <!-- 1. ALLGEMEINE ANGABEN & STAMMDATEN -->
     <h2 class="kat-stamm" id="abschnitt-stammdaten-1">1. Allgemeine Angaben & Stammdaten</h2>
     <div id="pruefdatum_infokarte_platzhalter"></div>
     <div class="grid">
@@ -99,47 +113,30 @@
         </select>
       </div>
       <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTerminAnschluss()"></div>
-      <div class="form-group">
-        <label for="pruefintervall">Prüfintervall:</label>
-        <select id="pruefintervall" onchange="updateNaechsterTerminAnschluss()">
-          <option value="1">1 Monat</option>
-          <option value="2">2 Monate</option>
-          <option value="3">3 Monate</option>
-          <option value="12" selected>1 Jahr</option>
-          <option value="24">2 Jahre</option>
-          <option value="48">4 Jahre</option>
-        </select>
-        <!-- [8.0.0] NEU: sichtbare Schnellauswahl-Buttonleiste, einheitlich
-             mit vde0100.html/geraetepruefung.html (vorher nur Dropdown). -->
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '1'); updateNaechsterTerminAnschluss()">1 Monat</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '2'); updateNaechsterTerminAnschluss()">2 Monate</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '3'); updateNaechsterTerminAnschluss()">3 Monate</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '12'); updateNaechsterTerminAnschluss()">1 Jahr</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '24'); updateNaechsterTerminAnschluss()">2 Jahre</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '48'); updateNaechsterTerminAnschluss()">4 Jahre</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
-        <input type="month" id="res_termin_date">
-        <div class="limit-hint">Ergibt sich aus dem Prüfintervall, kann überschrieben werden.</div>
-        <div id="pruefdatum_bestaetigung_platzhalter"></div>
-      </div>
       <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
-    <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄT -->
-    <h2 class="kat-stamm" id="abschnitt-stammdaten-2">2. Netzsystem, Netzbetreiber &amp; Bereitsteller der Einspeisung</h2>
+    <!-- 2. NETZSYSTEM, NETZBETREIBER -->
+    <h2 class="kat-stamm" id="abschnitt-stammdaten-2">2. Netzsystem, Netzbetreiber</h2>
     <p style="font-size: 0.78rem; color: var(--secondary); margin-top: -5px;">
       Der Übergabepunkt markiert die Grenze zwischen der Anlage des Netzbetreibers/Bereitstellers und der eigenen (Veranstaltungs-)Anlage (vgl. DIN&nbsp;VDE&nbsp;0100-704). Ab hier übernimmt der Veranstalter/die Elektrofachkraft die Verantwortung.
     </p>
     <div class="grid">
       <div class="form-group"><label for="firma_vermieter">Firma / Vermieter:</label><input type="text" id="firma_vermieter" placeholder="z. B. Veranstaltungstechnik Mustermann GmbH"></div>
-      <div class="form-group"><label for="vnb">Netzbetreiber:</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz"></div>
+      <div class="form-group"><label for="vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
       <div class="form-group"><label for="bereitsteller_ansprechpartner">Ansprechpartner/-in (optional):</label><input type="text" id="bereitsteller_ansprechpartner"></div>
       <div class="form-group"><label for="bereitsteller_telefon">Telefon (optional):</label><input type="text" id="bereitsteller_telefon"></div>
+      <!-- [9.0.0] NEU: "Prüfart / Norm" gab es in der Anschlussprüfung bisher
+           nicht als Feld - analog zu #pruefnorm in vde0100.html, hier mit
+           Optionen, die zur Übergabepunkt-Prüfung passen (DIN VDE 0100-704). -->
+      <div class="form-group">
+        <label for="pruefnorm">Prüfart / Norm:</label>
+        <select id="pruefnorm">
+          <option>DIN VDE 0100-600 / -704 (Erstprüfung)</option>
+          <option selected>DIN VDE 0105-100 (Wiederholungsprüfung)</option>
+        </select>
+      </div>
       <div class="form-group">
         <label for="einspeisung_art">Art der Einspeisung:</label>
         <select id="einspeisung_art" onchange="toggleEinspeisungSonstiges(this.value)">
@@ -149,8 +146,6 @@
           <option>Sonstiges</option>
         </select>
       </div>
-      <!-- [8.0.0] NEU: "Grund der Prüfung" - bisher nur in vde0100.html,
-           jetzt einheitlich in allen drei Formularen. -->
       <div class="form-group">
         <label for="pruefgrund">Grund der Prüfung:</label>
         <select id="pruefgrund">
@@ -167,7 +162,7 @@
         <input type="text" id="einspeisung_sonstiges" placeholder="z. B. Nachbargebäude Werkstatt, Verteiler W-3">
       </div>
       <div class="form-group"><label for="uebergabe_standort">Standort / Bezeichnung Übergabepunkt:</label><input type="text" id="uebergabe_standort" placeholder="z. B. Zählerschrank Bühneneingang"></div>
-      <div class="form-group"><label for="anschlussleistung_vertrag">Vertragliche Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
+      <div class="form-group"><label for="anschlussleistung_vertrag">Anschlussleistung (kVA):</label><input type="text" inputmode="decimal" id="anschlussleistung_vertrag" placeholder="z. B. 63"></div>
       <div class="form-group grid-full">
         <label for="netzspannung">Netzspannung (V):</label>
         <input type="text" inputmode="decimal" pattern="[0-9 /]*" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
@@ -200,16 +195,13 @@
     <div class="grid kat-block kat-sicht">
       <div class="form-group"><label for="sicht_uebergabe_1">1. Verteiler / Zählerschrank:</label><select class="sicht-item" id="sicht_uebergabe_1" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_uebergabe_2">2. Steckvorrichtungen / Kupplungen:</label><select class="sicht-item" id="sicht_uebergabe_2" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_3">3. Zuleitung / Kabel unbeschädigt:</label><select class="sicht-item" id="sicht_uebergabe_3" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_4">4. Kennzeichnung / Beschriftung:</label><select class="sicht-item" id="sicht_uebergabe_4" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_3">3. Zuleitung / Kabel / Steckverbinder unbeschädigt:</label><select class="sicht-item" id="sicht_uebergabe_3" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_4">4. Kennzeichnung:</label><select class="sicht-item" id="sicht_uebergabe_4" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_uebergabe_5">5. Witterungsschutz (falls außen):</label><select class="sicht-item" id="sicht_uebergabe_5" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_uebergabe_6">6. Berührungsschutz / Abdeckungen:</label><select class="sicht-item" id="sicht_uebergabe_6" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_uebergabe_6">6. Berührungsschutz:</label><select class="sicht-item" id="sicht_uebergabe_6" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
     <!-- 4. ANSCHLUSSKABEL DER ANLAGE -->
-    <!-- [8.0.0] NEU: analog zu vde0100.html - einmaliger Abschnitt für das
-         Hauptzuleitungskabel zum Übergabepunkt, getrennt von etwaigen
-         Feldern je einzelnem Übergabepunkt in dessen Karte. -->
     <h2 class="kat-sicht" id="abschnitt-anschlusskabel">4. Anschlusskabel der Anlage</h2>
     <div class="kat-block kat-sicht">
       <div class="grid">
@@ -247,25 +239,304 @@
       </div>
     </div>
 
-    <!-- 5. NETZMESSUNG JE ÜBERGABEPUNKT -->
+    <!-- 5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT -->
+    <!-- [9.0.0] Genau EIN Übergabepunkt-Block statt beliebig vieler
+         .feed-card-Karten (siehe Aenderungsbericht 9.0.0). Wer mehrere
+         Übergabepunkte hat, füllt mehrere Protokolle aus. Der Block bleibt
+         trotzdem visuell wie eine Karte gestaltet (.feed-card-Optik), nur
+         ohne Kopfleiste mit Duplizieren/Entfernen-Buttons und ohne Container
+         für weitere Karten. -->
     <h2 class="kat-messen" id="abschnitt-messen">5. Messtechnische Feststellungen je Übergabepunkt</h2>
-    <!-- Der frueher hier genannte Spannungsfall (&le; 4 % nach DIN VDE 0100-520)
-         wurde entfernt: es gibt kein Eingabefeld dafuer, der Wert wird weder
-         erfasst noch geprueft. Ein Grenzwert im Hinweistext, den das Formular
-         nicht abfragt, suggeriert eine Pruefung, die gar nicht stattfindet. -->
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Richtwerte: R<sub>PE</sub> &le; 0,30 &Omega; · I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) ·
       RCD: I<sub>&Delta;mess</sub> 0,5–1,0&times;I<sub>&Delta;n</sub>, t<sub>A</sub> &le; 40 ms bei 5&times;I<sub>&Delta;n</sub> ·
       Netzspannung &plusmn;10&nbsp;% nach DIN&nbsp;EN&nbsp;50160 · U<sub>N&ndash;PE</sub> Sollwert 0&nbsp;V
     </p>
-    <div id="feedsContainer"></div>
-    <button type="button" class="btn btn-secondary" onclick="addFeedCard()">+ Übergabepunkt hinzufügen</button>
+
+    <div class="feed-card anschluss-uebergabepunkt" id="uebergabepunktBlock">
+      <div class="grid">
+        <div class="form-group grid-full">
+          <label for="bez">Bezeichnung Übergabepunkt:</label>
+          <input type="text" class="c-bez" id="bez" placeholder="z. B. Bühnenversorgung Haupthaus">
+        </div>
+        <div class="form-group">
+          <label for="netzsystem">Netzsystem:</label>
+          <select class="c-netzsystem" id="netzsystem">
+            <option selected>TN-S</option>
+            <option>TN-C-S</option>
+            <option>TN-C</option>
+            <option>TT</option>
+            <option>IT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="netzart">Netzart:</label>
+          <select class="c-netzart" id="netzart" onchange="updateFeedNetzart()">
+            <option value="Drehstrom" selected>Drehstrom (400 V, 3 Außenleiter)</option>
+            <option value="1-phasig">1-phasiger Wechselstrom (230 V)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="frequenz">Frequenz (Hz):</label>
+          <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
+        </div>
+      </div>
+
+      <!-- SCHUTZEINRICHTUNGS-BASISDATEN (Aufklapp-Panel) ------------------
+           [9.0.0] 1:1 nach dem Muster aus vde0100.html/js/pdf-generator.js
+           (.c-schutz-basisdaten) - siehe schutzBasisdatenGeaendert()/
+           schutzBasisdatenAusEinzelfeldernUebernehmen() in
+           js/anschluss-generator.js. Standardmaessig eingeklappt; beim
+           Aufklappen wird der aktuelle Stand aus Absicherung/RCD-Typ
+           übernommen (toggleMessSections() in js/pdf-utils.js), bei Eingabe
+           hier spiegelt es sofort in die echten Felder unten. -->
+      <div class="c-schutz-basisdaten mess-sections-collapsed">
+        <div class="mess-sections-header" onclick="toggleMessSections(this)">
+          <span class="mess-sections-titel">Schutzeinrichtungs-Basisdaten (Absicherung, RCD-Typ)</span>
+          <span class="mess-sections-chevron">▾</span>
+        </div>
+        <div class="grid">
+          <div class="form-group">
+            <label for="basis_sich">Absicherung (Typ / Nennstrom):</label>
+            <input type="text" class="c-basis-sich" id="basis_sich" placeholder="z. B. B 32A" oninput="schutzBasisdatenGeaendert('sich')">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'B 16A'); schutzBasisdatenGeaendert('sich')">B 16A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'B 32A'); schutzBasisdatenGeaendert('sich')">B 32A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'C 32A'); schutzBasisdatenGeaendert('sich')">C 32A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'C 63A'); schutzBasisdatenGeaendert('sich')">C 63A</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="basis_rcd_typ">RCD Typ:</label>
+            <input type="text" class="c-basis-rcd-typ" id="basis_rcd_typ" placeholder="z. B. Typ A" oninput="schutzBasisdatenGeaendert('rcd_typ')">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ A'); schutzBasisdatenGeaendert('rcd_typ')">Typ A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ B'); schutzBasisdatenGeaendert('rcd_typ')">Typ B</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ B+'); schutzBasisdatenGeaendert('rcd_typ')">Typ B+</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Ohne RCD'); schutzBasisdatenGeaendert('rcd_typ')">Ohne RCD</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="basis_rcd_in">Bemessungsstrom I<sub>n</sub> (RCD):</label>
+            <input type="text" class="c-basis-rcd-in" id="basis_rcd_in" placeholder="z. B. 40 A" oninput="schutzBasisdatenGeaendert('rcd_in')">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '16 A'); schutzBasisdatenGeaendert('rcd_in')">16 A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '25 A'); schutzBasisdatenGeaendert('rcd_in')">25 A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '40 A'); schutzBasisdatenGeaendert('rcd_in')">40 A</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '63 A'); schutzBasisdatenGeaendert('rcd_in')">63 A</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="basis_rcd_idn">Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
+            <input type="text" class="c-basis-rcd-idn" id="basis_rcd_idn" placeholder="z. B. 30 mA" oninput="schutzBasisdatenGeaendert('rcd_idn')">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '30 mA'); schutzBasisdatenGeaendert('rcd_idn')">30 mA</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '100 mA'); schutzBasisdatenGeaendert('rcd_idn')">100 mA</button>
+              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '300 mA'); schutzBasisdatenGeaendert('rcd_idn')">300 mA</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5.1 NETZMESSUNG -->
+      <div class="sub-section">
+        <div class="sub-title mess-karte-titel" id="netzmessung_icon_wrap"><span class="titel-text">5.1 Netzmessung &ndash; Spannungen, Frequenz &amp; N&ndash;PE</span></div>
+        <p class="limit-hint" style="margin:0 0 8px;">Sollwerte: L gegen N je 230 V (&plusmn;10&nbsp;%) · L gegen L je 400 V (&plusmn;10&nbsp;%) · N gegen PE 0 V · Frequenz 50 Hz.</p>
+        <div class="grid">
+          <div class="form-group"><label for="u_l1n"><span class="c-l1n-label">U L1&ndash;N (V):</span></label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l1n" id="u_l1n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l1n', 'u_l1n')"></div>
+          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l2n">U L2&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l2n" id="u_l2n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l2n', 'u_l2n')"></div>
+          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l3n">U L3&ndash;N (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l3n" id="u_l3n" placeholder="230" oninput="validateFeedNetzspannungsfeld('u-l3n', 'u_l3n')"></div>
+          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l12">U L1&ndash;L2 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l12" id="u_l12" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l12', 'u_l12')"></div>
+          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l23">U L2&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l23" id="u_l23" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l23', 'u_l23')"></div>
+          <div class="form-group netzmessung-drehstrom-feld"><label for="u_l13">U L1&ndash;L3 (V):</label><input type="text" inputmode="decimal" pattern="[0-9]*" class="c-u-l13" id="u_l13" placeholder="400" oninput="validateFeedNetzspannungsfeld('u-l13', 'u_l13')"></div>
+          <div class="form-group">
+            <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
+            <input type="text" inputmode="decimal" class="c-unpe" id="unpe" placeholder="z. B. 0,3" oninput="validateFeedNorms()">
+            <div class="limit-hint">Der einzige Wert, der eigenständig einen Fehler findet: hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.</div>
+          </div>
+          <div class="form-group">
+            <label for="drehfeld">Drehfeldrichtung (bei Drehstrom):</label>
+            <select class="c-drehfeld erp-item" id="drehfeld" onchange="sichtErpNiOPruefen(this)">
+              <option value="" selected>– bitte wählen –</option>
+              <option value="i.O.">i.O. – rechtsdrehend</option>
+              <option value="n.i.O.">n.i.O. – linksdrehend</option>
+              <option value="n.a.">n.a.</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH -->
+      <!-- [9.0.0] Wieder Teil des Übergabepunkt-Blocks (Nutzerwunsch), nicht
+           mehr eigener globaler Formularabschnitt wie zeitweise in 8.0.0. -->
+      <div class="sub-section">
+        <div class="sub-title">5.2 Durchgängigkeit Potenzialausgleich (Messwert dieses Übergabepunkts)</div>
+        <div class="grid">
+          <div class="form-group">
+            <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>
+            <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
+          </div>
+          <div class="form-group">
+            <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
+            <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdungAnschluss()">
+          </div>
+          <div class="form-group grid-full">
+            <label for="pa_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
+            <input type="text" id="pa_messpunkt" placeholder="z. B. PA-Schiene im Übergabeverteiler">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'PE-Schiene Übergabeverteiler')">PE-Schiene Übergabe</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Baustromverteiler')">Baustromverteiler</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Zählerschrank / Hausanschlusskasten')">Zählerschrank</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Generator-Sternpunkt')">Generator-Sternpunkt</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Erdspieß / Tiefenerder')">Erdspieß</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Fundamenterder')">Fundamenterder</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'CEE-Verteiler Bühne')">CEE-Verteiler</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bauzaun / Absperrung')">Bauzaun</button>
+              <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bühnenpodest / Bühnenwagen')">Bühnenpodest</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>
+            <select class="c-pa-durchg" id="pa_durchg">
+              <option value="" selected>– bitte wählen –</option>
+              <option>i.O.</option>
+              <option>n.i.O.</option>
+              <option>n.a.</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pa_widerstand">R<sub>PA</sub> (&Omega;), falls gemessen:</label>
+            <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,20">
+          </div>
+        </div>
+      </div>
+
+      <!-- 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ -->
+      <div class="sub-section">
+        <div class="sub-title mess-karte-titel"><span class="titel-text">5.3 Absicherung & Schleifenimpedanz am Übergabepunkt</span></div>
+        <div class="grid">
+          <div class="form-group">
+            <label for="sich">Absicherung (Typ / Nennstrom):</label>
+            <input type="text" class="c-sich-typ" id="sich" placeholder="z. B. B 32A" oninput="validateFeedNorms()" autocomplete="off">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('sich', 'B 16A'); validateFeedNorms()">B 16A</button>
+              <button type="button" class="quick-btn" onclick="setValue('sich', 'B 32A'); validateFeedNorms()">B 32A</button>
+              <button type="button" class="quick-btn" onclick="setValue('sich', 'C 32A'); validateFeedNorms()">C 32A</button>
+              <button type="button" class="quick-btn" onclick="setValue('sich', 'C 63A'); validateFeedNorms()">C 63A</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
+            <input type="text" inputmode="decimal" class="c-zs" id="zs" placeholder="z. B. 0.28" oninput="onFeedZsInput()">
+            <div class="limit-hint" id="fzs_limit"></div>
+          </div>
+          <div class="form-group">
+            <label>I<sub>K</sub> (A) [min. siehe Platzhalter]:</label>
+            <input type="text" inputmode="decimal" class="c-ik" id="ik" placeholder="z. B. 605" oninput="onFeedIkInput()">
+            <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
+          </div>
+          <div class="form-group">
+            <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="feld-badge feld-badge-optional">Optional</span>:</label>
+            <input type="text" inputmode="decimal" class="c-zln" id="zln" placeholder="nur wenn gemessen" oninput="onFeedZlnInput()">
+            <div class="limit-hint">Fluke 1663: Zi &ndash; <b>LINE</b> (L&ndash;N). Findet einen hochohmigen N-Leiter, den die L&ndash;PE-Messung nicht sieht. Leer lassen, wenn nicht gemessen.</div>
+          </div>
+          <div class="form-group">
+            <label>I<sub>K2</sub> (A) &ndash; Kurzschlussstrom L&ndash;N:</label>
+            <input type="text" inputmode="decimal" class="c-ik2" id="ik2" placeholder="rechnet sich aus Z_L-N">
+          </div>
+        </div>
+      </div>
+
+      <!-- 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) -->
+      <div class="sub-section">
+        <div class="sub-title mess-karte-titel"><span class="titel-text">5.4 Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
+        <div class="grid">
+          <div class="form-group">
+            <label for="rcd_typ">RCD Typ:</label>
+            <input type="text" class="c-rcd-typ" id="rcd_typ" placeholder="z. B. Typ A" oninput="syncRcdMesswerteAnzeigeAnschluss()">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ A'); syncRcdMesswerteAnzeigeAnschluss()">Typ A</button>
+              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ B'); syncRcdMesswerteAnzeigeAnschluss()">Typ B</button>
+              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ B+'); syncRcdMesswerteAnzeigeAnschluss()">Typ B+</button>
+              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Ohne RCD'); syncRcdMesswerteAnzeigeAnschluss()">Ohne RCD</button>
+            </div>
+          </div>
+        </div>
+        <!-- [9.0.0] Bei "Ohne RCD" klappen die Ausloese-Messwerte automatisch
+             ein - 1:1 nach dem Muster syncRcdMesswerteAnzeige() aus
+             vde0100.html (dort .c-rcd-messwerte), siehe
+             syncRcdMesswerteAnzeigeAnschluss() in js/anschluss-generator.js. -->
+        <div class="c-rcd-messwerte">
+          <div class="mess-sections-header" onclick="toggleMessSections(this)">
+            <span class="mess-sections-titel">RCD-Messwerte</span>
+            <span class="mess-sections-hinweis">Bei „Ohne RCD" eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
+            <span class="mess-sections-chevron">▾</span>
+          </div>
+          <div class="grid">
+            <div class="form-group">
+              <label for="rcd_in">Bemessungsstrom I<sub>n</sub> (RCD):</label>
+              <input type="text" class="c-rcd-in" id="rcd_in" placeholder="z. B. 40 A">
+              <div class="quick-btn-group">
+                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '16 A')">16 A</button>
+                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '25 A')">25 A</button>
+                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '40 A')">40 A</button>
+                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '63 A')">63 A</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
+              <input type="text" class="c-rcd-idn" id="rcd_idn" placeholder="z. B. 30 mA" oninput="validateFeedNorms()">
+              <div class="quick-btn-group">
+                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '30 mA'); validateFeedNorms()">30 mA</button>
+                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '100 mA'); validateFeedNorms()">100 mA</button>
+                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '300 mA'); validateFeedNorms()">300 mA</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Auslösestrom I<sub>&Delta;mess</sub> (mA):</label>
+              <input type="text" inputmode="decimal" class="c-rcd-imess" id="rcd_imess" placeholder="z. B. 22" oninput="validateFeedNorms()">
+            </div>
+            <div class="form-group">
+              <label for="rcd_pruefstrom">Prüfstrom für Auslösestrom / Auslösezeit:</label>
+              <select class="c-rcd-pruefstrom" id="rcd_pruefstrom" onchange="validateFeedNorms()">
+                <option value="">&ndash; bitte wählen &ndash;</option>
+                <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
+                <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
+                <option value="5" selected>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Auslösezeit t<sub>A</sub> (ms) <span class="limit-hint" id="fta_limit"></span>:</label>
+              <input type="text" inputmode="decimal" class="c-rcd-ta" id="rcd_ta" placeholder="z. B. 24" oninput="validateFeedNorms()">
+            </div>
+            <div class="form-group">
+              <label for="gef">Bereich / Gefährdung:</label>
+              <select class="c-gefaehrdung" id="gef" onchange="validateFeedNorms()">
+                <option value="normal">Normalbereich (50 V AC)</option>
+                <option value="erhoeht">Erhöhte Gefährdung (25 V AC)</option>
+              </select>
+              <div class="limit-hint">Erhöhte Gefährdung z. B. Bühne, Open Air, feuchte/leitfähige Umgebung, Baustelle.</div>
+            </div>
+            <div class="form-group">
+              <label>Maximal zulässige Berührungsspannung U<sub>L</sub>:</label>
+              <input type="text" class="c-ul-max" id="ul_max" value="&le; 50 V AC" readonly>
+            </div>
+            <div class="form-group">
+              <label>Gemessene Berührungsspannung U<sub>L</sub> (V):</label>
+              <input type="text" inputmode="decimal" class="c-umess" id="umess" placeholder="z. B. 2,5 V" oninput="validateFeedNorms()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOTODOKUMENTATION am Ende des Übergabepunkt-Abschnitts -->
+      <div id="uebergabepunkt_fotos_platzhalter"></div>
+    </div>
 
     <!-- 6. ERPROBEN -->
-    <!-- [8.0.0] NEU: fehlte bisher komplett in diesem Formular. Analog zum
-         Erproben-Abschnitt in vde0100.html, aber OHNE "Funktion Anlage",
-         "Drehfeld CEE" und "Polarität/Steckdosenbelegung" - die kommen laut
-         Zieltabelle nur bei der Anlagenprüfung vor, nicht am Übergabepunkt. -->
     <h2 class="kat-sicht" id="abschnitt-erproben">6. Erproben (Funktionsprüfung)</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Die RCD-Prüftaste prüft die Mechanik und ist ein anderer Nachweis als die Messung von I<sub>&Delta;mess</sub>/t<sub>A</sub>.
@@ -277,43 +548,14 @@
       <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
-    <!-- 7. ERDUNG -->
-    <h2 class="kat-erdung" id="abschnitt-erdung">7. Durchgängigkeit Potenzialausgleich / Erdung</h2>
-    <div class="kat-block kat-erdung">
+    <!-- 7. GESAMTBEURTEILUNG & FREIGABE -->
+    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">7. Gesamtbeurteilung & Freigabe</h2>
     <div class="grid">
-      <div class="form-group">
-        <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>
-        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
-        <div class="limit-hint">Grundsätzliche Angabe für die Anlage. Der tatsächliche Messwert je Übergabepunkt steht in dessen Karte oben (Abschnitt 4).</div>
-      </div>
-      <div class="form-group">
-        <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;], falls gemessen:</label>
-        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdungAnschluss()">
-      </div>
       <div class="form-group grid-full">
-        <label for="pa_messpunkt">Messpunkt / Bezugspunkt der Messung:</label>
-        <input type="text" id="pa_messpunkt" placeholder="z. B. PA-Schiene im Übergabeverteiler">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'HES (Haupterdungsschiene)')">HES</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Potenzialausgleichsschiene (PAS)')">PA-Schiene</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'PE-Schiene Übergabeverteiler')">PE-Schiene Übergabe</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Baustromverteiler')">Baustromverteiler</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Zählerschrank / Hausanschlusskasten')">Zählerschrank</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Generator-Sternpunkt')">Generator-Sternpunkt</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Erdspieß / Tiefenerder')">Erdspieß</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Fundamenterder')">Fundamenterder</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'CEE-Verteiler Bühne')">CEE-Verteiler</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Traverse / Tribüne')">Traverse/Tribüne</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bauzaun / Absperrung')">Bauzaun</button>
-          <button type="button" class="quick-btn" onclick="setValue('pa_messpunkt', 'Bühnenpodest / Bühnenwagen')">Bühnenpodest</button>
-        </div>
+        <label for="pruefumfang">Prüfumfang:</label>
+        <input type="text" id="pruefumfang" placeholder="z. B. Übergabepunkt vollständig geprüft (Besichtigen, Erproben, Messen)">
+        <div class="limit-hint">Kurz benennen, was geprüft wurde - insbesondere bei einer Stichprobe oder Teilprüfung.</div>
       </div>
-    </div>
-    </div>
-
-    <!-- 8. BEWERTUNG -->
-    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">8. Gesamtbeurteilung & Freigabe</h2>
-    <div class="grid">
       <div class="form-group">
         <label for="res_maengel">Gesamtbewertung Mängel:</label>
         <select id="res_maengel">
@@ -327,7 +569,39 @@
         <select id="res_leistung_ausreichend"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
       </div>
       <div class="form-group">
-        <label for="res_freigabe">Freigabe zur Nutzung:</label>
+        <label for="res_plakette">Prüfplakette erteilt:</label>
+        <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
+      </div>
+      <div class="form-group">
+        <label for="pruefintervall">Prüfintervall:</label>
+        <select id="pruefintervall" onchange="updateNaechsterTerminAnschluss()">
+          <option value="1">1 Monat</option>
+          <option value="2">2 Monate</option>
+          <option value="3">3 Monate</option>
+          <option value="12" selected>1 Jahr</option>
+          <option value="24">2 Jahre</option>
+          <option value="48">4 Jahre</option>
+        </select>
+        <div class="quick-btn-group">
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '1'); updateNaechsterTerminAnschluss()">1 Monat</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '2'); updateNaechsterTerminAnschluss()">2 Monate</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '3'); updateNaechsterTerminAnschluss()">3 Monate</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '12'); updateNaechsterTerminAnschluss()">1 Jahr</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '24'); updateNaechsterTerminAnschluss()">2 Jahre</button>
+          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '48'); updateNaechsterTerminAnschluss()">4 Jahre</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
+        <input type="month" id="res_termin_date">
+        <div class="limit-hint">Ergibt sich aus dem Prüfintervall, kann überschrieben werden.</div>
+        <div id="pruefdatum_bestaetigung_platzhalter"></div>
+      </div>
+      <div class="form-group">
+        <!-- [9.0.0] Label wörtlich vom Nutzer vorgegeben, ersetzt die frühere
+             Formulierung "Freigabe zur Nutzung" - fachlich identischer
+             Mechanismus wie res_gewaehrleistung in vde0100.html. -->
+        <label for="res_freigabe">Sicherer Gebrauch gewährleistet:</label>
         <select id="res_freigabe">
           <option value="Ja">Ja (Übergabepunkt freigegeben)</option>
           <option value="Nein">Nein (Sicherheitsrisiko)</option>
@@ -341,8 +615,8 @@
       <div id="bemerkungen_fotos_platzhalter"></div>
     </div>
 
-    <!-- 7. ÜBERGABE -->
-    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">9. Übergabebestätigung & Unterschriften</h2>
+    <!-- 8. KONFORMITÄTSBESTÄTIGUNG & UNTERSCHRIFTEN -->
+    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">8. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
       <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
       <div class="form-group">
@@ -352,30 +626,23 @@
       </div>
     </div>
 
+    <!-- [9.0.0] Labels wörtlich vom Nutzer vorgegeben ("Prüfer/-in" /
+         "Auftraggeber"), genau wie im Anlagenprotokoll - ersetzt die frühere
+         Formulierung "Übergebende/-r"/"Übernehmende/-r". -->
     <div class="sig-block">
       <div class="sig-card">
-        <label id="sigUebergeber_label">Unterschrift Übergebende/-r (Netzbetreiber/Bereitsteller):</label>
-        <canvas id="sigUebergeber" role="img" aria-labelledby="sigUebergeber_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padUebergeber.clear()">Löschen</button>
+        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
+        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
       </div>
       <div class="sig-card">
-        <label id="sigUebernehmer_label">Unterschrift Übernehmende/-r (Veranstalter/Elektrofachkraft):</label>
-        <canvas id="sigUebernehmer" role="img" aria-labelledby="sigUebernehmer_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padUebernehmer.clear()">Löschen</button>
+        <label id="sigAuftraggeber_label">Unterschrift Auftraggeber / Betreiber:</label>
+        <canvas id="sigAuftraggeber" role="img" aria-labelledby="sigAuftraggeber_label"></canvas>
+        <button type="button" class="btn btn-secondary" onclick="padAuftraggeber.clear()">Löschen</button>
       </div>
     </div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
-      <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
-        <select id="leer_blaetter">
-          <option value="1" selected>1 Blatt</option>
-          <option value="2">2 Blätter</option>
-          <option value="3">3 Blätter</option>
-          <option value="4">4 Blätter</option>
-        </select>
-        <div class="limit-hint">Blatt 2 und folgende sind Fortsetzungsblätter: nur die Messtabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1.</div>
-      </div>
       <button type="button" class="btn btn-secondary" onclick="generatePDFAnschluss(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
       <button type="button" class="btn btn-success" onclick="generatePDFAnschluss(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
     </div>
@@ -383,7 +650,7 @@
 </div>
 
 <script>
-  let padUebergeber, padUebernehmer;
+  let padPruefer, padAuftraggeber;
 
   // Datum immer aus der LOKALEN Zeit, siehe heuteIso() in pdf-utils.js
   datumsfeldAufHeute('datum');
@@ -397,11 +664,21 @@
   initProtokollNummer('AP');
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
 
-  addFeedCard();
+  // [9.0.0] Kein addFeedCard() mehr - der EINE Übergabepunkt-Block steht
+  // direkt im Formular (siehe #uebergabepunktBlock oben). Anzeige-Zustand
+  // (Drehstrom-Felder, RCD-Messwerte-Block, Basisdaten-Panel) einmalig
+  // synchronisieren.
+  updateFeedNetzart();
+  syncRcdMesswerteAnzeigeAnschluss();
+  validateFeedNorms();
 
-  // [7.1.0] Foto-Anlage auch am zentralen Feld "Mängel / Bemerkungen /
-  // Auflagen" (siehe vde0100.html, gleiches Muster).
+  // [7.1.0] Foto-Anlage am Übergabepunkt-Block und am zentralen Feld
+  // "Mängel / Bemerkungen / Auflagen" (siehe vde0100.html, gleiches Muster).
   if (typeof fotosLeisteHtml === 'function') {
+    const uebergabepunktFotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', 1);
+    document.getElementById('uebergabepunkt_fotos_platzhalter').innerHTML = fotosLeisteHtml(uebergabepunktFotoKey);
+    fotosLeisteAktualisieren(uebergabepunktFotoKey);
+
     const bemerkungenFotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1);
     document.getElementById('bemerkungen_fotos_platzhalter').innerHTML = fotosLeisteHtml(bemerkungenFotoKey);
     fotosLeisteAktualisieren(bemerkungenFotoKey);
@@ -417,17 +694,13 @@
   initStatusleiste({
     typLabel: 'Anschlussprüfung',
     bezFeldIds: ['uebergabe_standort', 'anlage_bez', 'gebaeude_custom'],
-    kartenSelector: '.feed-card',
-    kartenLabelSelector: '.feed-header span',
-    kartenContainerSelector: '#feedsContainer',
     abschnitte: [
       { selector: '#abschnitt-stammdaten-1', label: 'Stammdaten' },
       { selector: '#abschnitt-stammdaten-2', label: 'Stammdaten' },
       { selector: '#abschnitt-sicht', label: 'Sichtprüfung' },
       { selector: '#abschnitt-anschlusskabel', label: 'Anschlusskabel' },
-      { selector: '#abschnitt-messen', label: 'Übergabepunkte' },
+      { selector: '#abschnitt-messen', label: 'Übergabepunkt' },
       { selector: '#abschnitt-erproben', label: 'Erproben' },
-      { selector: '#abschnitt-erdung', label: 'Erdung / Potenzialausgleich' },
       { selector: '#abschnitt-ergebnis-1', label: 'Gesamtbewertung' },
       { selector: '#abschnitt-ergebnis-2', label: 'Gesamtbewertung' }
     ]
@@ -445,12 +718,10 @@
   gebaeudeOptionenAktualisieren('gebaeude_select');
 
   const pads = initSignaturePadsAnschluss();
-  padUebergeber = pads.uebergeber;
-  padUebernehmer = pads.uebernehmer;
+  padPruefer = pads.pruefer;
+  padAuftraggeber = pads.auftraggeber;
 
   // Autosave entprellt (400 ms) - siehe autosaveAnhaengen() in pdf-utils.js.
-  // Ohne Entprellung schrieb jeder einzelne Tastendruck das komplette Formular
-  // in den localStorage; bei vielen Karten wurde die Eingabe dadurch zaeh.
   autosaveAnhaengen('anschlussForm', autosaveProtocol);
 </script>
 

@@ -346,9 +346,13 @@ function zusatzIconsEinbinden() {
   // Elements der jeweiligen Seite (eindeutig pro Formulartyp vorhanden).
   const pruefdatumPlatzhalter = document.getElementById('pruefdatum_infokarte_platzhalter');
   if (pruefdatumPlatzhalter && !pruefdatumPlatzhalter.innerHTML) {
+    // [9.0.0] anschlusspruefung.html hat seit dem Strukturumbau (genau EIN
+    // Übergabepunkt statt eines #feedsContainer mit .feed-card-Karten) kein
+    // #feedsContainer-Element mehr - #uebergabepunktBlock ist der neue,
+    // eindeutige Marker fuer diese Seite.
     const praefix = document.getElementById('circuitsContainer') ? 'PR'
       : document.getElementById('devicesContainer') ? 'GP'
-      : document.getElementById('feedsContainer') ? 'AP'
+      : document.getElementById('uebergabepunktBlock') ? 'AP'
       : 'PR';
     pruefdatumPlatzhalter.innerHTML = pruefterminInfokarteHtml(praefix);
   }

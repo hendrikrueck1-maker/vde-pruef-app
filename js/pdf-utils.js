@@ -135,6 +135,45 @@ function neueKartenId() {
 }
 
 /* ---------------------------------------------------------------------------
+ *  [9.0.0] EIN-/AUSKLAPPBARE MESSABSCHNITTE - GEMEINSAME FUNKTION
+ * ----------------------------------------------------------------------------
+ *  Bisher nur in js/pdf-generator.js (vde0100.html), jetzt hierher verschoben,
+ *  damit js/anschluss-generator.js (anschlusspruefung.html) sie ebenfalls
+ *  nutzen kann, OHNE dafuer das komplette pdf-generator.js laden zu muessen -
+ *  anschlusspruefung.html laedt js/pdf-utils.js sowieso bereits (siehe
+ *  <script>-Reihenfolge dort), pdf-generator.js dagegen nicht.
+ *  Wird vom Messpruefungs-Block einer totgelegten Stromkreis-Karte
+ *  (.c-mess-sections), vom RCD-Messwerte-Block (.c-rcd-messwerte) UND vom
+ *  Schutzeinrichtungs-Basisdaten-Aufklappmenue (.c-schutz-basisdaten)
+ *  verwendet - alle drei teilen sich dieselbe Kopfzeilen-Struktur
+ *  (.mess-sections-header, siehe css/style.css). */
+function toggleMessSections(header) {
+  const wrapper = header.closest('.c-mess-sections, .c-rcd-messwerte, .c-schutz-basisdaten');
+  if (!wrapper) return;
+  const jetztEingeklappt = wrapper.classList.toggle('mess-sections-collapsed');
+  /* Beim AUFKLAPPEN des Basisdaten-Menues den aktuellen Stand aus den
+   * "echten" Einzelfeldern uebernehmen - so zeigt das Menue auch dann den
+   * richtigen Wert, wenn bisher ausschliesslich unten in Absicherung/RCD
+   * eingetragen wurde (kein Live-Sync bei jedem Tastendruck in die andere
+   * Richtung, um Cursor-Spruenge in den Einzelfeldern zu vermeiden -
+   * stattdessen Abgleich beim Oeffnen). Funktioniert fuer beide Karten-Arten
+   * (.circuit-card der Anlagenpruefung UND die Uebergabepunkt-Sektion der
+   * Anschlusspruefung), je nachdem welche schutzBasisdatenAusEinzelfeldernUebernehmen()
+   * gerade global definiert ist. */
+  if (!jetztEingeklappt && wrapper.classList.contains('c-schutz-basisdaten')) {
+    const card = wrapper.closest('.circuit-card, .feed-card, .anschluss-uebergabepunkt');
+    const cardId = card ? card.id.replace('circuit_', '').replace('feed_', '') : null;
+    if (cardId && typeof schutzBasisdatenAusEinzelfeldernUebernehmen === 'function') {
+      schutzBasisdatenAusEinzelfeldernUebernehmen(cardId);
+    } else if (typeof schutzBasisdatenAusEinzelfeldernUebernehmen === 'function') {
+      // Anschlusspruefung: es gibt nur EINEN Uebergabepunkt-Block ohne
+      // Karten-ID - die Funktion dort nimmt daher keinen Parameter.
+      schutzBasisdatenAusEinzelfeldernUebernehmen();
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
  *  5.0.0 (BUG #4 aus der 4.7.2-Prüfung): MESSWERTE MIT KOMMA SICHER PARSEN
  * ----------------------------------------------------------------------------
  *  VORHER: An ueber 40 Stellen im Code stand parseFloat(wert.replace(',', '.')).

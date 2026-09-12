@@ -84,28 +84,10 @@ function toggleTotlegung(select) {
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
 }
 
-function toggleMessSections(header) {
-  // Wird vom Messpruefungs-Block einer totgelegten Karte (.c-mess-sections),
-  // vom RCD-Messwerte-Block (.c-rcd-messwerte) UND [8.0.0] vom neuen
-  // Schutzeinrichtungs-Basisdaten-Aufklappmenue (.c-schutz-basisdaten)
-  // verwendet - alle drei teilen sich dieselbe Kopfzeilen-Struktur.
-  const wrapper = header.closest('.c-mess-sections, .c-rcd-messwerte, .c-schutz-basisdaten');
-  if (!wrapper) return;
-  const jetztEingeklappt = wrapper.classList.toggle('mess-sections-collapsed');
-  /* [8.0.0] Beim AUFKLAPPEN des Basisdaten-Menues den aktuellen Stand aus
-   * den "echten" Einzelfeldern uebernehmen - so zeigt das Menue auch dann
-   * den richtigen Wert, wenn der Nutzer bisher ausschliesslich unten in
-   * Absicherung/RCD eingetragen hat (kein Live-Sync bei jedem Tastendruck
-   * in die andere Richtung, um Cursor-Spruenge in den Einzelfeldern zu
-   * vermeiden - stattdessen Abgleich beim Oeffnen). */
-  if (!jetztEingeklappt && wrapper.classList.contains('c-schutz-basisdaten')) {
-    const card = wrapper.closest('.circuit-card');
-    const cardId = card ? card.id.replace('circuit_', '') : null;
-    if (cardId && typeof schutzBasisdatenAusEinzelfeldernUebernehmen === 'function') {
-      schutzBasisdatenAusEinzelfeldernUebernehmen(cardId);
-    }
-  }
-}
+// toggleMessSections() liegt seit 9.0.0 zentral in js/pdf-utils.js (damit
+// js/anschluss-generator.js sie mitnutzen kann, ohne diese ganze Datei laden
+// zu muessen) - die frueher hier stehende Kopie wuerde sie sonst beim Laden
+// dieser Datei wieder ueberschreiben.
 
 /* RCD-MESSWERTE EIN-/AUSKLAPPEN JE NACH "OHNE RCD" (4.7.1)
  * ---------------------------------------------------------------------------
