@@ -280,6 +280,14 @@
     <h2 class="kat-erdung mess-karte-titel" id="abschnitt-erdung"><span id="erdung_icon"></span>7. Durchgängigkeit Potenzialausgleich / Erdung</h2>
     <div class="kat-block kat-erdung">
     <div class="grid" style="margin-bottom: 8px;">
+      <!-- [9.4.0, Gap-Analyse Masterliste] "Potenzialausgleich grundsätzlich
+           vorhanden (Konzept)" fehlte in vde0100.html komplett - existierte
+           bisher nur am Übergabepunkt (anschlusspruefung.html, #pa_angeschlossen).
+           1:1 übernommen. -->
+      <div class="form-group">
+        <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>
+        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
+      </div>
       <div class="form-group">
         <label for="erdung_re">Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]:</label>
         <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="validateErdung()">
@@ -304,6 +312,20 @@
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Bühnenwagen / Drehbühne')">Bühnenwagen</button>
           <button type="button" class="quick-btn" onclick="setValue('erdung_messpunkt', 'Kabelpritsche / Kabeltrasse')">Kabeltrasse</button>
         </div>
+      </div>
+      <!-- [9.4.0, Gap-Analyse Masterliste] "Durchgängigkeit Potenzialausgleich"
+           als eigenes i.O./n.i.O.-Messfeld fehlte in vde0100.html - bisher gab
+           es nur die Sichtprüfung "Zusätzlicher Potenzialausgleich" (#sicht_pa)
+           und den Erdungswiderstand, aber kein Messergebnis der Durchgängigkeit
+           selbst. 1:1 aus anschlusspruefung.html (#pa_durchg) übernommen. -->
+      <div class="form-group">
+        <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>
+        <select class="c-pa-durchg" id="pa_durchg">
+          <option value="" selected>– bitte wählen –</option>
+          <option>i.O.</option>
+          <option>n.i.O.</option>
+          <option>n.a.</option>
+        </select>
       </div>
     </div>
     </div>

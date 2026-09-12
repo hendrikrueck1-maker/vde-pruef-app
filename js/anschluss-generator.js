@@ -62,6 +62,23 @@ function istFeedDrehstrom() {
   return !sel || sel.value !== '1-phasig';
 }
 
+/* [9.4.0, Gap-Analyse Masterliste] "Art des Speisepunkts" + "Steckverbindung
+ * mitgeprüft" fehlten am Übergabepunkt komplett - 1:1 nach dem Muster
+ * istSpeisepunktSteckstelle()/updateNetzmessungArt() aus pdf-generator.js
+ * übernommen, hier mit eigenen IDs (speisepunkt_art/steckverbindung statt
+ * netzmessung_speisepunkt_art/netzmessung_steckverbindung), da es am
+ * Übergabepunkt keine "Netzmessung"-Präfix-Konvention gibt. */
+function istFeedSpeisepunktSteckstelle() {
+  const v = document.getElementById('speisepunkt_art')?.value || '';
+  return v === 'Steckstelle';
+}
+
+function updateFeedSpeisepunktArt() {
+  const gruppe = document.getElementById('feed_steckstelle_gruppe');
+  if (!gruppe) return;
+  gruppe.style.display = istFeedSpeisepunktSteckstelle() ? '' : 'none';
+}
+
 function updateFeedNetzart() {
   const drehstrom = istFeedDrehstrom();
   document.querySelectorAll('.netzmessung-drehstrom-feld').forEach(function (el) {
@@ -156,13 +173,18 @@ function validateFeedNorms() {
     if (!isNaN(num) && num > 0.30) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
   } else if (rpeElem) rpeElem.classList.remove('out-of-norm');
 
+  // [9.4.0] Mindestwert haengt von der gewaehlten Pruefspannung ab (SELV/PELV
+  // 0,5 MOhm, sonst 1,0 MOhm - DIN VDE 0100-600 Tabelle 6.1), 1:1 wie in der
+  // Stromkreis-Karte (siehe validateCardNorms() in js/pdf-generator.js).
   const risoElem = block.querySelector('.c-riso');
+  const risoModeElem = block.querySelector('.c-riso-mode');
+  const risoMin = (risoModeElem && risoModeElem.value.includes('SELV')) ? 0.5 : 1.0;
   if (risoElem && risoElem.value.trim() !== '') {
     const txt = risoElem.value.trim();
     if (txt.startsWith('>')) risoElem.classList.remove('out-of-norm');
     else {
       const num = parseMesswert(txt);
-      if (!isNaN(num) && num < 1.0) risoElem.classList.add('out-of-norm'); else risoElem.classList.remove('out-of-norm');
+      if (!isNaN(num) && num < risoMin) risoElem.classList.add('out-of-norm'); else risoElem.classList.remove('out-of-norm');
     }
   } else if (risoElem) risoElem.classList.remove('out-of-norm');
 
@@ -177,13 +199,18 @@ function validateFeedNorms() {
 
   /* U_L (Beruehrungsspannung) bei der RCD-Pruefung, analog zu
    * validateCardNorms() in js/pdf-generator.js: Grenzwert haengt von
-   * Spannungsart (hier immer AC, Netzmessung) und Gefaehrdungsbereich ab. */
+   * Spannungsart und Gefaehrdungsbereich ab. [9.4.0] Spannungsart kommt jetzt
+   * aus dem Formularfeld .c-spannung-art (ctx.mitSpannungsart im Baustein
+   * rcd_messwerte) statt fest 'AC' zu sein - Fallback 'AC' bleibt fuer den
+   * Fall, dass das Feld aus irgendeinem Grund fehlt. */
   const umessElem = block.querySelector('.c-umess');
   const gefElem = block.querySelector('.c-gefaehrdung');
   const gefVal = gefElem ? gefElem.value : 'normal';
+  const artElem = block.querySelector('.c-spannung-art');
+  const artVal = artElem ? artElem.value : 'AC';
   const ulFeld = block.querySelector('.c-ul-max');
-  const ulLimit = getUlGrenzwert('AC', gefVal);
-  if (ulFeld) ulFeld.value = `≤ ${ulLimit} V AC`;
+  if (ulFeld) ulFeld.value = getUlText(artVal, gefVal);
+  const ulLimit = getUlGrenzwert(artVal, gefVal);
   if (umessElem && umessElem.value.trim() !== '') {
     const num = parseMesswert(umessElem.value);
     if (!isNaN(num) && num > ulLimit) umessElem.classList.add('out-of-norm'); else umessElem.classList.remove('out-of-norm');
@@ -361,6 +388,7 @@ function fillExampleDataAnschluss() {
   document.getElementById('umess').value = '2,5';
 
   updateFeedNetzart();
+  updateFeedSpeisepunktArt();
   syncRcdMesswerteAnzeigeAnschluss();
   validateErdungAnschluss();
   validateFeedNorms();
@@ -673,6 +701,33 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
 
   y += SEK5_H + 4;
 
+  /* [9.4.0, Gap-Analyse Masterliste] 5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND +
+   * ART DES SPEISEPUNKTS/STECKVERBINDUNG - alle vier Felder fehlten bisher
+   * komplett im PDF-Export (RPE/RISO existierten im Formular vorher gar
+   * nicht, Speisepunkt-Art/Steckverbindung sind neu). 1:1 im Stil von 5.3. */
+  const rpeValAP = feldWert('rpe');
+  const risoValAP = feldWert('riso');
+  const risoModeValAP = feldWert('riso_mode') || '';
+  const risoMinAP = risoModeValAP.includes('SELV') ? 0.5 : 1.0;
+  const rpeNumAP = parseMesswert(rpeValAP);
+  const isRpeOutAP = !isBlank && !isNaN(rpeNumAP) && rpeNumAP > 0.30;
+  const risoTxtAP = (risoValAP || '').trim();
+  const isRisoOutAP = !isBlank && risoTxtAP !== '' && !risoTxtAP.startsWith('>') &&
+    !isNaN(parseMesswert(risoTxtAP)) && parseMesswert(risoTxtAP) < risoMinAP;
+  const speisepunktArtValAP = feldWert('speisepunkt_art') || 'Steckstelle';
+  const istSteckstelleAP = speisepunktArtValAP === 'Steckstelle';
+
+  const SEK50_H = 10 + 2 * ZA + 4;
+  y = pdfPlatzPruefen(doc, y, SEK50_H + 8);
+  drawKategorieBox(doc, { y, h: SEK50_H, titel: "5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND", kat: 'messen' });
+  const z50 = (i) => y + 10 + i * ZA;
+  drawFeldZeile(doc, "R_{PE} (Ω) [Richtwert ≤ 0,30 Ω]:", rpeValAP ? withUnit(rpeValAP, 'Ω') : '', spL, z50(0), 85, isBlank, { rot: isRpeOutAP });
+  drawFeldZeile(doc, `R_{ISO} (MΩ) [min. ${risoMinAP}]:`, risoValAP ? withUnit(risoValAP, 'MΩ') : '', spR, z50(0), 90, isBlank, { rot: isRisoOutAP });
+  drawFeldZeile(doc, "Art des Speisepunkts:", speisepunktArtValAP, spL, z50(1), 85, isBlank);
+  drawFeldZeile(doc, "Steckverbindung mitgeprüft:", istSteckstelleAP ? feldWert('steckverbindung') : 'n. a. (fest verkabelt)', spR, z50(1), 90, isBlank);
+
+  y += SEK50_H + 4;
+
   /* 5.1 NETZMESSUNG */
   const uL1n = feldWert('u_l1n'), uL2n = feldWert('u_l2n'), uL3n = feldWert('u_l3n');
   const uL12 = feldWert('u_l12'), uL23 = feldWert('u_l23'), uL13 = feldWert('u_l13');
@@ -804,9 +859,12 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   if (!isBlank && rcdZelleAP.isDokumentationsmangel) anyDokumentationsmangel = true;
 
   const gefVal = feldWert('gef') || 'normal';
+  // [9.4.0] Spannungsart kommt jetzt aus dem Formularfeld #art (ctx.mitSpannungsart),
+  // Fallback 'AC' wie gehabt.
+  const artValAP = feldWert('art') || 'AC';
   const umessVal = feldWert('umess');
   const umessNumAP = parseMesswert(umessVal);
-  const limitUAP = getUlGrenzwert('AC', gefVal || 'normal');
+  const limitUAP = getUlGrenzwert(artValAP, gefVal || 'normal');
   const isUmessOutAP = !isBlank && ((!isNaN(umessNumAP) && (umessNumAP > limitUAP || umessNumAP < 0)) || istMesswertUngueltig(umessVal));
 
   const SEK54_H = 27;
@@ -823,8 +881,8 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   drawFeldZeile(doc, "I_{Δmess} (mA):", rcdImessVal ? withUnit(rcdImessVal, 'mA') : '', spL, z54(1), 55, isBlank, { rot: isImessOutAP });
   drawFeldZeile(doc, `t_{A} (ms) [max. ${rcdZelleAP.taMax !== null ? rcdZelleAP.taMax : '?'}]:`,
                 rcdTaVal ? withUnit(rcdTaVal, 'ms') : '', spL + 60, z54(1), 55, isBlank, { rot: isTaOutAP });
-  drawFeldZeile(doc, "Bereich/Gefährdung:", gefVal === 'erhoeht' ? 'Erhöhte Gefährdung (25 V AC)' : 'Normalbereich (50 V AC)', spL, z54(2), 90, isBlank);
-  drawFeldZeile(doc, "Max. zul. U_{L}:", `≤ ${limitUAP} V AC`, spR, z54(2), 45, isBlank);
+  drawFeldZeile(doc, "Bereich/Gefährdung:", gefVal === 'erhoeht' ? `Erhöhte Gefährdung (25 V ${artValAP})` : `Normalbereich (50 V ${artValAP})`, spL, z54(2), 90, isBlank);
+  drawFeldZeile(doc, "Max. zul. U_{L}:", getUlText(artValAP, gefVal), spR, z54(2), 45, isBlank);
   drawFeldZeile(doc, "Gemessene U_{L} (V):", umessVal ? withUnit(umessVal, 'V') : '', spL, z54(3), 90, isBlank, { rot: isUmessOutAP });
   if (rcdZelleAP.isPruefungUnvollstaendig && !isBlank) {
     doc.setFont('helvetica', 'bold');
@@ -845,23 +903,30 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     isUnpeOut || isIkOutAP || isZsOutAP || isTaOutAP || isImessOutAP || rcdZelleAP.isPruefungUnvollstaendig ||
     isUmessOutAP || isPaDurchgOut);
 
-  /* --- SEKTION 6: ERPROBEN ------------------------------------------------ */
-  const SEK6_H = 12;
+  /* --- SEKTION 6: ERPROBEN ------------------------------------------------
+   * [9.4.0, Gap-Analyse Masterliste] "Polarität / Steckdosenbelegung" neu
+   * ergänzt (#erp_polaritaet) - dadurch 4 statt 3 Punkte, deshalb auf zwei
+   * Zeilen à 2 Spalten umgestellt statt einer Zeile mit 3 Spalten. Es wird
+   * gezielt per ID statt per NodeList-Reihenfolge gelesen, damit die
+   * Zuordnung unabhängig von der HTML-Reihenfolge der .erp-item-Elemente ist. */
+  const SEK6_H = 10 + 2 * ZA;
   y = pdfPlatzPruefen(doc, y, SEK6_H + 8);
   drawKategorieBox(doc, { y, h: SEK6_H, titel: "6. ERPROBEN (FUNKTIONSPRÜFUNG)", kat: 'sicht' });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  const erpEls = document.querySelectorAll('.erp-item:not(.c-drehfeld)');
-  const erpLabelsAP = ["Schutzeinrichtungen", "RCD-Prüftaste", "Drehrichtung Motoren"];
-  const ERP_LABEL_X = [23, 82, 141];
-  const ERP_CB_X    = [46, 105, 164];
+  const erpIdsAP = ["erp_schutz", "erp_polaritaet", "erp_prueftaste", "erp_motoren"];
+  const erpLabelsAP = ["Schutzeinrichtungen", "Polarität/Steckdosen", "RCD-Prüftaste", "Drehrichtung Motoren"];
+  const ERP_LABEL_X = [23, 141, 23, 141];
+  const ERP_CB_X    = [46, 164, 46, 164];
   erpLabelsAP.forEach((label, i) => {
+    const zeileY = y + 9 + Math.floor(i / 2) * ZA;
+    const elVal = document.getElementById(erpIdsAP[i])?.value;
     doc.setFontSize(7);
-    drawFittedText(doc, label + ':', ERP_LABEL_X[i], y + 9, 24, 7, 5.4);
+    drawFittedText(doc, label + ':', ERP_LABEL_X[i], zeileY, 24, 7, 5.4);
     doc.setFontSize(6.4);
-    drawCheckbox(doc, ERP_CB_X[i], y + 9, "i.O.", !isBlank && erpEls[i]?.value === "i.O.");
-    drawCheckbox(doc, ERP_CB_X[i] + 11, y + 9, "n.i.O.", !isBlank && erpEls[i]?.value === "n.i.O.", true);
-    drawCheckbox(doc, ERP_CB_X[i] + 22, y + 9, "n.a.", !isBlank && erpEls[i]?.value === "n.a.");
+    drawCheckbox(doc, ERP_CB_X[i], zeileY, "i.O.", !isBlank && elVal === "i.O.");
+    drawCheckbox(doc, ERP_CB_X[i] + 11, zeileY, "n.i.O.", !isBlank && elVal === "n.i.O.", true);
+    drawCheckbox(doc, ERP_CB_X[i] + 22, zeileY, "n.a.", !isBlank && elVal === "n.a.");
   });
   doc.setFontSize(7);
 
@@ -1059,11 +1124,13 @@ const ANSCHLUSS_FIELD_IDS = [
  * beim naechsten Aufklappen neu befuellt. */
 const UEBERGABEPUNKT_FIELD_IDS = [
   'bez', 'netzsystem', 'netzart', 'frequenz',
+  // [9.4.0, Gap-Analyse Masterliste] neu ergänzte Felder
+  'speisepunkt_art', 'steckverbindung', 'rpe', 'riso_verbraucher', 'riso_mode', 'riso',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'unpe', 'drehfeld',
   'pa_angeschlossen', 'erdung_re', 'pa_messpunkt', 'pa_durchg', 'pa_widerstand',
   'sich', 'zs', 'ik', 'zln', 'ik2',
   'rcd_typ', 'rcd_in', 'rcd_idn', 'rcd_imess', 'rcd_ta', 'rcd_pruefstrom',
-  'gef', 'umess'
+  'gef', 'art', 'umess'
 ];
 
 // Zeigt das Freitextfeld nur, wenn "Sonstiges" gewaehlt ist.
@@ -1137,6 +1204,7 @@ function restoreAnschlussState(state) {
   // [9.0.0] Anzeige-Zustand des Uebergabepunkt-Blocks nach dem Wiederherstellen
   // neu auswerten (Drehstrom-Felder, RCD-Messwerte-Block).
   updateFeedNetzart();
+  updateFeedSpeisepunktArt();
   syncRcdMesswerteAnzeigeAnschluss();
 
   document.querySelectorAll('.sicht-item, .erp-item').forEach(el => sichtErpNiOPruefen(el));
@@ -1190,6 +1258,7 @@ function resetAnschlussForm() {
   applyMasterDataToForm();
 
   updateFeedNetzart();
+  updateFeedSpeisepunktArt();
   syncRcdMesswerteAnzeigeAnschluss();
   validateFeedNorms();
 

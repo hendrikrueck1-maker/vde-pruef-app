@@ -1686,13 +1686,18 @@ async function generatePDFInner(isBlank = false) {
   const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
-  const OFF_R = 9;
+  // [9.4.0, Gap-Analyse Masterliste] OFF_PA_KONZEPT/OFF_PA_DURCHG neu:
+  // Potenzialausgleich-Konzept + Durchgängigkeit (bisher nur am Übergabepunkt
+  // vorhanden), jeweils +ZA in die bestehende Offset-Kaskade eingehaengt.
+  const OFF_PA_KONZEPT = 9;
+  const OFF_R = OFF_PA_KONZEPT + ZA;
   const OFF_PUNKT = OFF_R + ZA;
+  const OFF_PA_DURCHG = OFF_PUNKT + ZA;
   // [Befund N5] DIN VDE 0105-100 verlangt bei Wiederholungspruefungen die
   // Angabe, was tatsaechlich geprueft wurde (Vollpruefung oder Stichprobe,
   // und in welchem Umfang) - ohne dieses Feld dokumentiert das Protokoll nur,
   // was gemessen wurde, nicht, was bewusst ungeprueft blieb.
-  const OFF_UMFANG = OFF_PUNKT + ZA;
+  const OFF_UMFANG = OFF_PA_DURCHG + ZA;
   const offErgebnis   = OFF_UMFANG + ZA;
   const offTermin     = offErgebnis + 5.5;
   const offBemLabel   = offTermin + 5.5;
@@ -1777,6 +1782,11 @@ async function generatePDFInner(isBlank = false) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
 
+  // [9.4.0, Gap-Analyse Masterliste] Potenzialausgleich-Konzept - bisher nur
+  // am Übergabepunkt vorhanden.
+  drawFeldZeile(doc, "Potenzialausgleich grundsätzlich vorhanden (Konzept):",
+                feldWert('pa_angeschlossen'), PDF_MARGIN_LEFT + 3, finalY + OFF_PA_KONZEPT, 177, isBlank);
+
   // erdungReNum/isErdungOut wurden weiter oben vorgezogen (siehe Kommentar
   // bei der Kasten-4/Abschlussblock-Platzpruefung).
   // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
@@ -1786,6 +1796,11 @@ async function generatePDFInner(isBlank = false) {
   // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
   drawFeldZeile(doc, "Messpunkt / Bezugspunkt:",
                 feldWert('erdung_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
+
+  // [9.4.0, Gap-Analyse Masterliste] Durchgängigkeit Potenzialausgleich als
+  // eigenes Messergebnis - bisher nur am Übergabepunkt vorhanden (#pa_durchg).
+  drawFeldZeile(doc, "Durchgängigkeit Potenzialausgleich:",
+                feldWert('pa_durchg'), PDF_MARGIN_LEFT + 3, finalY + OFF_PA_DURCHG, 177, isBlank);
 
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
   drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + OFF_UMFANG, 177, isBlank);
@@ -2112,6 +2127,8 @@ const AUTOSAVE_FIELD_IDS = [
   'netzmessung_netzart', 'netzmessung_speisepunkt_art', 'netzmessung_steckverbindung',
   'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'u_npe',
   'anschluss_typ', 'anschluss_leiter', 'anschluss_qs',
+  // [9.4.0, Gap-Analyse Masterliste] neu ergänzte Felder
+  'pa_angeschlossen', 'pa_durchg',
   'erdung_re', 'erdung_messpunkt',
   'pruefumfang', 'pruefintervall',
   'res_maengel', 'res_plakette', 'res_termin_date', 'res_gewaehrleistung',
@@ -2264,6 +2281,7 @@ function restoreProtocolState(state) {
 // ist deshalb nicht mehr noetig. Der try/catch bleibt um den REST der Funktion
 // bestehen (entwurfMerken, collectProtocolState) fuer andere, unerwartete Fehler.
 function autosaveProtocol() {
+  if (typeof WERKBANK_MODUS !== 'undefined' && WERKBANK_MODUS) return; // [9.2.0]
   try {
     sicherSetItem(AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectProtocolState()));
     entwurfMerken('PR', AKTUELLER_ENTWURF_ID, {

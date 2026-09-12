@@ -537,6 +537,16 @@ PRUEFSCHRITTE.rcd_messwerte = {
     var validateAufruf = mitCardId ? ("validateCardNorms(" + cardArg + ")") : 'validateFeedNorms()';
     var taLimitId = mitCardId ? ('ta_limit' + s) : 'fta_limit';
     var mitBeruehrungsspannung = !!ctx.mitBeruehrungsspannung;
+    // [9.4.0, Gap-Analyse Masterliste] Spannungsart (AC/DC) fehlte am
+    // Übergabepunkt komplett - dort war 'AC' fest in validateFeedNorms()
+    // verdrahtet (getUlGrenzwert('AC', gefVal)). In der Stromkreis-Karte
+    // existiert das Feld bereits, dort aber als eigener Abschnitt "4.
+    // Berührungsspannung & Netzart" AUSSERHALB dieses Bausteins (siehe
+    // pdf-generator.js) - deshalb hier per ctx.mitSpannungsart bewusst NICHT
+    // für die Stromkreis-Karte aktiviert (sonst doppeltes Feld), sondern nur
+    // für den Übergabepunkt, wo es bislang fehlte.
+    var mitSpannungsart = !!ctx.mitSpannungsart;
+    var spannungsartSelected = ctx.spannungsartSelected || 'AC';
     // ctx.pruefstromSelected: welche Option beim ERSTEN Rendern der Karte als
     // "selected" markiert ist (Default "5", wie bisher hart codiert). Beim
     // Uebergabepunkt wird der Wert ohnehin per JS gesetzt
@@ -555,9 +565,22 @@ PRUEFSCHRITTE.rcd_messwerte = {
       return '<button type="button" class="quick-btn" onclick="setValue(\'rcd_idn' + s + '\', \'' + w + '\'); ' + validateAufruf + '">' + w + '</button>';
     }).join('\n              ');
 
+    var spannungsartHtml = '';
+    if (mitSpannungsart) {
+      spannungsartHtml =
+        '        <div class="form-group">\n' +
+        '          <label for="art' + s + '">Spannungsart Netzeinspeisung:</label>\n' +
+        '          <select class="c-spannung-art" id="art' + s + '" onchange="' + validateAufruf + '">\n' +
+        '            <option value="AC"' + (spannungsartSelected === 'AC' ? ' selected' : '') + '>AC (Wechselstrom)</option>\n' +
+        '            <option value="DC"' + (spannungsartSelected === 'DC' ? ' selected' : '') + '>DC (Gleichstrom)</option>\n' +
+        '          </select>\n' +
+        '        </div>\n';
+    }
+
     var beruehrungsspannungHtml = '';
     if (mitBeruehrungsspannung) {
       beruehrungsspannungHtml =
+        spannungsartHtml +
         '        <div class="form-group">\n' +
         '          <label for="gef' + s + '">Bereich / Gefährdung:</label>\n' +
         '          <select class="c-gefaehrdung" id="gef' + s + '" onchange="' + validateAufruf + '">\n' +

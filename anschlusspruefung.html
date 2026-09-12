@@ -203,59 +203,78 @@
           <label for="frequenz">Frequenz (Hz):</label>
           <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
         </div>
+        <!-- [9.4.0, Gap-Analyse Masterliste] Art des Speisepunkts + Steckverbindung
+             mitgeprüft - 1:1 nach dem Muster aus vde0100.html
+             (netzmessung_speisepunkt_art/netzmessung_steckverbindung), hier aber
+             ohne eigene istSpeisepunktSteckstelle()-Kopie: dieselbe Funktion aus
+             pdf-generator.js wird wiederverwendet (liest nur per getElementById,
+             ist also Datei-unabhängig), siehe updateFeedSpeisepunktArt() unten. -->
+        <div class="form-group">
+          <label for="speisepunkt_art">Art des Speisepunkts:</label>
+          <select id="speisepunkt_art" onchange="updateFeedSpeisepunktArt()">
+            <option value="Fest verkabelt">Fest verkabelt (Klemme/Verteiler)</option>
+            <option value="Steckstelle" selected>Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" id="feed_steckstelle_gruppe" style="display:none;">
+        <label for="steckverbindung">Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt):</label>
+        <select id="steckverbindung">
+          <option value="" selected>– bitte wählen –</option>
+          <option>i.O.</option>
+          <option>n.i.O.</option>
+        </select>
+        <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (z. B. CEE-Kupplung am Übergabepunkt) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt.</div>
       </div>
 
-      <!-- SCHUTZEINRICHTUNGS-BASISDATEN (Aufklapp-Panel) ------------------
-           [9.0.0] 1:1 nach dem Muster aus vde0100.html/js/pdf-generator.js
-           (.c-schutz-basisdaten) - siehe schutzBasisdatenGeaendert()/
-           schutzBasisdatenAusEinzelfeldernUebernehmen() in
-           js/anschluss-generator.js. Standardmaessig eingeklappt; beim
-           Aufklappen wird der aktuelle Stand aus Absicherung/RCD-Typ
-           übernommen (toggleMessSections() in js/pdf-utils.js), bei Eingabe
-           hier spiegelt es sofort in die echten Felder unten. -->
-      <div class="c-schutz-basisdaten mess-sections-collapsed">
-        <div class="mess-sections-header" onclick="toggleMessSections(this)">
-          <span class="mess-sections-titel">Schutzeinrichtungs-Basisdaten (Absicherung, RCD-Typ)</span>
-          <span class="mess-sections-chevron">▾</span>
-        </div>
-        <div class="grid">
-          <div class="form-group">
-            <label for="basis_sich">Absicherung (Typ / Nennstrom):</label>
-            <input type="text" class="c-basis-sich" id="basis_sich" placeholder="z. B. B 32A" oninput="schutzBasisdatenGeaendert('sich')">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'B 16A'); schutzBasisdatenGeaendert('sich')">B 16A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'B 32A'); schutzBasisdatenGeaendert('sich')">B 32A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'C 32A'); schutzBasisdatenGeaendert('sich')">C 32A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_sich', 'C 63A'); schutzBasisdatenGeaendert('sich')">C 63A</button>
+      <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.schutz_basisdaten).
+           ctx.rcdTypOptionen ohne "Typ F" - hier historisch nicht Teil der
+           Schnellwahl (anders als in der Stromkreis-Karte). -->
+      <div data-pruefschritt="schutz_basisdaten" data-ctx='{"rcdTypOptionen":["Typ A","Typ B","Typ B+","Ohne RCD"]}'></div>
+
+      <!-- 5.0 SCHUTZLEITERWIDERSTAND & ISOLATIONSWIDERSTAND -->
+      <!-- [9.4.0, Gap-Analyse Masterliste] RPE/RISO fehlten am Übergabepunkt
+           komplett - 1:1 nach dem Muster der Stromkreis-Karte (pdf-generator.js,
+           addCircuitCard()) übernommen, inkl. Prüfspannungs-Dropdown. IDs ohne
+           Zähler-Suffix, da es (wie beim restlichen Übergabepunkt-Block) nur
+           genau einen Übergabepunkt pro Formular gibt. -->
+      <div class="sub-section">
+        <div class="sub-title mess-karte-titel"><span class="titel-text">5.0 Schutzleiterwiderstand &amp; Isolationswiderstand</span></div>
+        <div class="mess-gruppen">
+          <div class="mess-gruppe">
+            <div class="mess-gruppe-titel">Schutzleiter R<sub>PE</sub></div>
+            <div class="form-group">
+              <label for="rpe">R<sub>PE</sub> (&Omega;) [betriebl. Richtwert &le; 0,30 &Omega;]:</label>
+              <input type="text" inputmode="decimal" class="c-rpe" id="rpe" placeholder="z. B. 0,11" oninput="validateFeedNorms()">
+              <div class="limit-hint">DIN VDE 0100-600 fordert den Nachweis der Durchgängigkeit (Prüfstrom &ge; 200 mA), keinen festen Grenzwert. Die Schutzwirkung wird über Z<sub>S</sub>/I<sub>K</sub> bewertet.</div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="basis_rcd_typ">RCD Typ:</label>
-            <input type="text" class="c-basis-rcd-typ" id="basis_rcd_typ" placeholder="z. B. Typ A" oninput="schutzBasisdatenGeaendert('rcd_typ')">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ A'); schutzBasisdatenGeaendert('rcd_typ')">Typ A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ B'); schutzBasisdatenGeaendert('rcd_typ')">Typ B</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Typ B+'); schutzBasisdatenGeaendert('rcd_typ')">Typ B+</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ', 'Ohne RCD'); schutzBasisdatenGeaendert('rcd_typ')">Ohne RCD</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="basis_rcd_in">Bemessungsstrom I<sub>n</sub> (RCD):</label>
-            <input type="text" class="c-basis-rcd-in" id="basis_rcd_in" placeholder="z. B. 40 A" oninput="schutzBasisdatenGeaendert('rcd_in')">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '16 A'); schutzBasisdatenGeaendert('rcd_in')">16 A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '25 A'); schutzBasisdatenGeaendert('rcd_in')">25 A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '40 A'); schutzBasisdatenGeaendert('rcd_in')">40 A</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in', '63 A'); schutzBasisdatenGeaendert('rcd_in')">63 A</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="basis_rcd_idn">Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-            <input type="text" class="c-basis-rcd-idn" id="basis_rcd_idn" placeholder="z. B. 30 mA" oninput="schutzBasisdatenGeaendert('rcd_idn')">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '30 mA'); schutzBasisdatenGeaendert('rcd_idn')">30 mA</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '100 mA'); schutzBasisdatenGeaendert('rcd_idn')">100 mA</button>
-              <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn', '300 mA'); schutzBasisdatenGeaendert('rcd_idn')">300 mA</button>
+          <div class="mess-gruppe">
+            <div class="mess-gruppe-titel">Isolationswiderstand R<sub>ISO</sub></div>
+            <div class="grid">
+              <div class="form-group">
+                <label for="riso_verbraucher">Verbraucher angeschlossen?</label>
+                <select id="riso_verbraucher">
+                  <option value="" selected>&ndash; bitte wählen &ndash;</option>
+                  <option value="ja">Ja, Verbraucher angeschlossen</option>
+                  <option value="nein">Nein, ohne Verbraucher geprüft</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="riso_mode">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
+                <select class="c-riso-mode" id="riso_mode" onchange="validateFeedNorms()">
+                  <option value="500 V DC (Stromkreis bis 500 V)">500 V DC &ndash; bis 500 V (&ge; 1,0 M&Omega;)</option>
+                  <option value="250 V DC (SELV/PELV)">250 V DC &ndash; SELV/PELV (&ge; 0,5 M&Omega;)</option>
+                  <option value="1000 V DC (Stromkreis über 500 V)">1000 V DC &ndash; über 500 V (&ge; 1,0 M&Omega;)</option>
+                  <option value="250 V DC (Praxismessung mit Verbrauchern)">250 V DC &ndash; Praxismessung mit Verbrauchern (kein Normfall)</option>
+                  <option value="250 V DC (ohne Verbraucher geprüft)">250 V DC &ndash; ohne Verbraucher geprüft (kein Normfall)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="riso">Messwert R<sub>ISO</sub> (M&Omega;):</label>
+                <input type="text" inputmode="decimal" class="c-riso" id="riso" placeholder="z. B. > 500" oninput="validateFeedNorms()">
+              </div>
             </div>
           </div>
         </div>
@@ -338,121 +357,25 @@
       </div>
 
       <!-- 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ -->
+      <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.absicherung_schleifenimpedanz). -->
       <div class="sub-section">
         <div class="sub-title mess-karte-titel"><span class="titel-text">5.3 Absicherung & Schleifenimpedanz am Übergabepunkt</span></div>
-        <div class="grid">
-          <div class="form-group">
-            <label for="sich">Absicherung (Typ / Nennstrom):</label>
-            <input type="text" class="c-sich-typ" id="sich" placeholder="z. B. B 32A" oninput="validateFeedNorms()" autocomplete="off">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('sich', 'B 16A'); validateFeedNorms()">B 16A</button>
-              <button type="button" class="quick-btn" onclick="setValue('sich', 'B 32A'); validateFeedNorms()">B 32A</button>
-              <button type="button" class="quick-btn" onclick="setValue('sich', 'C 32A'); validateFeedNorms()">C 32A</button>
-              <button type="button" class="quick-btn" onclick="setValue('sich', 'C 63A'); validateFeedNorms()">C 63A</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
-            <input type="text" inputmode="decimal" class="c-zs" id="zs" placeholder="z. B. 0.28" oninput="onFeedZsInput()">
-            <div class="limit-hint" id="fzs_limit"></div>
-          </div>
-          <div class="form-group">
-            <label>I<sub>K</sub> (A) [min. siehe Platzhalter]:</label>
-            <input type="text" inputmode="decimal" class="c-ik" id="ik" placeholder="z. B. 605" oninput="onFeedIkInput()">
-            <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
-          </div>
-          <div class="form-group">
-            <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="feld-badge feld-badge-optional">Optional</span>:</label>
-            <input type="text" inputmode="decimal" class="c-zln" id="zln" placeholder="nur wenn gemessen" oninput="onFeedZlnInput()">
-            <div class="limit-hint">Fluke 1663: Zi &ndash; <b>LINE</b> (L&ndash;N). Findet einen hochohmigen N-Leiter, den die L&ndash;PE-Messung nicht sieht. Leer lassen, wenn nicht gemessen.</div>
-          </div>
-          <div class="form-group">
-            <label>I<sub>K2</sub> (A) &ndash; Kurzschlussstrom L&ndash;N:</label>
-            <input type="text" inputmode="decimal" class="c-ik2" id="ik2" placeholder="rechnet sich aus Z_L-N">
-          </div>
-        </div>
+        <div data-pruefschritt="absicherung_schleifenimpedanz"></div>
       </div>
 
       <!-- 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) -->
+      <!-- [Welle 2 / Prüfschritt-Bibliothek] Bausteine zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.rcd_typ_hauptfeld,
+           PRUEFSCHRITTE.rcd_messwerte mit mitBeruehrungsspannung:true). -->
       <div class="sub-section">
         <div class="sub-title mess-karte-titel"><span class="titel-text">5.4 Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
-        <div class="grid">
-          <div class="form-group">
-            <label for="rcd_typ">RCD Typ:</label>
-            <input type="text" class="c-rcd-typ" id="rcd_typ" placeholder="z. B. Typ A" oninput="syncRcdMesswerteAnzeigeAnschluss()">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ A'); syncRcdMesswerteAnzeigeAnschluss()">Typ A</button>
-              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ B'); syncRcdMesswerteAnzeigeAnschluss()">Typ B</button>
-              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Typ B+'); syncRcdMesswerteAnzeigeAnschluss()">Typ B+</button>
-              <button type="button" class="quick-btn" onclick="setValue('rcd_typ', 'Ohne RCD'); syncRcdMesswerteAnzeigeAnschluss()">Ohne RCD</button>
-            </div>
-          </div>
-        </div>
+        <div data-pruefschritt="rcd_typ_hauptfeld" data-ctx='{"syncFn":"syncRcdMesswerteAnzeigeAnschluss","rcdTypOptionen":["Typ A","Typ B","Typ B+","Ohne RCD"]}'></div>
         <!-- [9.0.0] Bei "Ohne RCD" klappen die Ausloese-Messwerte automatisch
              ein - 1:1 nach dem Muster syncRcdMesswerteAnzeige() aus
              vde0100.html (dort .c-rcd-messwerte), siehe
              syncRcdMesswerteAnzeigeAnschluss() in js/anschluss-generator.js. -->
-        <div class="c-rcd-messwerte">
-          <div class="mess-sections-header" onclick="toggleMessSections(this)">
-            <span class="mess-sections-titel">RCD-Messwerte</span>
-            <span class="mess-sections-hinweis">Bei „Ohne RCD" eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
-            <span class="mess-sections-chevron">▾</span>
-          </div>
-          <div class="grid">
-            <div class="form-group">
-              <label for="rcd_in">Bemessungsstrom I<sub>n</sub> (RCD):</label>
-              <input type="text" class="c-rcd-in" id="rcd_in" placeholder="z. B. 40 A">
-              <div class="quick-btn-group">
-                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '16 A')">16 A</button>
-                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '25 A')">25 A</button>
-                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '40 A')">40 A</button>
-                <button type="button" class="quick-btn" onclick="setValue('rcd_in', '63 A')">63 A</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-              <input type="text" class="c-rcd-idn" id="rcd_idn" placeholder="z. B. 30 mA" oninput="validateFeedNorms()">
-              <div class="quick-btn-group">
-                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '30 mA'); validateFeedNorms()">30 mA</button>
-                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '100 mA'); validateFeedNorms()">100 mA</button>
-                <button type="button" class="quick-btn" onclick="setValue('rcd_idn', '300 mA'); validateFeedNorms()">300 mA</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Auslösestrom I<sub>&Delta;mess</sub> (mA):</label>
-              <input type="text" inputmode="decimal" class="c-rcd-imess" id="rcd_imess" placeholder="z. B. 22" oninput="validateFeedNorms()">
-            </div>
-            <div class="form-group">
-              <label for="rcd_pruefstrom">Prüfstrom für Auslösestrom / Auslösezeit:</label>
-              <select class="c-rcd-pruefstrom" id="rcd_pruefstrom" onchange="validateFeedNorms()">
-                <option value="">&ndash; bitte wählen &ndash;</option>
-                <option value="1">1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
-                <option value="2">2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-                <option value="5" selected>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Auslösezeit t<sub>A</sub> (ms) <span class="limit-hint" id="fta_limit"></span>:</label>
-              <input type="text" inputmode="decimal" class="c-rcd-ta" id="rcd_ta" placeholder="z. B. 24" oninput="validateFeedNorms()">
-            </div>
-            <div class="form-group">
-              <label for="gef">Bereich / Gefährdung:</label>
-              <select class="c-gefaehrdung" id="gef" onchange="validateFeedNorms()">
-                <option value="normal">Normalbereich (50 V AC)</option>
-                <option value="erhoeht">Erhöhte Gefährdung (25 V AC)</option>
-              </select>
-              <div class="limit-hint">Erhöhte Gefährdung z. B. Bühne, Open Air, feuchte/leitfähige Umgebung, Baustelle.</div>
-            </div>
-            <div class="form-group">
-              <label>Maximal zulässige Berührungsspannung U<sub>L</sub>:</label>
-              <input type="text" class="c-ul-max" id="ul_max" value="&le; 50 V AC" readonly>
-            </div>
-            <div class="form-group">
-              <label>Gemessene Berührungsspannung U<sub>L</sub> (V):</label>
-              <input type="text" inputmode="decimal" class="c-umess" id="umess" placeholder="z. B. 2,5 V" oninput="validateFeedNorms()">
-            </div>
-          </div>
-        </div>
+        <div data-pruefschritt="rcd_messwerte" data-ctx='{"mitBeruehrungsspannung":true,"mitSpannungsart":true}'></div>
       </div>
 
       <!-- FOTODOKUMENTATION am Ende des Übergabepunkt-Abschnitts -->
@@ -467,6 +390,7 @@
     </p>
     <div class="grid kat-block kat-sicht">
       <div class="form-group"><label for="erp_schutz">Schutzeinrichtungen:</label><select class="erp-item" id="erp_schutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
@@ -577,6 +501,7 @@
   // (Drehstrom-Felder, RCD-Messwerte-Block, Basisdaten-Panel) einmalig
   // synchronisieren.
   updateFeedNetzart();
+  updateFeedSpeisepunktArt();
   syncRcdMesswerteAnzeigeAnschluss();
   validateFeedNorms();
 
