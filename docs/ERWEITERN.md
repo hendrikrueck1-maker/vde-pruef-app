@@ -124,6 +124,7 @@ Ein Protokoll mit `status: 'geplant'` wird ausgegraut und nicht verlinkt.
 | Seite lädt, aber ohne Styling | Pfad mit `/` begonnen | Pfade relativ schreiben: `css/style.css`, nicht `/css/style.css` |
 | Neue Seite offline nicht erreichbar | nicht in `app-config.js` eingetragen | Eintrag ergänzen, Version hochzählen |
 | Änderung erscheint nicht | alter Offline-Cache | `APP_VERSION` erhöhen (macht `2-AKTUALISIEREN.bat` automatisch) |
+| **„Interner Versions-Konflikt: Service Worker meldet X, App-Code meldet Y"** | **`SW_VERSION` in `sw.js` wurde NICHT mit hochgezählt** (`2-AKTUALISIEREN.bat` erhöht nur `APP_VERSION` in `js/app-config.js`, `SW_VERSION` ist ein bewusst separates Literal in `sw.js`, siehe Kommentar dort ab Zeile 18 – wird leicht vergessen, da es zwei Stellen sind) | `SW_VERSION` in `sw.js` manuell auf denselben Wert wie `APP_VERSION` setzen. **Bei jedem Release beide Dateien prüfen:** `js/app-config.js` (`APP_VERSION`) UND `sw.js` (`SW_VERSION`). War in 9.1.0–9.3.0 mehrfach vergessen worden (siehe 9.4.0-Änderungsbericht) – deshalb hier extra hervorgehoben. |
 | „App installieren" fehlt | über `file://` geöffnet | Über `http://localhost` oder die GitHub-Pages-Adresse öffnen |
 | PDF-Knopf tut auf dem iPad nichts | alte Version ohne `savePdfCompatible` | Generator muss `savePdfCompatible(doc, name)` statt `doc.save(name)` verwenden |
 | `2-AKTUALISIEREN.bat` meldet fehlende Datei | Tippfehler in `app-config.js` | Dateinamen und Groß-/Kleinschreibung prüfen |
