@@ -36,6 +36,7 @@
   <script src="js/pdf-utils.js"></script>
   <script src="js/infokarten.js"></script>
   <script src="js/karussell.js"></script>
+  <script src="js/pruefschritte.js"></script>
   <script src="js/pdf-generator.js"></script>
 
   <style>
@@ -89,20 +90,10 @@
            jetzt zentral auf der Hauptseite (index.html, Stammdaten) verwaltet.
            Das Dropdown selbst bleibt bestehen (inkl. eigener, dort verwalteter
            Einträge über gebaeudeOptionenAktualisieren()), nur der Zugang zum
-           Verwalten-Dialog ist hier entfallen. -->
-      <div class="form-group">
-        <label for="gebaeude_select">Gebäude / Bereich:</label>
-        <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
-          <option value="Gr. Haus">Gr. Haus</option>
-          <option value="Werkstatt">Werkstatt</option>
-          <option value="Spiegelhalle">Spiegelhalle</option>
-          <option value="Münsterplatz">Münsterplatz</option>
-          <option value="Probebühne">Probebühne</option>
-          <option value="custom">Sonstiges...</option>
-        </select>
-        <!-- Custom Input nur sichtbar bei "custom" -->
-        <input type="text" id="gebaeude_custom" value="Gr. Haus" placeholder="Gebäude/Raum eingeben" style="display:none; margin-top:4px;">
-      </div>
+           Verwalten-Dialog ist hier entfallen.
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.gebaeude_bereich) - siehe docs/ERWEITERN.md. -->
+      <div data-pruefschritt="gebaeude_bereich" data-ctx='{"mitVerwalten":false}'></div>
 
       <!-- MITWACHSENDES FELD ANLAGE -->
       <div class="form-group grid-full">
@@ -117,13 +108,7 @@
         <div class="limit-hint">Wird automatisch vergeben, kann aber überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
       </div>
       <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div class="form-group"><label for="pruefer_qualifikation">Qualifikation der prüfenden Person:</label>
-        <select id="pruefer_qualifikation">
-          <option value="">– bitte wählen –</option>
-          <option value="Elektrofachkraft (EFK)">Elektrofachkraft (EFK)</option>
-          <option value="Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK">Elektrotechnisch unterwiesene Person (EuP) unter Aufsicht einer EFK</option>
-        </select>
-      </div>
+      <div data-pruefschritt="pruefer_qualifikation"></div>
       <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTerminVde0100()"></div>
       <!-- [Nutzerwunsch] "Verwendetes Prüfgerät" + Seriennummer hierher aus
            Abschnitt 2 "Netzsystem, Netzbetreiber" verschoben - die Felder
@@ -133,18 +118,7 @@
            Anpassung funktionsfaehig. -->
       <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
-      <div class="form-group grid-full">
-        <label for="hausanschluss">Hausanschluss / Speisepunkt (Vorsicherung):</label>
-        <input type="text" id="hausanschluss" placeholder="z. B. NH 3x100 A gL – HAK Keller / CEE 63 A Einspeisung Open Air">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'NH 3x100 A gL (HAK)')">NH 3x100 A</button>
-          <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'NH 3x63 A gL (HAK)')">NH 3x63 A</button>
-          <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'CEE 63 A Einspeisung')">CEE 63 A</button>
-          <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'CEE 125 A Einspeisung')">CEE 125 A</button>
-          <button type="button" class="quick-btn" onclick="setValue('hausanschluss', 'Netzersatzanlage (NEA)')">NEA</button>
-        </div>
-        <div class="limit-hint">Oberste Schutzebene: bestimmt Selektivität und maximalen Kurzschlussstrom. Bei Open Air der Speisepunkt statt des Hausanschlusses.</div>
-      </div>
+      <div data-pruefschritt="hausanschluss_schnellwahl"></div>
     </div>
 
     <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄTE -->
@@ -167,25 +141,8 @@
           <option>Instandsetzung</option>
         </select>
       </div>
-      <div class="form-group">
-        <label for="netzsystem">Netzsystem:</label>
-        <select id="netzsystem">
-          <option selected>TN-S</option>
-          <option>TN-C-S</option>
-          <option>TN-C</option>
-          <option>TT</option>
-          <option>IT</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="netzspannung">Netzspannung (V):</label>
-        <input type="text" inputmode="decimal" pattern="[0-9 /]*" id="netzspannung" placeholder="z. B. 230 / 400" oninput="formatNetzspannung(this)">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '230')">230 V</button>
-          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '230 / 400')">230 / 400 V</button>
-          <button type="button" class="quick-btn" onclick="setValue('netzspannung', '400')">400 V</button>
-        </div>
-      </div>
+      <div data-pruefschritt="netzsystem_dropdown"></div>
+      <div data-pruefschritt="netzspannung_schnellwahl"></div>
       <div class="form-group">
         <label for="einspeisung">Art der Einspeisung:</label>
         <select id="einspeisung" onchange="updateEinspeisung()">
@@ -268,39 +225,7 @@
     <!-- 4. ANSCHLUSSKABEL DER ANLAGE -->
     <h2 class="kat-sicht" id="abschnitt-anschlusskabel">4. Anschlusskabel der Anlage</h2>
     <div class="kat-block kat-sicht">
-      <div class="grid">
-        <div class="form-group">
-          <label for="anschluss_typ">Kabeltyp:</label>
-          <input type="text" id="anschluss_typ" placeholder="z. B. H07RN-F">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'NYM-J')">NYM-J</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07RN-F')">H07RN-F</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'TITANEX')">TITANEX</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_typ', 'H07V-K')">H07V-K</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="anschluss_leiter">Leiter-Anzahl:</label>
-          <input type="text" id="anschluss_leiter" placeholder="z. B. 5G">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '5G')">5G</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '3G')">3G</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_leiter', '4G')">4G</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="anschluss_qs">Querschnitt:</label>
-          <input type="text" inputmode="decimal" id="anschluss_qs" placeholder="z. B. 6 mm²">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '1,5 mm²')">1,5 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '2,5 mm²')">2,5 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '4 mm²')">4 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '6 mm²')">6 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '10 mm²')">10 mm²</button>
-            <button type="button" class="quick-btn" onclick="setValue('anschluss_qs', '16 mm²')">16 mm²</button>
-          </div>
-        </div>
-      </div>
+      <div data-pruefschritt="anschlusskabel_anlage"></div>
     </div>
 
     <!-- 5. MESSWERTE PRO STROMKREIS -->
@@ -406,29 +331,11 @@
         <label for="res_plakette">Prüfplakette erteilt:</label>
         <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
       </div>
-      <div class="form-group">
-        <!-- [8.0.0] NEU: Prüffristen-Schnellauswahl, einheitlich mit
-             anschlusspruefung.html/geraetepruefung.html (1/2/3 Monate,
-             1/2/4 Jahre). Vorher gab es hier nur das reine Monat/Jahr-Feld
-             ohne automatische Berechnung. -->
-        <label for="pruefintervall">Prüfintervall:</label>
-        <select id="pruefintervall" onchange="updateNaechsterTerminVde0100()">
-          <option value="1">1 Monat</option>
-          <option value="2">2 Monate</option>
-          <option value="3">3 Monate</option>
-          <option value="12" selected>1 Jahr</option>
-          <option value="24">2 Jahre</option>
-          <option value="48">4 Jahre</option>
-        </select>
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '1'); updateNaechsterTerminVde0100()">1 Monat</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '2'); updateNaechsterTerminVde0100()">2 Monate</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '3'); updateNaechsterTerminVde0100()">3 Monate</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '12'); updateNaechsterTerminVde0100()">1 Jahr</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '24'); updateNaechsterTerminVde0100()">2 Jahre</button>
-          <button type="button" class="quick-btn" onclick="setValue('pruefintervall', '48'); updateNaechsterTerminVde0100()">4 Jahre</button>
-        </div>
-      </div>
+      <!-- [8.0.0] Prüffristen-Schnellauswahl, einheitlich mit
+           anschlusspruefung.html/geraetepruefung.html (1/2/3 Monate,
+           1/2/4 Jahre). [Prüfschritt-Bibliothek] Baustein zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.pruefintervall_schnellwahl). -->
+      <div data-pruefschritt="pruefintervall_schnellwahl" data-ctx='{"onChange":"updateNaechsterTerminVde0100"}'></div>
       <div class="form-group">
         <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr):</label>
         <input type="month" id="res_termin_date">
@@ -493,6 +400,11 @@
 
 <script>
   let padPruefer, padKunde;
+
+  // [Prüfschritt-Bibliothek] Muss VOR allen anderen Initialisierungen laufen,
+  // da diese per getElementById auf Felder zugreifen, die erst hierdurch
+  // entstehen (z. B. gebaeude_select, netzspannung, pruefintervall).
+  renderPruefschritte();
 
   // Datum immer aus der LOKALEN Zeit (heuteIso in pdf-utils.js). valueAsDate
   // rechnet in UTC und hat einer Prüfung um 00:30 Uhr das Datum des Vortags

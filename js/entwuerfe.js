@@ -25,6 +25,21 @@
  *  zuvor heruntergeladene PDF-Datei (siehe pdf-utils.js savePdfCompatible).
  * ========================================================================== */
 
+/* [9.2.0] WERKBANK-MODUS: wird von pruefschritte-uebersicht.html gesetzt,
+ * wenn ein Formular dort in einem unsichtbaren iframe zum reinen
+ * Feld-Test geladen wird (siehe dortiges <script> vor dem iframe-src).
+ * Ohne diesen Schalter wuerde bereits das blosse OEFFNEN eines Formulars
+ * einen echten Eintrag unter "Offene Prüfungen" anlegen (aktivenEntwurfSicherstellen
+ * schreibt sofort in localStorage) - Testeingaben auf der Werkbank duerfen
+ * aber niemals als echte Pruefung erscheinen oder eine echte gerade offene
+ * Pruefung ueberschreiben. Im Werkbank-Modus bekommt jede Seite eine rein
+ * fluechtige, NICHT in localStorage persistierte Entwurfs-ID; entwurfMerken()
+ * (Eintrag in der Liste "Offene Prüfungen") wird komplett uebersprungen. */
+var WERKBANK_MODUS = (function () {
+  try { return window.top !== window.self && new URLSearchParams(location.search).get('werkbank') === '1'; }
+  catch (e) { return false; }
+})();
+
 const DRAFTS_INDEX_KEY = 'vde_entwuerfe_index';
 
 function aktiverEntwurfKey(praefix) {
@@ -72,6 +87,7 @@ function neueEntwurfId() {
  * (Bezeichnung, Protokollnummer, Zeitstempel) - aufgerufen bei jedem
  * Autosave, damit die Liste "Offene Prüfungen" immer aktuell ist. */
 function entwurfMerken(praefix, entwurfId, meta) {
+  if (WERKBANK_MODUS) return; // [9.2.0] Testeingaben landen nie in "Offene Prüfungen"
   const liste = ladeEntwuerfeIndex();
   const idx = liste.findIndex(e => e.id === entwurfId);
   // [7.2.0, Punkt 21] Ein bereits gesetztes "abgeschlossen"-Flag (per Checkbox
@@ -139,6 +155,9 @@ function entwuerfeFuerTyp(praefix) {
  * globalen Autosave-Standes (Ruecksicht auf Nutzer, die von einer Version vor
  * 4.7.0 aktualisieren: ihr angefangenes Formular geht dabei nicht verloren). */
 function aktivenEntwurfSicherstellen(praefix, altAutosaveKey) {
+  // [9.2.0] Werkbank: fluechtige ID, NICHTS wird in localStorage geschrieben -
+  // weder der "aktiver Entwurf"-Zeiger noch eine Migration eines Alt-Standes.
+  if (WERKBANK_MODUS) return 'werkbank-' + praefix + '-' + Date.now();
   const key = aktiverEntwurfKey(praefix);
   let id;
   try { id = localStorage.getItem(key); } catch (e) { id = null; }

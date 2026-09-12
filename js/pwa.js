@@ -5,10 +5,32 @@
 (function () {
   'use strict';
 
+  /* [9.2.0] In einem iframe (z. B. der Testwerkbank, pruefschritte-uebersicht.html
+   * mit ?werkbank=1) KEINE Service-Worker-Registrierung/-Update-Logik
+   * ausfuehren: ein "controllerchange"-Event des SW gilt fuer ALLE Seiten
+   * derselben Origin/Scope, nicht nur das iframe selbst - ohne diese Sperre
+   * wuerde ein SW-Update waehrend des Testens auf der Werkbank die
+   * UEBERGEORDNETE Werkbank-Seite per window.location.reload() neu laden
+   * und damit den gerade angezeigten Formular-Tab verlieren. Ein iframe
+   * braucht ausserdem keinen eigenen Install-Button/Update-Banner - das
+   * PWA-Verhalten ist ohnehin nur fuer die "echte", top-level geoeffnete
+   * Seite relevant.
+   *
+   * ZUSAETZLICH kann eine Seite selbst (window.PWA_KEIN_AUTO_RELOAD = true,
+   * VOR dem Einbinden von pwa.js gesetzt) das automatische Neuladen bei
+   * SW-Update abschalten, auch wenn sie selbst NICHT in einem iframe laeuft -
+   * pruefschritte-uebersicht.html setzt das, weil genau DORT (als
+   * uebergeordnete Werkbank-Seite mit mehreren offenen Formular-iframes) ein
+   * SW-Update jederzeit ausgeloest werden kann (z. B. durch das Laden eines
+   * der 3 Formulare) und ein automatischer Reload dort denselben Effekt
+   * haette wie oben beschrieben - nur eben am Elternfenster statt am iframe. */
+  var IN_IFRAME = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
+  var KEIN_AUTO_RELOAD = IN_IFRAME || window.PWA_KEIN_AUTO_RELOAD === true;
+
   /* ---------- 1. Service Worker registrieren ---------- */
   let swRegistration = null;
 
-  if ('serviceWorker' in navigator) {
+  if (!IN_IFRAME && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       // Pfad relativ zur Seite -> funktioniert im Wurzelverzeichnis
       // UND unter https://<name>.github.io/<repo>/ ohne Anpassung
@@ -64,14 +86,17 @@
         });
 
       // Nach Aktivierung eines neuen SW einmalig neu laden
+      // [9.2.0] ...ausser KEIN_AUTO_RELOAD ist gesetzt (siehe Erlaeuterung
+      // oben) - dort wuerde der Reload nur ein gerade offenes Formular
+      // verwerfen, ohne dass die Nutzerin das ausgeloest hat.
       let reloading = false;
       navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (reloading) return;
+        if (reloading || KEIN_AUTO_RELOAD) return;
         reloading = true;
         window.location.reload();
       });
     });
-  } else {
+  } else if (!IN_IFRAME) {
     window.addEventListener('load', pruefeVersionUeberNetz);
   }
 
@@ -103,12 +128,14 @@
    * also auf navigator.serviceWorker (dem regulaeren "message"-Event) an,
    * nicht auf einem eigenen Port. Der Listener ist deshalb global registriert
    * (einmalig) statt pro Anfrage einen MessageChannel aufzubauen. */
-  navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function (event) {
-    const data = event.data;
-    if (data && data.type === 'VERSION' && data.versionsMismatch) {
-      showVersionsMismatchBanner(data.swVersion, data.version);
-    }
-  });
+  if (!IN_IFRAME) {
+    navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function (event) {
+      const data = event.data;
+      if (data && data.type === 'VERSION' && data.versionsMismatch) {
+        showVersionsMismatchBanner(data.swVersion, data.version);
+      }
+    });
+  }
 
   function pruefeVersionsKonsistenzMitSW() {
     if (!navigator.serviceWorker.controller) return;

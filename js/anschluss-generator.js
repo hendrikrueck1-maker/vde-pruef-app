@@ -1146,6 +1146,7 @@ function restoreAnschlussState(state) {
 }
 
 function autosaveProtocol() {
+  if (typeof WERKBANK_MODUS !== 'undefined' && WERKBANK_MODUS) return; // [9.2.0]
   try {
     sicherSetItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectAnschlussState()));
     entwurfMerken('AP', AKTUELLER_ENTWURF_ID, {

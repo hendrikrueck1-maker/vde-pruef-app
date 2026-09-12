@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '9.0.0';
+var APP_VERSION = '9.3.0';
 
 /* ---------------------------------------------------------------------------
  * 1b. BETRIEBSNAME (Branding)
@@ -121,6 +121,10 @@ var CORE_ASSETS = [
   'index.html',
   'archiv.html',
   'anleitung.html',
+  /* 9.1.0: Master-Übersicht der Prüfschritt-Bibliothek (siehe
+   * js/pruefschritte.js) - eigene Seite, offline genau wie die anderen
+   * Grundseiten verfügbar. */
+  'pruefschritte-uebersicht.html',
   'manifest.json',
   'css/style.css',
   'js/app-config.js',
@@ -128,6 +132,13 @@ var CORE_ASSETS = [
   'js/entwuerfe.js',
   'js/statusleiste.js',
   'js/pflichtfelder.js',
+  /* 9.1.0: Prüfschritt-Bibliothek (zentrale, mehrfach verwendete Formular-
+   * bausteine wie Gebäude/Bereich, Anschlusskabel, RCD-Typ-Schnellwahl, …).
+   * Wird von JEDER Formularseite geladen (vde0100.html, anschlusspruefung.html,
+   * geraetepruefung.html) - ohne Eintrag hier fehlen offline geladene
+   * Formulare Felder, die vorher direkt im HTML standen. Siehe
+   * docs/ERWEITERN.md, Abschnitt "Ein bestehendes Feld ändern". */
+  'js/pruefschritte.js',
   'js/archiv.js',
   /* 7.0.0: Fotodokumentation (G17) - eigenes IndexedDB 'vde_fotos', wird
    * bereits beim Aufbau einer Stromkreis-/Geraete-/Uebergabepunkt-Karte

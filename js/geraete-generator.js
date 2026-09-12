@@ -1211,6 +1211,7 @@ function restoreGeraeteState(state) {
 // autosaveProtocol(). Ein voller Speicher wird jetzt sichtbar gemeldet statt
 // still zu scheitern.
 function autosaveProtocol() {
+  if (typeof WERKBANK_MODUS !== 'undefined' && WERKBANK_MODUS) return; // [9.2.0]
   try {
     sicherSetItem(GERAETE_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectGeraeteState()));
     const anzahl = document.querySelectorAll('#devicesContainer .feed-card').length;

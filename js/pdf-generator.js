@@ -160,69 +160,19 @@ function addCircuitCard(data = {}) {
       </div>
     </div>
 
-    <!-- [8.0.0] SCHUTZEINRICHTUNGS-BASISDATEN (Aufklappmenü, zusaetzlich zu
-         den Einzelfeldern weiter unten in Absicherung/RCD). Standardmaessig
-         eingeklappt, damit erfahrene Nutzer wie bisher direkt in den
-         Einzelfeldern arbeiten koennen; wer stattdessen zuerst alle
-         Typenschild-Basisdaten des Stromkreises an EINER Stelle erfassen
-         will, klappt hier auf. Beide Eingabewege spiegeln sich gegenseitig
-         (analog zur Seriennummer-Synchronisierung aus 7.4.0 Punkt 8) - egal
-         wo etwas eingetragen wird, taucht es an beiden Stellen auf. -->
-    <div class="c-schutz-basisdaten mess-sections-collapsed">
-      <!-- [Nutzerwunsch] Zusatztext ("Optionale Sammelansicht ... zum
-           Aufklappen hier klicken") entfernt - stattdessen macht die
-           Kopfzeile jetzt rein visuell (eigene Hervorhebung + deutlicherer
-           Pfeil, siehe .c-schutz-basisdaten .mess-sections-header in
-           css/style.css) erkennbar, dass es sich um ein aufklappbares Feld
-           handelt, ohne dass dafuer noch ein erklaerender Satz noetig ist. -->
-      <div class="mess-sections-header" onclick="toggleMessSections(this)">
-        <span class="mess-sections-titel">Schutzeinrichtungs-Basisdaten (Absicherung, RCD-Typ, I<sub>n</sub>, I<sub>&Delta;n</sub>)</span>
-        <span class="mess-sections-chevron">▾</span>
-      </div>
-      <div class="grid">
-        <div class="form-group">
-          <label for="basis_sich_${cardCounter}">Absicherung (Typ / Nennstrom):</label>
-          <input type="text" class="c-basis-sich" id="basis_sich_${cardCounter}" placeholder="z. B. B 16A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'sich')">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'B 16A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">B 16A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'B 10A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">B 10A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'C 16A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">C 16A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_sich_${cardCounter}', 'C 32A'); schutzBasisdatenGeaendert(${cardCounter}, 'sich')">C 32A</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="basis_rcd_typ_${cardCounter}">RCD Typ:</label>
-          <input type="text" class="c-basis-rcd-typ" id="basis_rcd_typ_${cardCounter}" placeholder="z. B. Typ A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ B'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ B</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ B+'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ B+</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Typ F'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Typ F</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_typ_${cardCounter}', 'Ohne RCD'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_typ')">Ohne RCD</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="basis_rcd_in_${cardCounter}">Bemessungsstrom I<sub>n</sub> (RCD):</label>
-          <input type="text" class="c-basis-rcd-in" id="basis_rcd_in_${cardCounter}" placeholder="z. B. 40 A" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '16 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">16 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '25 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">25 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '40 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">40 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_in_${cardCounter}', '63 A'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_in')">63 A</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="basis_rcd_idn_${cardCounter}">Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-          <input type="text" class="c-basis-rcd-idn" id="basis_rcd_idn_${cardCounter}" placeholder="z. B. 30 mA" oninput="schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '10 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">10 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '30 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">30 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '100 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">100 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('basis_rcd_idn_${cardCounter}', '300 mA'); schutzBasisdatenGeaendert(${cardCounter}, 'rcd_idn')">300 mA</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
+         js/pruefschritte.js (PRUEFSCHRITTE.schutz_basisdaten). idSuffix
+         '_'+cardCounter und mitCardId:true erzeugen exakt dieselben IDs/
+         Aufrufe wie vorher hier hart codiert (siehe docs/ERWEITERN.md,
+         Abschnitt G). rcdTypOptionen MIT "Typ F" (Standard der Bibliothek),
+         rcdIdnOptionen MIT "10 mA" (hier abweichend vom Uebergabepunkt). -->
+    ${PRUEFSCHRITTE.schutz_basisdaten.html({
+      idSuffix: '_' + cardCounter,
+      mitCardId: true,
+      cardIdAusdruck: cardCounter,
+      sichOptionen: ['B 16A', 'B 10A', 'C 16A', 'C 32A'],
+      rcdIdnOptionen: ['10 mA', '30 mA', '100 mA', '300 mA']
+    })}
 
     <!-- MESSPRUEFUNGEN (4.7.0): ein gemeinsam einklappbarer Block. Wird der
          Stromkreis weiter unten als "Mangel festgestellt / totgelegt"
@@ -293,114 +243,47 @@ function addCircuitCard(data = {}) {
     </div>
 
     <!-- MESSWERTE: ABSICHERUNG -->
+    <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
+         js/pruefschritte.js (PRUEFSCHRITTE.absicherung_schleifenimpedanz).
+         HINWEIS: der Baustein setzt selbst keine value="..."-Vorbelegung
+         (anders als vorher hier per attrEsc(data.*)) - Werte einer
+         wiederhergestellten Karte werden stattdessen direkt im Anschluss an
+         addCircuitCard() gesetzt (siehe unten, Abschnitt "Messwerte einer
+         wiederhergestellten Karte uebernehmen"). -->
     <div class="sub-section">
       <div class="sub-title mess-karte-titel">${messgroesseBlock('zs', 'fluke1663').icon}<span class="titel-text">2. Überstromschutzeinrichtung (Absicherung)</span></div>
-      <div class="grid">
-        <div class="form-group">
-          <label for="sich_${cardCounter}">Absicherung (Typ / Nennstrom):</label>
-          <input type="text" class="c-sich-typ" id="sich_${cardCounter}" value="${attrEsc(data.sich)}" placeholder="z. B. B 16A" oninput="validateCardNorms(${cardCounter})">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 16A'); validateCardNorms(${cardCounter})">B 16A</button>
-            <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'B 10A'); validateCardNorms(${cardCounter})">B 10A</button>
-            <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'C 16A'); validateCardNorms(${cardCounter})">C 16A</button>
-            <button type="button" class="quick-btn" onclick="setValue('sich_${cardCounter}', 'C 32A'); validateCardNorms(${cardCounter})">C 32A</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Z<sub>S</sub> (&Omega;) &ndash; Schleifenimpedanz L&ndash;PE <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
-          <input type="text" inputmode="decimal" class="c-zs" value="${attrEsc(data.zs)}" placeholder="z. B. 0,38" oninput="onZsInput(${cardCounter})">
-          <div class="limit-hint" id="zs_limit_${cardCounter}"></div>
-        </div>
-        <div class="form-group">
-          <label>I<sub>K</sub> (A) [min. siehe Platzhalter]:</label>
-          <input type="text" inputmode="decimal" class="c-ik" value="${attrEsc(data.ik)}" placeholder="z. B. 605" oninput="onIkInput(${cardCounter})">
-          <div class="limit-hint">Wird aus Z<sub>S</sub> berechnet (I<sub>K</sub> = 230 V / Z<sub>S</sub>), solange nichts von Hand eingetragen wird.</div>
-        </div>
-        <div class="form-group">
-          <label>Z<sub>L-N</sub> (&Omega;) &ndash; Netzimpedanz <span class="feld-badge feld-badge-optional">Optional</span>:</label>
-          <input type="text" inputmode="decimal" class="c-zln" value="${attrEsc(data.zln)}" placeholder="nur wenn gemessen" oninput="onZlnInput(${cardCounter})">
-          <div class="limit-hint">Fluke 1663: Zi &ndash; <b>LINE</b> (L&ndash;N). Findet einen hochohmigen N-Leiter, den die L&ndash;PE-Messung nicht sieht. Leer lassen, wenn nicht gemessen.</div>
-        </div>
-        <div class="form-group">
-          <label>I<sub>K2</sub> (A) &ndash; Kurzschlussstrom L&ndash;N:</label>
-          <input type="text" inputmode="decimal" class="c-ik2" value="${attrEsc(data.ik2)}" placeholder="rechnet sich aus Z_L-N">
-        </div>
-      </div>
+      ${PRUEFSCHRITTE.absicherung_schleifenimpedanz.html({
+        idSuffix: '_' + cardCounter,
+        mitCardId: true,
+        cardIdAusdruck: cardCounter,
+        sichOptionen: ['B 16A', 'B 10A', 'C 16A', 'C 32A']
+      })}
       ${messgroesseBlock('zs', 'fluke1663').karten}
     </div>
 
     <!-- MESSWERTE: RCD -->
+    <!-- [Welle 2 / Prüfschritt-Bibliothek] Bausteine zentral in
+         js/pruefschritte.js (PRUEFSCHRITTE.rcd_typ_hauptfeld,
+         PRUEFSCHRITTE.rcd_messwerte). mitBeruehrungsspannung bleibt hier
+         WEG (false/undefined) - die Berührungsspannung ist in der
+         Stromkreis-Karte ein eigener Abschnitt 4 weiter unten (anders als
+         beim Übergabepunkt, wo sie Teil von Abschnitt 5.4 ist). Werte einer
+         wiederhergestellten Karte (rcd_typ/rcd_in/rcd_idn/rcd_imess/rcd_ta)
+         werden weiter unten nach addCircuitCard() nachtraeglich gesetzt. -->
     <div class="sub-section">
       <div class="sub-title mess-karte-titel">${messgroesseBlock('rcd', 'fluke1663').icon}<span class="titel-text">3. Fehlerstrom-Schutzeinrichtung (RCD / FI)</span></div>
-      <div class="grid">
-        <div class="form-group">
-          <label for="rcd_typ_${cardCounter}">RCD Typ:</label>
-          <input type="text" class="c-rcd-typ" id="rcd_typ_${cardCounter}" value="${attrEsc(data.rcd_typ)}" placeholder="z. B. Typ A" oninput="syncRcdMesswerteAnzeige(${cardCounter})">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ A'); syncRcdMesswerteAnzeige(${cardCounter})">Typ A</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B'); syncRcdMesswerteAnzeige(${cardCounter})">Typ B</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ B+'); syncRcdMesswerteAnzeige(${cardCounter})">Typ B+</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Typ F'); syncRcdMesswerteAnzeige(${cardCounter})">Typ F</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_typ_${cardCounter}', 'Ohne RCD'); syncRcdMesswerteAnzeige(${cardCounter})">Ohne RCD</button>
-          </div>
-        </div>
-      </div>
-      <!-- 4.7.1: Bei "Ohne RCD" sind die Ausloese-Messwerte nicht relevant
-           (es gibt keinen RCD zu pruefen) - klappt automatisch ein, ueber die
-           Kopfzeile jederzeit von Hand wieder aufklappbar (gleiches Muster wie
-           bei den Messpruefungen eines totgelegten Stromkreises, siehe
-           .c-mess-sections/toggleMessSections). -->
-      <div class="c-rcd-messwerte">
-        <div class="mess-sections-header" onclick="toggleMessSections(this)">
-          <span class="mess-sections-titel">RCD-Messwerte</span>
-          <span class="mess-sections-hinweis">Bei „Ohne RCD" eingeklappt, da nicht relevant – zum Aufklappen hier klicken</span>
-          <span class="mess-sections-chevron">▾</span>
-        </div>
-        <div class="grid">
-        <div class="form-group">
-          <!-- [7.3.0, Nutzerwunsch #3] Bemessungsstrom I_n DES RCD-GERAETS
-               SELBST (z. B. "40 A"-RCD) - nicht zu verwechseln mit dem
-               bereits vorhandenen Bemessungsfehlerstrom I_dn (in mA, die
-               Ausloese-Empfindlichkeit) direkt darunter. Beide Angaben
-               stehen zusammen auf dem Typenschild des RCD. -->
-          <label>Bemessungsstrom I<sub>n</sub> (RCD):</label>
-          <input type="text" class="c-rcd-in" id="rcd_in_${cardCounter}" value="${attrEsc(data.rcd_in)}" placeholder="z. B. 40 A">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '16 A')">16 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '25 A')">25 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '40 A')">40 A</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_in_${cardCounter}', '63 A')">63 A</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Bemessungsfehlerstrom I<sub>&Delta;n</sub>:</label>
-          <input type="text" class="c-rcd-idn" id="rcd_idn_${cardCounter}" value="${attrEsc(data.rcd_idn)}" placeholder="z. B. 30 mA" oninput="validateCardNorms(${cardCounter})">
-          <div class="quick-btn-group">
-            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '10 mA'); validateCardNorms(${cardCounter})">10 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '30 mA'); validateCardNorms(${cardCounter})">30 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '100 mA'); validateCardNorms(${cardCounter})">100 mA</button>
-            <button type="button" class="quick-btn" onclick="setValue('rcd_idn_${cardCounter}', '300 mA'); validateCardNorms(${cardCounter})">300 mA</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Auslösestrom I<sub>&Delta;mess</sub> (mA) [0,5&ndash;1,0 &times; I<sub>&Delta;n</sub>]:</label>
-          <input type="text" inputmode="decimal" class="c-rcd-imess" value="${attrEsc(data.rcd_imess)}" placeholder="z. B. 22" oninput="validateCardNorms(${cardCounter})">
-        </div>
-        <div class="form-group">
-          <label for="rcd_pruefstrom_${cardCounter}">Prüfstrom für Auslösestrom / Auslösezeit:</label>
-          <select class="c-rcd-pruefstrom" id="rcd_pruefstrom_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
-            <option value=""${pruefstromSel(data.rcd_pruefstrom, '')}>&ndash; bitte wählen &ndash;</option>
-            <option value="1"${pruefstromSel(data.rcd_pruefstrom, '1')}>1 &times; I<sub>&Delta;n</sub> (max. 300 ms)</option>
-            <option value="2"${pruefstromSel(data.rcd_pruefstrom, '2')}>2 &times; I<sub>&Delta;n</sub> (max. 150 ms)</option>
-            <option value="5"${pruefstromSel(data.rcd_pruefstrom, '5')}>5 &times; I<sub>&Delta;n</sub> (max. 40 ms)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Auslösezeit t<sub>A</sub> (ms) <span class="limit-hint" id="ta_limit_${cardCounter}"></span>:</label>
-          <input type="text" inputmode="decimal" class="c-rcd-ta" value="${attrEsc(data.rcd_ta)}" placeholder="z. B. 24" oninput="validateCardNorms(${cardCounter})">
-        </div>
-        </div>
-      </div>
+      ${PRUEFSCHRITTE.rcd_typ_hauptfeld.html({
+        idSuffix: '_' + cardCounter,
+        mitCardId: true,
+        cardIdAusdruck: cardCounter
+      })}
+      ${PRUEFSCHRITTE.rcd_messwerte.html({
+        idSuffix: '_' + cardCounter,
+        mitCardId: true,
+        cardIdAusdruck: cardCounter,
+        rcdIdnOptionen: ['10 mA', '30 mA', '100 mA', '300 mA'],
+        pruefstromSelected: data.rcd_pruefstrom === undefined ? '5' : data.rcd_pruefstrom
+      })}
       <!-- [7.2.0, Nutzerwunsch #15] Anleitung/Infokarte ans ENDE der RCD-
            Pruefung verschoben (vorher direkt nach der Typ-Auswahl, also
            MITTEN in der Pruefung, noch vor den eigentlichen Messfeldern) -
@@ -494,6 +377,22 @@ function addCircuitCard(data = {}) {
   if (data.rcd_pruefstrom !== undefined) card.querySelector('.c-rcd-pruefstrom').value = data.rcd_pruefstrom;
   if (data.art) card.querySelector('.c-spannung-art').value = data.art;
   if (data.gefaehrdung) card.querySelector('.c-gefaehrdung').value = data.gefaehrdung;
+  // [Welle 2] Absicherung/Schleifenimpedanz- und RCD-Felder kommen jetzt aus
+  // PRUEFSCHRITTE (js/pruefschritte.js) und werden dort OHNE value="..."
+  // erzeugt (die Bibliothek kennt keine Wiederherstellungs-Daten) - die
+  // Werte einer wiederhergestellten/duplizierten Karte deshalb hier
+  // nachtraeglich setzen, exakt wie bisher vorher inline per attrEsc(data.*).
+  if (data.sich) card.querySelector('.c-sich-typ').value = data.sich;
+  if (data.zs) card.querySelector('.c-zs').value = data.zs;
+  if (data.ik) card.querySelector('.c-ik').value = data.ik;
+  if (data.zln) card.querySelector('.c-zln').value = data.zln;
+  if (data.ik2) card.querySelector('.c-ik2').value = data.ik2;
+  if (data.rcd_typ) card.querySelector('.c-rcd-typ').value = data.rcd_typ;
+  if (data.rcd_in) card.querySelector('.c-rcd-in').value = data.rcd_in;
+  if (data.rcd_idn) card.querySelector('.c-rcd-idn').value = data.rcd_idn;
+  if (data.rcd_imess) card.querySelector('.c-rcd-imess').value = data.rcd_imess;
+  if (data.rcd_ta) card.querySelector('.c-rcd-ta').value = data.rcd_ta;
+  if (data.umess) card.querySelector('.c-umess').value = data.umess;
 
   syncRcdMesswerteAnzeige(cardCounter);
   validateCardNorms(cardCounter);

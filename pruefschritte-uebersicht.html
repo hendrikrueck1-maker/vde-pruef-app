@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Prüfschritt-Übersicht</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#003366">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script src="js/app-config.js"></script>
+  <!-- [9.2.0] Diese Seite bleibt oft laenge offen (Testwerkbank mit mehreren
+       Formular-iframes) - ein automatischer Reload bei SW-Update wuerde
+       jederzeit den gerade offenen Testtab verwerfen. Muss VOR pwa.js
+       stehen, siehe dortige Erlaeuterung zu PWA_KEIN_AUTO_RELOAD. -->
+  <script>window.PWA_KEIN_AUTO_RELOAD = true;</script>
+  <script src="js/pwa.js" defer></script>
+  <script src="js/pruefschritte.js"></script>
+
+  <style>
+    /* Nur für diese Seite: Kartenraster für die Prüfschritt-Übersicht.
+       Bewusst eigene, kleine Styles statt Erweiterung von css/style.css -
+       diese Seite ist reine Dokumentation, keine Formularseite. */
+    .uebersicht-intro {
+      background: #f8fafc;
+      border-left: 4px solid var(--primary);
+      border-radius: 2px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .uebersicht-intro code {
+      background: #e2e8f0;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+    .ps-gruppe { margin-bottom: 28px; }
+    .ps-gruppe-titel {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary);
+      background: #f1f5f9;
+      padding: 6px 10px;
+      border-left: 4px solid var(--primary);
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+    .ps-karte {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+    .ps-kopf {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .ps-name {
+      font-family: "Courier New", monospace;
+      font-size: 0.82rem;
+      background: #eef2f7;
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #334155;
+    }
+    .ps-titel { font-weight: 600; font-size: 0.95rem; }
+    .ps-beschreibung { font-size: 0.86rem; color: var(--secondary); margin: 4px 0 8px; }
+    .ps-verwendung { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ps-badge {
+      font-size: 0.74rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #64748b;
+    }
+    .ps-badge.aktiv { background: #dcfce7; color: #166534; }
+    .ps-badge.inaktiv { background: #f1f5f9; color: #94a3b8; }
+    .ps-suche {
+      width: 100%;
+      max-width: 420px;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+    .ps-keine-treffer { color: var(--secondary); font-size: 0.88rem; font-style: italic; }
+
+    /* ---------------- Testwerkbank (9.2.0) ---------------- */
+    .wb-umschalter {
+      display: flex;
+      gap: 8px;
+      margin: 32px 0 16px;
+      border-top: 2px solid #e2e8f0;
+      padding-top: 20px;
+    }
+    .wb-tab {
+      flex: 0 0 auto;
+      padding: 8px 16px;
+      border: 1px solid #cbd5e1;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .wb-tab.aktiv { background: #fff; color: var(--primary); border-color: var(--primary); position: relative; top: 1px; }
+    .wb-hinweis {
+      background: #fff7ed;
+      border-left: 4px solid #ea580c;
+      border-radius: 2px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: #7c2d12;
+    }
+    .wb-panel {
+      border: 1px solid var(--primary);
+      border-radius: 0 6px 6px 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .wb-panel[hidden] { display: none; }
+    .wb-iframe-wrap { position: relative; width: 100%; }
+    .wb-iframe-wrap iframe {
+      display: block;
+      width: 100%;
+      border: 0;
+      min-height: 600px;
+    }
+    .wb-lade-hinweis {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--secondary);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header-bar">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zurück zur Hauptübersicht</a>
+      <a href="anleitung.html" class="btn btn-secondary" style="text-decoration:none;">📖 Anleitung</a>
+    </div>
+    <h1>Prüfschritt-Übersicht</h1>
+  </div>
+
+  <div class="uebersicht-intro">
+    Diese Seite listet alle Formularfelder/Prüfschritte auf, die zentral in
+    <code>js/pruefschritte.js</code> gepflegt werden und dadurch automatisch
+    in allen Formularen gleich sind, in denen sie erscheinen. Wird ein
+    Baustein hier geändert, gilt die Änderung automatisch überall, wo er
+    verlinkt ist – ohne dass die einzelnen Formulare angepasst werden
+    müssen. Diese Seite selbst wird direkt aus derselben Definition erzeugt
+    und veraltet dadurch nicht.
+    <br><br>
+    Nutze den Namen in Klammern (z.&nbsp;B. <code>gebaeude_bereich</code>), wenn
+    du eine Änderung an einem bestimmten Prüfschritt wünschst – so lässt er
+    sich eindeutig zuordnen.
+    <br><br>
+    <strong>Stand:</strong> hier zentralisiert sind aktuell die
+    Stammdaten-Felder (Gebäude/Bereich, Anschlusskabel, Netzspannung,
+    Hausanschluss, Prüfintervall, Netzsystem, Prüfer-Qualifikation) sowie die
+    RCD-/Absicherungs-Bausteine der Stromkreis-Karte und des Übergabepunkts
+    (Schutzeinrichtungs-Basisdaten, Absicherung &amp; Schleifenimpedanz, RCD
+    Typ, RCD-Messwerte).
+  </div>
+
+  <input type="search" id="ps_suche" class="ps-suche" placeholder="Prüfschritt suchen (Name, Titel, Beschreibung)…">
+
+  <div id="ps_container"></div>
+
+  <!-- ============================================================
+       TESTWERKBANK (9.2.0)
+       ------------------------------------------------------------
+       Zeigt die drei ECHTEN Formulare unveraendert in einem iframe -
+       kein zweiter, separat gepflegter Feld-Katalog noetig (der sonst
+       bei jeder Formular-Aenderung veralten wuerde). ?werkbank=1 in der
+       iframe-URL schaltet ausschliesslich das Schreiben in "Offene
+       Prüfungen"/Autosave ab (siehe js/entwuerfe.js, WERKBANK_MODUS) -
+       alle Felder, Schnellwahl-Buttons und Live-Validierungen
+       funktionieren exakt wie im echten Formular.
+       ============================================================ -->
+  <div class="wb-umschalter" role="tablist">
+    <button type="button" class="wb-tab aktiv" data-ziel="vde0100" role="tab" aria-selected="true">Anlage (VDE 0100)</button>
+    <button type="button" class="wb-tab" data-ziel="anschluss" role="tab" aria-selected="false">Anschlussprüfung</button>
+    <button type="button" class="wb-tab" data-ziel="geraete" role="tab" aria-selected="false">Geräteprüfung</button>
+  </div>
+
+  <div class="wb-hinweis">
+    <strong>Testwerkbank:</strong> Hier lädt das jeweils echte Formular –
+    zum Ausprobieren einzelner Felder, Schnellwahl-Buttons und
+    Live-Validierungen. Eingaben hier werden <strong>nicht gespeichert</strong>
+    und tauchen weder unter „Offene Prüfungen" noch im Archiv auf. Ein PDF
+    lässt sich hier trotzdem erzeugen (rein zum Ansehen) – es wird dabei
+    nichts abgelegt. Zum Bearbeiten einer echten Prüfung bitte die Kacheln
+    auf der Startseite nutzen.
+  </div>
+
+  <div class="wb-panel" id="wb_panel_vde0100">
+    <div class="wb-iframe-wrap">
+      <div class="wb-lade-hinweis" id="wb_lade_vde0100">Formular wird geladen…</div>
+    </div>
+  </div>
+  <div class="wb-panel" id="wb_panel_anschluss" hidden>
+    <div class="wb-iframe-wrap"></div>
+  </div>
+  <div class="wb-panel" id="wb_panel_geraete" hidden>
+    <div class="wb-iframe-wrap"></div>
+  </div>
+</div>
+
+<script>
+  var FORMULAR_LABEL = { vde0100: 'Anlage (VDE 0100)', anschluss: 'Anschlussprüfung', geraete: 'Geräteprüfung' };
+  var FORMULAR_REIHENFOLGE = ['vde0100', 'anschluss', 'geraete'];
+
+  function ps_baueKarte(name, eintrag) {
+    var badges = FORMULAR_REIHENFOLGE.map(function (f) {
+      var aktiv = (eintrag.verwendetIn || []).indexOf(f) !== -1;
+      return '<span class="ps-badge ' + (aktiv ? 'aktiv' : 'inaktiv') + '">' + FORMULAR_LABEL[f] + '</span>';
+    }).join('');
+    return (
+      '<div class="ps-karte" data-suchtext="' +
+      (name + ' ' + (eintrag.titel || '') + ' ' + (eintrag.beschreibung || '')).toLowerCase().replace(/"/g, '&quot;') +
+      '">' +
+      '<div class="ps-kopf">' +
+      '<span class="ps-titel">' + (eintrag.titel || name) + '</span>' +
+      '<span class="ps-name">' + name + '</span>' +
+      '</div>' +
+      '<div class="ps-beschreibung">' + (eintrag.beschreibung || '') + '</div>' +
+      '<div class="ps-verwendung">' + badges + '</div>' +
+      '</div>'
+    );
+  }
+
+  function ps_render(filterText) {
+    var container = document.getElementById('ps_container');
+    var gruppen = {};
+    Object.keys(PRUEFSCHRITTE).forEach(function (name) {
+      var eintrag = PRUEFSCHRITTE[name];
+      var gruppe = eintrag.gruppe || 'Sonstiges';
+      if (!gruppen[gruppe]) gruppen[gruppe] = [];
+      gruppen[gruppe].push({ name: name, eintrag: eintrag });
+    });
+
+    var ft = (filterText || '').trim().toLowerCase();
+    var html = '';
+    var treffer = 0;
+    Object.keys(gruppen).sort().forEach(function (gruppe) {
+      var karten = gruppen[gruppe]
+        .filter(function (e) {
+          if (!ft) return true;
+          return (e.name + ' ' + (e.eintrag.titel || '') + ' ' + (e.eintrag.beschreibung || ''))
+            .toLowerCase().indexOf(ft) !== -1;
+        })
+        .map(function (e) { return ps_baueKarte(e.name, e.eintrag); });
+      if (karten.length === 0) return;
+      treffer += karten.length;
+      html += '<div class="ps-gruppe"><div class="ps-gruppe-titel">' + gruppe + '</div>' + karten.join('') + '</div>';
+    });
+
+    container.innerHTML = treffer > 0 ? html : '<p class="ps-keine-treffer">Keine Prüfschritte gefunden.</p>';
+  }
+
+  ps_render('');
+  document.getElementById('ps_suche').addEventListener('input', function (e) {
+    ps_render(e.target.value);
+  });
+
+  /* ============================================================
+   * TESTWERKBANK (9.2.0)
+   * ------------------------------------------------------------
+   * Laedt je Formular EINMAL (beim ersten Umschalten auf den
+   * jeweiligen Tab) das echte HTML in einem iframe mit ?werkbank=1 -
+   * dieser Parameter schaltet ausschliesslich Autosave/"Offene
+   * Prüfungen" ab (siehe js/entwuerfe.js), aendert aber sonst nichts:
+   * alle Felder, Schnellwahl-Buttons, Pflichtfeld-Markierungen und
+   * Live-Validierungen sind exakt wie im echten Formular, weil es
+   * tatsaechlich dasselbe Formular ist - kein zweiter, separat
+   * gepflegter Nachbau. ============================================================ */
+  var WB_DATEIEN = { vde0100: 'vde0100.html', anschluss: 'anschlusspruefung.html', geraete: 'geraetepruefung.html' };
+  var wb_geladen = { vde0100: false, anschluss: false, geraete: false };
+
+  function wb_iframeHoeheAnpassen(iframe) {
+    try {
+      var doc = iframe.contentDocument;
+      if (!doc || !doc.body) return;
+      // NUR body.scrollHeight verwenden - documentElement.scrollHeight
+      // "sieht" die aktuelle iframe-Hoehe selbst mit (html fuellt den
+      // Viewport) und wuerde bei jedem Aufruf zusammen mit dem gerade
+      // gesetzten iframe.style.height immer weiter aufschaukeln
+      // (Rueckkopplungsschleife - beobachtet: Hoehe waechst ohne Ende).
+      var h = doc.body.scrollHeight;
+      var neu = h + 24;
+      // Nur aendern, wenn sich wirklich etwas veraendert hat (>4px
+      // Unterschied) - vermeidet Mikro-Anpassungen bei jedem Intervall-Tick,
+      // die den MutationObserver unnoetig erneut ausloesen wuerden.
+      var bisher = parseInt(iframe.style.height, 10) || 0;
+      if (h > 0 && Math.abs(neu - bisher) > 4) iframe.style.height = neu + 'px';
+    } catch (e) { /* Cross-Origin waere hier theoretisch moeglich, ist es aber nicht (gleiche Origin) */ }
+  }
+
+  function wb_ladeFormular(ziel) {
+    if (wb_geladen[ziel]) return;
+    wb_geladen[ziel] = true;
+    var panel = document.getElementById('wb_panel_' + ziel);
+    var wrap = panel.querySelector('.wb-iframe-wrap');
+    var iframe = document.createElement('iframe');
+    iframe.src = WB_DATEIEN[ziel] + '?werkbank=1';
+    iframe.title = 'Testwerkbank: ' + FORMULAR_LABEL[ziel];
+    wrap.innerHTML = '';
+    wrap.appendChild(iframe);
+
+    var beobachtung;
+    iframe.addEventListener('load', function () {
+      wb_iframeHoeheAnpassen(iframe);
+      // Formularinhalt aendert staendig seine Hoehe (Karten hinzufuegen/
+      // entfernen, Fehlertexte ein-/ausblenden, Aufklapp-Panels) - per
+      // MutationObserver auf den iframe-Body dauerhaft mitziehen, statt nur
+      // einmal beim Laden zu messen.
+      try {
+        var body = iframe.contentDocument && iframe.contentDocument.body;
+        if (body && window.MutationObserver) {
+          beobachtung = new MutationObserver(function () { wb_iframeHoeheAnpassen(iframe); });
+          beobachtung.observe(body, { attributes: true, childList: true, subtree: true });
+        }
+      } catch (e) {}
+      // Auch bei reinen Groessenaenderungen ohne DOM-Mutation (z.B. CSS
+      // transition) regelmaessig nachmessen - billig genug fuer ein Intervall.
+      setInterval(function () { wb_iframeHoeheAnpassen(iframe); }, 800);
+    });
+  }
+
+  function wb_tabWechseln(ziel) {
+    document.querySelectorAll('.wb-tab').forEach(function (tab) {
+      var aktiv = tab.getAttribute('data-ziel') === ziel;
+      tab.classList.toggle('aktiv', aktiv);
+      tab.setAttribute('aria-selected', aktiv ? 'true' : 'false');
+    });
+    ['vde0100', 'anschluss', 'geraete'].forEach(function (f) {
+      document.getElementById('wb_panel_' + f).hidden = (f !== ziel);
+    });
+    wb_ladeFormular(ziel);
+  }
+
+  document.querySelectorAll('.wb-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () { wb_tabWechseln(tab.getAttribute('data-ziel')); });
+  });
+
+  // Erstes Formular (Anlage/VDE 0100) sofort laden, da sein Tab initial aktiv ist.
+  wb_ladeFormular('vde0100');
+</script>
+
+</body>
+</html>
