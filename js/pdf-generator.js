@@ -187,9 +187,14 @@ function addCircuitCard(data = {}) {
          (analog zur Seriennummer-Synchronisierung aus 7.4.0 Punkt 8) - egal
          wo etwas eingetragen wird, taucht es an beiden Stellen auf. -->
     <div class="c-schutz-basisdaten mess-sections-collapsed">
+      <!-- [Nutzerwunsch] Zusatztext ("Optionale Sammelansicht ... zum
+           Aufklappen hier klicken") entfernt - stattdessen macht die
+           Kopfzeile jetzt rein visuell (eigene Hervorhebung + deutlicherer
+           Pfeil, siehe .c-schutz-basisdaten .mess-sections-header in
+           css/style.css) erkennbar, dass es sich um ein aufklappbares Feld
+           handelt, ohne dass dafuer noch ein erklaerender Satz noetig ist. -->
       <div class="mess-sections-header" onclick="toggleMessSections(this)">
         <span class="mess-sections-titel">Schutzeinrichtungs-Basisdaten (Absicherung, RCD-Typ, I<sub>n</sub>, I<sub>&Delta;n</sub>)</span>
-        <span class="mess-sections-hinweis">Optionale Sammelansicht – Werte lassen sich auch einzeln unten in „Absicherung“/„RCD“ eintragen. Zum Aufklappen hier klicken</span>
         <span class="mess-sections-chevron">▾</span>
       </div>
       <div class="grid">
@@ -269,19 +274,17 @@ function addCircuitCard(data = {}) {
           <div class="mess-gruppe-titel mess-karte-titel">${messgroesseBlock('riso', 'fluke1663').icon}<span class="titel-text">Isolationswiderstand R<sub>ISO</sub></span></div>
           <div class="grid">
             <div class="form-group">
-              <!-- [8.0.0] NEU: "Verbraucher angeschlossen?" - zusaetzlich zur
-                   bestehenden Pruefspannungs-Auswahl. Waehlt der Nutzer "ohne
-                   Verbraucher", wird die Pruefspannung automatisch auf 250 V
-                   vorbelegt (haeufigster Praxisfall bei angeschlossenen
-                   Verbrauchern/empfindlicher Elektronik), bleibt aber manuell
-                   uebersteuerbar (z. B. SELV/PELV-Sonderfall). -->
+              <!-- [Nutzerwunsch] "Verbraucher angeschlossen?" ist weiterhin
+                   eine reine Angabe/Dokumentation, setzt aber die
+                   Prüfspannung unten NICHT mehr automatisch - beide Felder
+                   sind jetzt unabhaengig voneinander frei waehlbar (siehe
+                   risoVerbraucherGeaendert() in js/pdf-generator.js). -->
               <label for="riso_verbraucher_${cardCounter}">Verbraucher angeschlossen?</label>
               <select class="c-riso-verbraucher" id="riso_verbraucher_${cardCounter}" onchange="risoVerbraucherGeaendert(${cardCounter})">
                 <option value="" selected>&ndash; bitte wählen &ndash;</option>
                 <option value="ja">Ja, Verbraucher angeschlossen</option>
                 <option value="nein">Nein, ohne Verbraucher geprüft</option>
               </select>
-              <div class="limit-hint">Bei „ohne Verbraucher“ wird die Prüfspannung automatisch auf 250 V vorgewählt &ndash; bei Bedarf (z. B. SELV/PELV) unten weiterhin manuell änderbar.</div>
             </div>
             <div class="form-group">
               <label for="riso_mode_${cardCounter}">Prüfspannung (VDE 0100-600, Tab. 6.1):</label>
@@ -556,20 +559,13 @@ function dupliziereStromkreis(cardDomId) {
   if (neu) { neu.focus(); neu.select(); }
 }
 
-/* [8.0.0] Reagiert auf die neue "Verbraucher angeschlossen?"-Auswahl bei der
- * R_ISO-Messung: bei "Nein, ohne Verbraucher geprüft" wird die Prüfspannung
- * automatisch auf 250 V vorgewählt (haeufigster Praxisfall). Der Nutzer kann
- * das Prüfspannungs-Dropdown danach jederzeit manuell uebersteuern (z. B.
- * SELV/PELV-Sonderfall) - diese Funktion setzt den Wert nur EINMAL beim
- * Umschalten auf "ohne Verbraucher", nicht bei jeder weiteren Aenderung. */
+/* [Nutzerwunsch] "Verbraucher angeschlossen?" setzt die Prüfspannung NICHT
+ * mehr automatisch (vorher: bei "Nein, ohne Verbraucher geprüft" wurde das
+ * Prüfspannungs-Dropdown auf 250 V umgestellt) - beide Angaben sind jetzt
+ * vollstaendig unabhaengig voneinander. Die Funktion bleibt bestehen, damit
+ * der onchange-Handler in addCircuitCard() weiterhin Validierung/Autosave
+ * anstoesst. */
 function risoVerbraucherGeaendert(cardId) {
-  const card = document.getElementById(`circuit_${cardId}`);
-  if (!card) return;
-  const verbraucherElem = card.querySelector('.c-riso-verbraucher');
-  const modeElem = card.querySelector('.c-riso-mode');
-  if (verbraucherElem && modeElem && verbraucherElem.value === 'nein') {
-    modeElem.value = '250 V DC (ohne Verbraucher geprüft)';
-  }
   validateCardNorms(cardId);
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
 }
@@ -1506,7 +1502,7 @@ async function generatePDFInner(isBlank = false) {
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
     "1. Betriebsmittel", "2. Kabel/Leitungen", "3. Zugänglichkeit", "4. Schaltgeräte",
-    "5. Kennzeichnung", "6. Zus. Potenzialausgl.", "7. Basisschutz",
+    "5. Kennzeichnung", "6. Zus. Potenzialausgl.", "7. Berührungsschutz",
     "8. Typenschild", "9. Brandabschottung", "10. Leiterverbindungen"
   ];
   // 4.7.0: Spalten neu berechnet (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
@@ -1552,9 +1548,13 @@ async function generatePDFInner(isBlank = false) {
   doc.setFont("helvetica", "normal");
 
   const erpEls = document.querySelectorAll('.erp-item');
+  // [Nutzerwunsch] "Sicherheitsbeleuchtung" entfernt (Formularfeld
+  // erp_sicherheitsbel gibt es nicht mehr, siehe vde0100.html) - Reihenfolge
+  // hier MUSS weiterhin exakt der Reihenfolge der .erp-item-Elemente im
+  // Formular entsprechen (erpEls[i]).
   const erpLabels = [
     "Funktion Anlage", "Schutzeinrichtungen", "Drehfeld CEE (rechts)",
-    "Polarität/Belegung", "RCD-Prüftaste", "Sicherheitsbeleuchtung",
+    "Polarität/Belegung", "RCD-Prüftaste",
     "Drehrichtung Motoren"
   ];
   erpLabels.forEach((label, i) => {

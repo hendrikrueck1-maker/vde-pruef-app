@@ -58,22 +58,31 @@
       <div class="form-group"><label for="m_adresse">Adresse:</label><input type="text" id="m_adresse" placeholder="z. B. Inselgasse 2-6, 78462 Konstanz"></div>
       <div class="form-group">
         <label for="m_gebaeude_select">Standard-Gebäude / Bereich:</label>
-        <select id="m_gebaeude_select" onchange="toggleMasterGebaeudeCustom(this.value)">
-          <option value="Gr. Haus">Großes Haus</option>
-          <option value="Kl. Haus">Kleines Haus / Studiobühne</option>
-          <option value="Werkstattbühne">Werkstattbühne</option>
-          <option value="Foyer">Foyer</option>
-          <option value="Probebühne">Probebühne</option>
-          <option value="Außenspielstätte">Außenspielstätte / Open Air</option>
-          <option value="custom">Sonstiges…</option>
-        </select>
+        <!-- [Nutzerwunsch] "Verwalten"-Button jetzt auch auf der Hauptseite,
+             genau wie in den drei Prüfformularen (gebaeudeVerwaltenOeffnen()/
+             gebaeudeOptionenAktualisieren() aus js/storage.js) - eigene
+             Einträge muessen dadurch nur noch an EINER Stelle angelegt
+             werden und stehen dann ueberall zur Auswahl, statt wie bisher
+             nur ueber "Sonstiges…" als Freitext je Protokoll neu einzutippen. -->
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="m_gebaeude_select" onchange="toggleMasterGebaeudeCustom(this.value)" style="flex:1 1 auto;">
+            <option value="Gr. Haus">Großes Haus</option>
+            <option value="Kl. Haus">Kleines Haus / Studiobühne</option>
+            <option value="Werkstattbühne">Werkstattbühne</option>
+            <option value="Foyer">Foyer</option>
+            <option value="Probebühne">Probebühne</option>
+            <option value="Außenspielstätte">Außenspielstätte / Open Air</option>
+            <option value="custom">Sonstiges…</option>
+          </select>
+          <button type="button" class="btn-secondary btn-klein" style="flex:0 0 auto; white-space:nowrap;" onclick="gebaeudeVerwaltenOeffnen('m_gebaeude_select')" title="Eigene Gebäude/Bereiche hinzufügen oder entfernen">Verwalten</button>
+        </div>
         <input type="text" id="m_gebaeude" placeholder="Gebäude/Bereich eintragen" style="display:none; margin-top:6px;">
         <details class="infokarte" style="margin-top:6px;">
           <summary>ℹ️ Eigene Gebäude/Bereiche dauerhaft ergänzen</summary>
           <div class="infokarte-inhalt">
-            <p>Die obige Liste deckt die üblichen Spielstätten ab. Für einen abweichenden Namen "Sonstiges…" wählen
-            und den Bereich frei eintragen – der Wert wird wie gewohnt zusammen mit den übrigen Stammdaten
-            gespeichert und beim nächsten Protokoll wieder vorgeschlagen.</p>
+            <p>Über den Button "Verwalten" eigene Gebäude/Bereiche anlegen oder entfernen – die Liste gilt dann
+            einheitlich hier und in allen drei Prüfformularen. Für einen einmaligen, abweichenden Namen reicht
+            weiterhin "Sonstiges…" mit Freitext.</p>
           </div>
         </details>
       </div>
@@ -131,15 +140,15 @@
   </form>
 
   <h2 class="kat-messen">2. Protokoll starten</h2>
-  <!-- [7.4.0, Punkt 6] Zwei prominente Schnellzugriffs-Buttons vor der
-       Protokolltyp-Auswahl: "Letztes weitermachen" fuehrt direkt zum zuletzt
-       bearbeiteten, noch offenen Entwurf (unabhaengig vom Protokolltyp) -
-       bisher musste man dafuer erst zu Abschnitt 4 "Offene Prüfungen"
-       herunterscrollen. "Neues Protokoll" springt zur Kachelauswahl darunter
-       (kein neuer Mechanismus - nutzt dieselbe bestehende Kachel-/Autosave-
-       Infrastruktur aus entwuerfe.js/storage.js, siehe Änderungsbericht
-       7.4.0, Punkt 6). -->
-  <div class="start-schnellzugriff" id="startSchnellzugriff" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;"></div>
+  <!-- [Nutzerwunsch] Das frühere, allgemeine Schnellzugriffsfeld darüber
+       ("+ Neues Protokoll" / "▶ Letztes weitermachen", typuebergreifend)
+       wurde entfernt - es duplizierte nur, was jede Kachel unten ohnehin
+       bereits proTyp anbietet: einen gruenen "+ Neues Protokoll"-Button und,
+       falls vorhanden, einen gelben "▶ Protokoll fortsetzen"-Button fuer
+       GENAU diesen Protokolltyp (siehe renderProtokollKacheln() weiter
+       unten sowie das gleiche Muster in vde0100.html/anschlusspruefung.html/
+       geraetepruefung.html). Damit gibt es nur noch EINE Stelle mit diesen
+       Optionen statt zwei leicht unterschiedliche. -->
   <div class="protocol-grid" id="protocolGrid"></div>
 
   <h2 class="kat-ergebnis">3. Archiv – erstellte Protokolle</h2>
@@ -211,9 +220,9 @@
   /* [8.0.0, Teil 6.3] Ordnet jeder Kachel (PROTOKOLLE[].id) das passende
    * Entwurfs-Praefix aus js/entwuerfe.js zu (dort PR/AP/GP genannt), damit
    * pro Kachel gezielt nach einem offenen Entwurf GENAU dieses Protokolltyps
-   * gesucht werden kann - anders als der bisherige globale "Letztes
-   * weitermachen"-Button (typuebergreifend, siehe renderStartSchnellzugriff
-   * unten), der bestehen bleibt.
+   * gesucht werden kann. [Nutzerwunsch] Der frueher zusaetzlich vorhandene
+   * globale, typuebergreifende "Letztes weitermachen"-Schnellzugriff wurde
+   * entfernt - jede Kachel deckt das jetzt allein ab.
    * WICHTIG: muss VOR dem ersten Aufruf von renderProtokollKacheln() (gleich
    * unten) initialisiert sein - eine spaeter im Skript stehende var-Zuweisung
    * ist zur Laufzeit an dieser Stelle noch undefined, obwohl sie als
@@ -223,29 +232,14 @@
   var KACHEL_PRAEFIX = { vde0100: 'PR', anschluss: 'AP', geraete: 'GP' };
 
   loadMasterDataToDashboard();
+  // [Nutzerwunsch] eigene Gebäude/Bereich-Einträge (aus dem "Verwalten"-
+  // Dialog) auch hier auf der Hauptseite ins Dropdown einfuegen - siehe
+  // gleichlautenden Aufruf in den drei Prüfformularen sowie
+  // gebaeudeOptionenAktualisieren() in storage.js.
+  gebaeudeOptionenAktualisieren('m_gebaeude_select');
   renderProtokollKacheln();
   renderOffenePruefungen('offenePruefungenListe');
-  renderStartSchnellzugriff();
 
-  /* [7.4.0, Punkt 6] "Neues Protokoll" / "Letztes weitermachen" -------------
-   * Nutzt ausschliesslich bestehende Bausteine: letzterOffenerEntwurf() und
-   * ENTWURF_DATEI (js/entwuerfe.js) fuer den Sprung zum zuletzt bearbeiteten
-   * Entwurf, ein einfacher Scroll-Anker fuer "Neues Protokoll" - kein
-   * paralleler Autosave-/Fortsetzungsmechanismus. */
-  function renderStartSchnellzugriff() {
-    const el = document.getElementById('startSchnellzugriff');
-    if (!el) return;
-    const letzter = (typeof letzterOffenerEntwurf === 'function') ? letzterOffenerEntwurf() : null;
-    let html = '<a href="#protocolGrid" class="btn btn-success" style="text-decoration:none;">+ Neues Protokoll</a>';
-    if (letzter) {
-      const datei = (typeof ENTWURF_DATEI !== 'undefined' && ENTWURF_DATEI[letzter.praefix]) || 'index.html';
-      const typLabel = (typeof PROTOKOLL_PRAEFIXE !== 'undefined' && PROTOKOLL_PRAEFIXE[letzter.praefix]) || letzter.praefix;
-      const bez = letzter.protokollnummer ? (letzter.protokollnummer + (letzter.bezeichnung ? ' – ' + letzter.bezeichnung : '')) : letzter.bezeichnung;
-      html += '<a href="' + datei + '?entwurf=' + encodeURIComponent(letzter.id) + '" class="btn" style="text-decoration:none;">' +
-        '▶ Letztes weitermachen: ' + typLabel + (bez ? ' – ' + bez : '') + '</a>';
-    }
-    el.innerHTML = html;
-  }
   document.getElementById('appVersionHint').textContent = 'Version ' + APP_VERSION;
   document.getElementById('app_betrieb_name').textContent = (typeof APP_BETRIEB_NAME !== 'undefined' && APP_BETRIEB_NAME) ? APP_BETRIEB_NAME : '';
   archivUebersichtLaden();

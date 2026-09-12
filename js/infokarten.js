@@ -522,8 +522,13 @@ const PRUEFFRISTEN_TEXT_ANSCHLUSS =
   'nach DIN VDE 0105-100 (siehe Prüfprotokoll elektrischer Anlagen).';
 
 /* praefix: 'PR' (vde0100), 'GP' (geraetepruefung), 'AP' (anschlusspruefung) -
- * bestimmt Text und ob eine Termin-Anzeige eingeblendet wird. */
+ * bestimmt Text und ob eine Termin-Anzeige eingeblendet wird.
+ * [Nutzerwunsch] Bei 'PR' (Prüfprotokoll elektrische Anlagen, vde0100.html)
+ * wird die Infokarte "Wie wird die Prüffrist bestimmt?" auf ausdruecklichen
+ * Wunsch NICHT mehr angezeigt - in den beiden anderen Formularen
+ * (Geräteprüfung/Anschlussprüfung) bleibt sie unveraendert bestehen. */
 function pruefterminInfokarteHtml(praefix) {
+  if (praefix === 'PR') return '';
   const text = praefix === 'GP' ? PRUEFFRISTEN_TEXT_GERAETE
     : praefix === 'AP' ? PRUEFFRISTEN_TEXT_ANSCHLUSS
     : PRUEFFRISTEN_TEXT_VDE0100;

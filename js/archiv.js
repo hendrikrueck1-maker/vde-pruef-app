@@ -498,10 +498,12 @@ function archivUebernahmeErlaubt(key) {
  *  weiterhin ausnahmslos leer - nur der WIEDERHOLTE Standardzustand eines noch
  *  nicht bearbeiteten Feldes wird wiederhergestellt, kein Messergebnis. */
 const ARCHIV_KEY_ENTFERNEN = ['rcd_pruefstrom'];
+// [Nutzerwunsch] erp_sicherheitsbel entfernt - Feld "Sicherheitsbeleuchtung"
+// gibt es im Erproben-Abschnitt von vde0100.html nicht mehr.
 const ARCHIV_ERP_STANDARDWERT = {
   erp_anlage: 'i.O.', erp_schutz: 'i.O.',
   erp_drehfeld: 'n.a.', erp_polaritaet: 'n.a.', erp_prueftaste: 'n.a.',
-  erp_sicherheitsbel: 'n.a.', erp_motoren: 'n.a.'
+  erp_motoren: 'n.a.'
 };
 
 /* Geht rekursiv durch den gespeicherten Formularstand.

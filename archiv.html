@@ -232,6 +232,20 @@
     nr.className = 'archiv-nr';
     nr.textContent = e.nummer || e.dateiname;
     mitte.appendChild(nr);
+    // [Nutzerwunsch, bessere Übersicht] Gebäude/Bereich als eigene, klar
+    // erkennbare Zeile - vorher stand er nur unauffaellig mitten im
+    // Fliesstext der Sub-Zeile (".archiv-sub") zwischen Standort und Anlage
+    // und ging dort leicht unter. Steht jetzt zusaetzlich und zuerst als
+    // eigenes Element bei JEDER Prüfung, damit er beim Ueberfliegen der
+    // Liste sofort auffaellt - die bisherige Sub-Zeile bleibt fuer die
+    // uebrigen Details unveraendert bestehen.
+    if (e.gebaeude) {
+      var gebaeudeZeile = document.createElement('div');
+      gebaeudeZeile.className = 'archiv-gebaeude';
+      gebaeudeZeile.textContent = '📍 ' + e.gebaeude;
+      mitte.appendChild(gebaeudeZeile);
+    }
+
     var sub = document.createElement('div');
     sub.className = 'archiv-sub';
     // [7.3.0, Nutzerwunsch #7] e.anlage (Anlagenbezeichnung, z. B. "Hauptverteilung
@@ -243,6 +257,9 @@
     // anzeigen. e.standort faellt in der Praxis oft mit e.gebaeude/e.anlage
     // zusammen (kurze Auftraggeber-Angabe) - filter(Boolean) blendet dann
     // trotzdem nur echte Duplikate aus, wenn die Texte exakt gleich sind.
+    // Gebaeude steht seit [Nutzerwunsch, bessere Übersicht] bereits oben in
+    // der eigenen Zeile, bleibt hier aber zusaetzlich stehen, damit sich an
+    // der Reihenfolge/Suchlogik der uebrigen Angaben nichts aendert.
     sub.textContent = [typ.label, e.standort, e.gebaeude, e.anlage, e.anzahl ? e.anzahl + ' ' + typ.einheit : '']
       .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; })
       .join(' · ');

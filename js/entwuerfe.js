@@ -324,10 +324,20 @@ function renderOffenePruefungen(containerId) {
     );
   }
 
-  let html = offen.map(zeile).join('');
+  // [Nutzerwunsch] Offene Prüfungen jetzt genau wie die abgeschlossenen in
+  // einem eigenen <details>-Element einklappbar - anders als dort aber
+  // standardmaessig AUFGEKLAPPT ("open"), damit sich am gewohnten
+  // Erscheinungsbild beim Aufrufen der Startseite nichts aendert. Der
+  // Zustand wird - wie bei "Abgeschlossen" - bewusst NICHT sitzungsweit
+  // gemerkt und startet bei jedem Aufruf wieder aufgeklappt.
+  let offenInhalt = offen.map(zeile).join('');
   if (!offen.length) {
-    html += '<p style="font-size:0.85rem; color:var(--secondary);">Keine wirklich offenen Prüfungen mehr – alle sind als abgeschlossen markiert.</p>';
+    offenInhalt = '<p style="font-size:0.85rem; color:var(--secondary);">Keine wirklich offenen Prüfungen mehr – alle sind als abgeschlossen markiert.</p>';
   }
+  let html = '<details class="offene-pruefungen-details" open>' +
+    '<summary class="offene-pruefungen-titel">Offene Prüfungen (' + offen.length + ')</summary>' +
+    offenInhalt +
+  '</details>';
   if (abgeschlossen.length) {
     // [7.3.0, Nutzerwunsch #6] Abgeschlossene Pruefungen jetzt in einem
     // eigenen, standardmaessig EINGEKLAPPTEN <details>-Element statt

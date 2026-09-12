@@ -85,19 +85,21 @@
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
+      <!-- [Nutzerwunsch] "Verwalten"-Button entfernt: Gebäude/Bereiche werden
+           jetzt zentral auf der Hauptseite (index.html, Stammdaten) verwaltet.
+           Das Dropdown selbst bleibt bestehen (inkl. eigener, dort verwalteter
+           Einträge über gebaeudeOptionenAktualisieren()), nur der Zugang zum
+           Verwalten-Dialog ist hier entfallen. -->
       <div class="form-group">
         <label for="gebaeude_select">Gebäude / Bereich:</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)" style="flex:1 1 auto;">
-            <option value="Gr. Haus">Gr. Haus</option>
-            <option value="Werkstatt">Werkstatt</option>
-            <option value="Spiegelhalle">Spiegelhalle</option>
-            <option value="Münsterplatz">Münsterplatz</option>
-            <option value="Probebühne">Probebühne</option>
-            <option value="custom">Sonstiges...</option>
-          </select>
-          <button type="button" class="btn-secondary btn-klein" style="flex:0 0 auto; white-space:nowrap;" onclick="gebaeudeVerwaltenOeffnen('gebaeude_select')" title="Eigene Gebäude/Bereiche hinzufügen oder entfernen">Verwalten</button>
-        </div>
+        <select id="gebaeude_select" onchange="toggleGebaeudeCustom(this.value)">
+          <option value="Gr. Haus">Gr. Haus</option>
+          <option value="Werkstatt">Werkstatt</option>
+          <option value="Spiegelhalle">Spiegelhalle</option>
+          <option value="Münsterplatz">Münsterplatz</option>
+          <option value="Probebühne">Probebühne</option>
+          <option value="custom">Sonstiges...</option>
+        </select>
         <!-- Custom Input nur sichtbar bei "custom" -->
         <input type="text" id="gebaeude_custom" value="Gr. Haus" placeholder="Gebäude/Raum eingeben" style="display:none; margin-top:4px;">
       </div>
@@ -123,6 +125,14 @@
         </select>
       </div>
       <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTerminVde0100()"></div>
+      <!-- [Nutzerwunsch] "Verwendetes Prüfgerät" + Seriennummer hierher aus
+           Abschnitt 2 "Netzsystem, Netzbetreiber" verschoben - die Felder
+           gehoeren zu den allgemeinen Pruef-Stammdaten, nicht zum Netzsystem
+           des Netzbetreibers. Feld-IDs unveraendert (messgeraet/seriennummer),
+           dadurch bleiben Autosave/PDF-Erzeugung/applyMasterDataToForm() ohne
+           Anpassung funktionsfaehig. -->
+      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
+      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
       <div class="form-group grid-full">
         <label for="hausanschluss">Hausanschluss / Speisepunkt (Vorsicherung):</label>
         <input type="text" id="hausanschluss" placeholder="z. B. NH 3x100 A gL – HAK Keller / CEE 63 A Einspeisung Open Air">
@@ -189,8 +199,6 @@
         </div>
       </div>
       <div class="form-group"><label for="vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="vnb" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
-      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
     </div>
 
     <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
@@ -251,7 +259,7 @@
       <div class="form-group"><label for="sicht_schaltgeraete">4. Schaltgeräte:</label><select class="sicht-item" id="sicht_schaltgeraete" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_kennzeichnung">5. Kennzeichnung:</label><select class="sicht-item" id="sicht_kennzeichnung" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_pa">6. Zusätzlicher Potenzialausgleich:</label><select class="sicht-item" id="sicht_pa" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="sicht_basisschutz">7. Basisschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
+      <div class="form-group"><label for="sicht_basisschutz">7. Berührungsschutz:</label><select class="sicht-item" id="sicht_basisschutz" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_typenschild">8. Typenschild:</label><select class="sicht-item" id="sicht_typenschild" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_brandschott">9. Brandabschottung:</label><select class="sicht-item" id="sicht_brandschott" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="sicht_leiterverb">10. Leiterverbindungen:</label><select class="sicht-item" id="sicht_leiterverb" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
@@ -340,7 +348,6 @@
       <div class="form-group"><label for="erp_polaritaet">Polarität / Steckdosenbelegung:</label><select class="erp-item" id="erp_polaritaet" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group" id="drehfeld_infokarten" style="grid-column: 1 / -1;"></div>
       <div class="form-group"><label for="erp_prueftaste">RCD-Prüftaste betätigt:</label><select class="erp-item" id="erp_prueftaste" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
-      <div class="form-group"><label for="erp_sicherheitsbel">Sicherheitsbeleuchtung:</label><select class="erp-item" id="erp_sicherheitsbel" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
       <div class="form-group"><label for="erp_motoren">Drehrichtung Motoren:</label><select class="erp-item" id="erp_motoren" onchange="sichtErpNiOPruefen(this)"><option value="" selected>– bitte wählen –</option><option>i.O.</option><option>n.i.O.</option><option>n.a.</option></select></div>
     </div>
 
