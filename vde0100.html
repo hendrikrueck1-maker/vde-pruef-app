@@ -110,18 +110,27 @@
            Anpassung funktionsfaehig. -->
       <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
       <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
-      <div data-pruefschritt="hausanschluss_schnellwahl"></div>
     </div>
 
     <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄTE -->
+    <!-- [Nutzerwunsch, 9.7.0] Feld-Reihenfolge hier angeglichen an die
+         vorgegebene Prüfablauf-Liste: VNB -> Art der Einspeisung ->
+         Netzspannung -> Hausanschluss/Speisepunkt -> Prüfart/Norm -> Grund
+         der Prüfung. "Hausanschluss/Speisepunkt" stand bisher am Ende von
+         Abschnitt 1 (Stammdaten) und wandert hierher, direkt hinter die
+         Netzspannungs-Schnellwahl. "Netzsystem" (TN-S/TN-C-S/TT) steht in der
+         Liste nicht, bleibt aber als notwendiges technisches Feld bestehen -
+         ans Ende von Abschnitt 2 gesetzt, um die explizit gewünschte
+         Reihenfolge der übrigen Felder nicht zu stören. -->
     <h2 class="kat-stamm" id="abschnitt-stammdaten-2">2. Netzsystem, Netzbetreiber</h2>
     <div class="grid">
+      <div data-pruefschritt="netzbetreiber_kontakt"></div>
+      <div data-pruefschritt="einspeisung_auswahl" data-ctx='{"hinweistext":"<strong>VNB</strong> = Verteilnetzbetreiber (das öffentliche Stromnetz vor Ort, z. B. Stadtwerke). Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten."}'></div>
+      <div data-pruefschritt="netzspannung_schnellwahl"></div>
+      <div data-pruefschritt="hausanschluss_schnellwahl"></div>
       <div data-pruefschritt="pruefnorm_dropdown"></div>
       <div data-pruefschritt="pruefgrund_dropdown" data-ctx='{"optionen":["Neuanlage","Änderung","Erweiterung","Instandsetzung"]}'></div>
       <div data-pruefschritt="netzsystem_dropdown"></div>
-      <div data-pruefschritt="netzspannung_schnellwahl"></div>
-      <div data-pruefschritt="einspeisung_auswahl" data-ctx='{"hinweistext":"<strong>VNB</strong> = Verteilnetzbetreiber (das öffentliche Stromnetz vor Ort, z. B. Stadtwerke). Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten."}'></div>
-      <div data-pruefschritt="netzbetreiber_kontakt"></div>
     </div>
 
     <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
