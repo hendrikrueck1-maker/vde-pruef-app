@@ -1544,17 +1544,25 @@ PRUEFSCHRITTE.pruefumfang_freitext = {
  * 28. GESAMTBEWERTUNG MÄNGEL
  * ---------------------------------------------------------------------------
  * [9.6.0, Welle 4] Byte-identisch in allen drei Formularen.
- * ------------------------------------------------------------------------ */
+ * [9.8.0, Welle 5] ctx.idSuffix/ctx.klasse ergaenzt: die Geraetepruefung
+ * bewertet Maengel seit 9.8.0 PRO GERAET (id="res_maengel_<Kartennummer>"
+ * statt einer einzigen globalen id="res_maengel") - siehe addDeviceCard() in
+ * js/geraete-generator.js. Ohne ctx (vde0100/anschluss) unveraendertes
+ * Verhalten: id bleibt "res_maengel", keine zusaetzliche Klasse. */
 PRUEFSCHRITTE.res_maengel_dropdown = {
   gruppe: 'Bewertung',
   titel: 'Gesamtbewertung Mängel',
-  beschreibung: 'Zusammenfassende Mängelbewertung des gesamten Prüfobjekts - Grundlage für Prüfplakette und Freigabeentscheidung.',
+  beschreibung: 'Zusammenfassende Mängelbewertung des gesamten Prüfobjekts - Grundlage für Prüfplakette und Freigabeentscheidung. In der Geräteprüfung seit 9.8.0 pro Gerät (eigene id je Karte, siehe ctx.idSuffix).',
   verwendetIn: ['vde0100', 'anschluss', 'geraete'],
-  html: function () {
+  html: function (ctx) {
+    ctx = ctx || {};
+    var idSuffix = ctx.idSuffix || '';
+    var id = 'res_maengel' + idSuffix;
+    var klasseAttr = ctx.klasse ? (' ' + ctx.klasse) : '';
     return (
       '<div class="form-group">\n' +
-      '  <label for="res_maengel">Gesamtbewertung Mängel:</label>\n' +
-      '  <select id="res_maengel">\n' +
+      '  <label for="' + id + '">Gesamtbewertung Mängel:</label>\n' +
+      '  <select id="' + id + '" class="c-res-maengel' + klasseAttr + '">\n' +
       '    <option>Keine Mängel festgestellt</option>\n' +
       '    <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>\n' +
       '    <option>Mängel festgestellt (siehe Bemerkung)</option>\n' +
@@ -1568,14 +1576,20 @@ PRUEFSCHRITTE.res_maengel_dropdown = {
  * 29. PRUEFPLAKETTE ERTEILT
  * ---------------------------------------------------------------------------
  * [9.6.0, Welle 4] Byte-identisch in allen drei Formularen.
+ * [9.8.0, Welle 5] ctx.idSuffix/ctx.klasse ergaenzt (siehe Kommentar bei
+ * res_maengel_dropdown - dieselbe Begruendung fuer die Geraetepruefung).
  * ------------------------------------------------------------------------ */
 PRUEFSCHRITTE.res_plakette_dropdown = {
   gruppe: 'Bewertung',
   titel: 'Prüfplakette erteilt',
-  beschreibung: 'Dokumentiert, ob nach der Prüfung eine Prüfplakette angebracht wurde - sichtbarer Nachweis für Betreiber/Behörde, wann die nächste Prüfung fällig ist.',
+  beschreibung: 'Dokumentiert, ob nach der Prüfung eine Prüfplakette angebracht wurde - sichtbarer Nachweis für Betreiber/Behörde, wann die nächste Prüfung fällig ist. In der Geräteprüfung seit 9.8.0 pro Gerät (eigene id je Karte, siehe ctx.idSuffix).',
   verwendetIn: ['vde0100', 'anschluss', 'geraete'],
-  html: function () {
-    return '<div class="form-group"><label for="res_plakette">Prüfplakette erteilt:</label><select id="res_plakette"><option>Ja</option><option>Nein</option></select></div>';
+  html: function (ctx) {
+    ctx = ctx || {};
+    var idSuffix = ctx.idSuffix || '';
+    var id = 'res_plakette' + idSuffix;
+    var klasseAttr = ctx.klasse ? (' ' + ctx.klasse) : '';
+    return '<div class="form-group"><label for="' + id + '">Prüfplakette erteilt:</label><select id="' + id + '" class="c-res-plakette' + klasseAttr + '"><option>Ja</option><option>Nein</option></select></div>';
   }
 };
 
@@ -1637,19 +1651,28 @@ PRUEFSCHRITTE.res_termin_date_feld = {
  * identisch ("Sicherer Gebrauch gewährleistet:"), nur der Options-Text der
  * ersten Option ("Ja (...)") unterscheidet sich je Formular.
  * ------------------------------------------------------------------------ */
+/* [9.8.0, Welle 5] ctx.idSuffix ergaenzt: Geraetepruefung bewertet "Sicherer
+ * Gebrauch gewaehrleistet" seit 9.8.0 PRO GERAET (id="res_gewaehrleistung_<N>").
+ * idSuffix wird HINTER ein evtl. gesetztes ctx.id gehaengt (ctx.id bleibt der
+ * volle Override-Mechanismus fuer den anschluss-Sonderfall "res_freigabe",
+ * idSuffix kommt zusaetzlich fuer die Pro-Geraet-Zaehlung dazu - beide
+ * Formulare brauchen das nie gleichzeitig, schliessen sich aber auch nicht
+ * gegenseitig aus). */
 PRUEFSCHRITTE.res_gewaehrleistung_dropdown = {
   gruppe: 'Bewertung',
   titel: 'Sicherer Gebrauch gewährleistet',
-  beschreibung: 'Abschließende Freigabeentscheidung: bestätigt, dass die Anlage/die Geräte/der Übergabepunkt sicher weiterbetrieben bzw. genutzt werden können. "Nein" markiert ein Sicherheitsrisiko und muss durch die Bemerkungen begründet sein.',
+  beschreibung: 'Abschließende Freigabeentscheidung: bestätigt, dass die Anlage/die Geräte/der Übergabepunkt sicher weiterbetrieben bzw. genutzt werden können. "Nein" markiert ein Sicherheitsrisiko und muss durch die Bemerkungen begründet sein. In der Geräteprüfung seit 9.8.0 pro Gerät (eigene id je Karte, siehe ctx.idSuffix).',
   verwendetIn: ['vde0100', 'anschluss', 'geraete'],
   html: function (ctx) {
     ctx = ctx || {};
-    var id = ctx.id || 'res_gewaehrleistung';
+    var idSuffix = ctx.idSuffix || '';
+    var id = (ctx.id || 'res_gewaehrleistung') + idSuffix;
     var jaLabel = ctx.jaLabel || 'Ja (Anlage entspricht VDE-Regeln)';
+    var klasseAttr = ctx.klasse ? (' ' + ctx.klasse) : '';
     return (
       '<div class="form-group">\n' +
       '  <label for="' + id + '">Sicherer Gebrauch gewährleistet:</label>\n' +
-      '  <select id="' + id + '">\n' +
+      '  <select id="' + id + '" class="c-res-gewaehrleistung' + klasseAttr + '">\n' +
       '    <option value="Ja">' + jaLabel + '</option>\n' +
       '    <option value="Nein">Nein (Sicherheitsrisiko)</option>\n' +
       '  </select>\n' +

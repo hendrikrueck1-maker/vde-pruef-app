@@ -175,11 +175,16 @@
              (PRUEFSCHRITTE.netzart_auswahl) - eigene id "netzart"/Klasse
              "c-netzart" bleiben unverändert (siehe Kommentar dort). -->
         <div data-pruefschritt="netzart_auswahl" data-ctx='{"id":"netzart","klasse":"c-netzart","onChange":"updateFeedNetzart","zweiteOptionZusatz":""}'></div>
-        <div class="form-group">
-          <label for="frequenz">Frequenz (Hz):</label>
-          <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
-        </div>
-        <!-- [9.4.0, Gap-Analyse Masterliste] Art des Speisepunkts + Steckverbindung
+        <!-- [9.8.0, Feld-Reihenfolge] Das Frequenz-Feld stand hier frueher
+             direkt im Kopf-Grid des Uebergabepunkt-Blocks. Nutzerwunsch:
+             Frequenz gehoert inhaltlich zur Netzmessung (5.1) und steht dort
+             jetzt nach U_N-PE, vor der Drehfeldrichtung - siehe unten. Die
+             Ueberschrift "5.1 Netzmessung - Spannungen, Frequenz & N-PE"
+             kuendigte das Feld ohnehin schon an dieser Stelle an. Reines
+             Verschieben des Markers, keine Aenderung an id/class/Attributen -
+             #frequenz wird weiterhin ausschliesslich per ID gelesen (siehe
+             js/anschluss-generator.js).
+             [9.4.0, Gap-Analyse Masterliste] Art des Speisepunkts + Steckverbindung
              mitgeprüft - 1:1 nach dem Muster aus vde0100.html
              (netzmessung_speisepunkt_art/netzmessung_steckverbindung), hier aber
              ohne eigene istSpeisepunktSteckstelle()-Kopie: dieselbe Funktion aus
@@ -222,6 +227,14 @@
             <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
             <input type="text" inputmode="decimal" class="c-unpe" id="unpe" placeholder="z. B. 0,3" oninput="validateFeedNorms()">
             <div class="limit-hint">Der einzige Wert, der eigenständig einen Fehler findet: hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.</div>
+          </div>
+          <!-- [9.8.0, Feld-Reihenfolge] Hierher verschoben aus dem Kopf-Grid
+               des Uebergabepunkt-Blocks (siehe Kommentar dort) - unveraendert
+               id="frequenz"/class="c-frequenz", nur die Position im DOM hat
+               sich geaendert. -->
+          <div class="form-group">
+            <label for="frequenz">Frequenz (Hz):</label>
+            <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
           </div>
           <!-- [Prüfschritt-Bibliothek] Baustein zentral in
                js/pruefschritte.js (PRUEFSCHRITTE.drehfeld_auswahl) - siehe
@@ -285,11 +298,17 @@
 
     <!-- 7. GESAMTBEURTEILUNG & FREIGABE -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">7. Gesamtbeurteilung & Freigabe</h2>
+    <!-- [9.8.0, Feld-Reihenfolge] Reihenfolge an die Nutzer-Vorgabe angepasst:
+         Prüfumfang, Mängel, Plakette, Prüfintervall, Termin, Gewährleistung/
+         Freigabe. "res_leistung_ausreichend_dropdown" kommt in der
+         Nutzerliste nicht vor (kein bestehendes Feld wird dadurch entfernt),
+         bleibt aber direkt neben seinem urspruenglichen Nachbarn stehen
+         (vorher zwischen Mängel und Plakette, jetzt direkt danach). -->
     <div class="grid">
       <div data-pruefschritt="pruefumfang_freitext"></div>
       <div data-pruefschritt="res_maengel_dropdown"></div>
-      <div data-pruefschritt="res_leistung_ausreichend_dropdown"></div>
       <div data-pruefschritt="res_plakette_dropdown"></div>
+      <div data-pruefschritt="res_leistung_ausreichend_dropdown"></div>
       <div data-pruefschritt="pruefintervall_schnellwahl" data-ctx='{"onChange":"updateNaechsterTerminAnschluss"}'></div>
       <div data-pruefschritt="res_termin_date_feld" data-ctx='{"label":"Nächster Prüftermin (Monat/Jahr, automatisch):"}'></div>
       <!-- [9.0.0] Label wörtlich vom Nutzer vorgegeben, ersetzt die frühere

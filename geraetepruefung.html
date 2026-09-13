@@ -73,9 +73,14 @@
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
-      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+      <!-- [9.8.0] Nutzerwunsch: der "Verwalten"-Button entfaellt hier (analog
+           zu vde0100.html, siehe dortiger Kommentar) - das Dropdown selbst
+           bleibt unveraendert bestehen, nur der Button daneben verschwindet.
+           In anschlusspruefung.html bleibt der Button dagegen bestehen (dort
+           nicht Teil des Nutzerwunschs).
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
            (PRUEFSCHRITTE.gebaeude_bereich). -->
-      <div data-pruefschritt="gebaeude_bereich"></div>
+      <div data-pruefschritt="gebaeude_bereich" data-ctx='{"mitVerwalten":false}'></div>
 
       <!-- [7.4.0, Punkt 7] "Prüflings-ID" (pruefungsnummer) entfernt: bei
            mehreren Geräten je Protokoll gab es ohnehin keine sinnvolle
@@ -124,13 +129,20 @@
     <div id="devicesContainer"></div>
     <button type="button" class="btn btn-secondary" onclick="addDeviceCard()">+ Gerät hinzufügen</button>
 
-    <!-- 4. BEWERTUNG -->
-    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">4. Gesamtbeurteilung & Prüfplakette</h2>
+    <!-- 4. ABSCHLUSS (schmal) -->
+    <!-- [9.8.0] Umstrukturierung: "Beurteilung und Prüfplakette" (Mängel/
+         Plakette/Sicherer Gebrauch) landet jetzt in jedem Gerät einzeln - siehe
+         den neuen Bewertungsblock in js/geraete-generator.js addDeviceCard()
+         (dortiges Kartenraster, Abschnitt "4. Beurteilung und Prüfplakette").
+         Hier am Ende des Formulars bleibt nur noch ein SCHMALER Abschluss
+         stehen: Prüfumfang (Voll-/Stichprobenprüfung, protokollweit), das
+         zentrale Bemerkungsfeld sowie Prüfintervall/nächster Prüftermin
+         (ebenfalls protokollweit - beide bewusst NICHT pro Gerät, siehe
+         Rückfrage/Bestätigung). Es gibt deshalb hier keine eigene globale
+         Mängel-/Plaketten-/Gewährleistungs-Auswahl mehr. -->
+    <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">4. Abschluss</h2>
     <div class="grid">
       <div data-pruefschritt="pruefumfang_auswahl" data-ctx='{"optionen":["Vollprüfung (alle Geräte)","Stichprobe – siehe Bemerkung für Umfang"]}'></div>
-      <div data-pruefschritt="res_maengel_dropdown"></div>
-      <div data-pruefschritt="res_plakette_dropdown"></div>
-      <div data-pruefschritt="res_gewaehrleistung_dropdown" data-ctx='{"jaLabel":"Ja (Geräte entsprechen den Normen)"}'></div>
       <!-- [7.3.0, Nutzerwunsch #5] Ans Ende der Pruefung verschoben (vorher
            in Abschnitt 1, Stammdaten) - der Termin gehoert inhaltlich zum
            Pruefergebnis, nicht zu den vorab feststehenden Stammdaten. -->

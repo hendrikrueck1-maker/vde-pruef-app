@@ -177,6 +177,37 @@ function archivAktuellerAutosaveKey(praefix) {
   return null;
 }
 
+/* [9.8.0] Geraetepruefung: "Gesamtbewertung Mängel"/"Sicherer Gebrauch
+ * gewährleistet" gibt es seit der Pro-Geraet-Umstellung (js/geraete-
+ * generator.js, addDeviceCard()) nicht mehr als EIN globales Feld - jedes
+ * Geraet hat seine eigene Auswahl (Klassen .c-device-maengel/
+ * .c-device-gewaehrleistung statt der frueheren ids res_maengel/
+ * res_gewaehrleistung). Fuer die Archiv-Karte (archivStatus() weiter unten)
+ * wird deshalb hier aggregiert: schlechtester Fall gewinnt - ein einziges
+ * Geraet mit Maengeln macht den ganzen Archiveintrag "Mängel", unabhaengig
+ * davon, wie viele andere Geraete i.O. sind. Genau dieselbe "schlechtester
+ * Fall gewinnt"-Logik wie die Ampel-Aggregation in generatePDFGeraeteInner(). */
+function archivGeraeteMaengelAggregat() {
+  var els = document.querySelectorAll('#devicesContainer .c-device-maengel');
+  if (!els.length) return '';
+  var werte = Array.from(els).map(function (el) { return String(el.value || ''); });
+  if (werte.some(function (w) { return w && !/^keine/i.test(w) && !/behoben/i.test(w); })) {
+    return 'Mängel festgestellt';
+  }
+  if (werte.some(function (w) { return /behoben/i.test(w); })) return 'Mängel festgestellt und behoben';
+  if (werte.every(function (w) { return /^keine/i.test(w); })) return 'Keine Mängel festgestellt';
+  return '';
+}
+
+function archivGeraeteGewaehrleistungAggregat() {
+  var els = document.querySelectorAll('#devicesContainer .c-device-gewaehrleistung');
+  if (!els.length) return '';
+  var werte = Array.from(els).map(function (el) { return String(el.value || ''); });
+  if (werte.some(function (w) { return w === 'Nein'; })) return 'Nein';
+  if (werte.every(function (w) { return w === 'Ja'; })) return 'Ja';
+  return '';
+}
+
 function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
   var typ = archivTyp(praefix);
   var anzahl = 0;
@@ -217,8 +248,12 @@ function archivMetaSammeln(praefix, nummer, dateiname, isBlank) {
     // nicht, archivFeld() liefert dann '').
     anlage: archivFeld('anlage_bez'),
     pruefer: archivFeld('pruefer'),
-    maengel: archivFeld('res_maengel'),
-    ergebnis: archivFeld('res_gewaehrleistung') || archivFeld('res_freigabe'),
+    // [9.8.0] Geraetepruefung (praefix 'GP') hat kein globales res_maengel/
+    // res_gewaehrleistung mehr - Aggregation aus den Pro-Geraet-Feldern (siehe
+    // archivGeraeteMaengelAggregat()/archivGeraeteGewaehrleistungAggregat()
+    // oben). vde0100/anschluss unveraendert ueber archivFeld().
+    maengel: praefix === 'GP' ? archivGeraeteMaengelAggregat() : archivFeld('res_maengel'),
+    ergebnis: praefix === 'GP' ? archivGeraeteGewaehrleistungAggregat() : (archivFeld('res_gewaehrleistung') || archivFeld('res_freigabe')),
     naechsterTermin: archivFeld('res_termin_date'),
     anzahl: anzahl,
     formState: formState

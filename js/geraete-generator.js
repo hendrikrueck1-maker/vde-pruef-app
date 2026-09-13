@@ -96,6 +96,24 @@ function addDeviceCard(data = {}) {
         : ''}
     </div>
 
+    <!-- [9.8.0] Nutzerwunsch: "4. Beurteilung und Prüfplakette" landet jetzt
+         in jedem Gerät einzeln statt einmal protokollweit am Formularende.
+         Mängel/Plakette/Sicherer Gebrauch werden hier ECHT pro Gerät erfasst
+         (eigene ids je Karte ueber ctx.idSuffix, siehe PRUEFSCHRITTE.
+         res_maengel_dropdown/res_plakette_dropdown/res_gewaehrleistung_dropdown
+         in js/pruefschritte.js). Pruefintervall und naechster Prueftermin
+         bleiben bewusst protokollweit (siehe Abschnitt 4 "Abschluss" in
+         geraetepruefung.html) - das wurde vor der Umsetzung ausdruecklich so
+         mit dem Nutzer abgestimmt. -->
+    <div class="sub-section">
+      <div class="sub-title mess-karte-titel"><span class="titel-text">4. Beurteilung und Prüfplakette</span></div>
+      <div class="grid">
+        ${PRUEFSCHRITTE.res_maengel_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-maengel' })}
+        ${PRUEFSCHRITTE.res_plakette_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-plakette' })}
+        ${PRUEFSCHRITTE.res_gewaehrleistung_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-gewaehrleistung', jaLabel: 'Ja (Gerät entspricht den Normen)' })}
+      </div>
+    </div>
+
     ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('GP', AKTUELLER_ENTWURF_ID, 'geraet', kartenId)) : ''}
 
     <div class="circuit-footer-actions">
@@ -106,6 +124,22 @@ function addDeviceCard(data = {}) {
   if (data.ableit_methode) {
     const m = card.querySelector('.c-ableit-methode');
     if (m) m.value = data.ableit_methode;
+  }
+  // [9.8.0] Pro-Geraet-Bewertung (Mängel/Plakette/Gewährleistung) beim
+  // Wiederherstellen/Duplizieren/Beispieldaten setzen - dieselbe .value=-
+  // Zuweisung wie bei ableit_methode oben, da <select> hier ebenfalls ohne
+  // "selected"-Attribut im Markup steht.
+  if (data.res_maengel !== undefined) {
+    const el = card.querySelector('.c-device-maengel');
+    if (el) el.value = data.res_maengel;
+  }
+  if (data.res_plakette !== undefined) {
+    const el = card.querySelector('.c-device-plakette');
+    if (el) el.value = data.res_plakette;
+  }
+  if (data.res_gewaehrleistung !== undefined) {
+    const el = card.querySelector('.c-device-gewaehrleistung');
+    if (el) el.value = data.res_gewaehrleistung;
   }
   container.appendChild(card);
   nummeriereKartenNeu('#devicesContainer', '.feed-card', 'Gerät');
@@ -311,18 +345,23 @@ function fillExampleDataGeraete() {
   updateNaechsterTermin();
   document.getElementById('res_bemerkungen').value =
     TESTDATEN_HINWEISTEXT + ' Alle geprüften Geräte in einwandfreiem Zustand. Keine Mängel festgestellt.';
-  document.getElementById('res_plakette').value = 'Ja';
-  document.getElementById('res_gewaehrleistung').value = 'Ja';
 
   document.getElementById('devicesContainer').innerHTML = '';
   cardCounter = 0;
   // [M1] Sicht-/Funktionspruefungsfelder muessen mit ausgefuellt werden -
   // sonst blockiert ersteLeereAuswahl() ("Es ist noch eine Bewertung offen")
   // den PDF-Export des eigenen Beispieldatensatzes.
+  // [9.8.0] Mängel/Plakette/Gewährleistung sind jetzt Teil der Pro-Geraet-
+  // Daten (siehe res_maengel/res_plakette/res_gewaehrleistung in addDeviceCard())
+  // statt zuvor zwei globaler .value-Zuweisungen oben - dieselbe Bewertung wie
+  // bisher ("Keine Mängel", Plakette Ja, Gewährleistung Ja), jetzt aber an
+  // jedem der beiden Beispielgeräte einzeln gesetzt.
   addDeviceCard({ bez: 'PAR-Scheinwerfer Lichtregie', typ: 'ADB PAR64', invnr: 'INV-0231', schutzklasse: 'I', laenge: '10', rpe: '0,22', riso: '> 100', ableitstrom: '0,3',
-    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.' });
+    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.',
+    res_maengel: 'Keine Mängel festgestellt', res_plakette: 'Ja', res_gewaehrleistung: 'Ja' });
   addDeviceCard({ bez: 'Verlängerungskabel 25m', typ: 'H07RN-F 3G2,5', invnr: 'INV-0455', schutzklasse: 'I', laenge: '25', rpe: '0,48', riso: '> 200', ableitstrom: '0,1',
-    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.' });
+    sicht_gehaeuse: 'i.O.', sicht_leitung: 'i.O.', sicht_kennz: 'i.O.', sicht_reparatur: 'i.O.', funktion: 'i.O.',
+    res_maengel: 'Keine Mängel festgestellt', res_plakette: 'Ja', res_gewaehrleistung: 'Ja' });
 
   testdatensatzSetzen();
 }
@@ -444,21 +483,31 @@ async function generatePDFGeraete(isBlank = false) {
 
 async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   /* --- PRUEFERGEBNIS: ZUSTAND VORAB BESTIMMEN --------------------------------
-   * "Mängel festgestellt und behoben" ohne Beschreibung im Bemerkungsfeld ist
-   * eine nicht belegbare Behauptung -> Abbruch vor dem Aufbau des PDF.
-   * Gilt nie fuer das Leerformular. */
-  const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
-  const maengelZustand = getMaengelZustand(maengelVal);
+   * [9.8.0] Seit der Umstrukturierung ("4. Beurteilung und Prüfplakette"
+   * landet in jedem Gerät einzeln) gibt es KEIN einzelnes globales
+   * "res_maengel" mehr - jedes Geraet hat seine eigene Bewertung. Die
+   * "Mängel behoben"-Bemerkungspflicht (MAENGEL_BEHOBEN_MIN_LAENGE) gilt
+   * deshalb jetzt: sobald IRGENDEIN Geraet auf "behoben" steht, muss das
+   * zentrale (weiterhin protokollweite) Bemerkungsfeld die Mindestlaenge
+   * erreichen - dieselbe Regel wie zuvor, nur auf "mindestens ein Geraet"
+   * statt auf das einzelne globale Feld bezogen. */
+  const deviceMaengelZustaende = isBlank ? [] : Array.from(document.querySelectorAll('#devicesContainer .feed-card'))
+    .map(card => getMaengelZustand(card.querySelector('.c-device-maengel')?.value));
+  const irgendeinGeraetBehoben = deviceMaengelZustaende.some(z => z === MAENGEL_BEHOBEN);
 
-  /* Offene Bewertungen (leere Auswahlfelder) abfangen - siehe pdf-utils.js. */
+  /* Offene Bewertungen (leere Auswahlfelder) abfangen - siehe pdf-utils.js.
+   * [9.8.0] '#res_maengel'/'#res_plakette'/'#res_gewaehrleistung' (globale
+   * ids) ersetzt durch die Klassen-Selektoren der Pro-Geraet-Bewertung -
+   * dieselbe Pruefung, jetzt ueber alle Geraete-Karten statt ueber ein
+   * einzelnes globales Feld. */
   if (!isBlank) {
     const offeneAuswahl = ersteLeereAuswahl(
-      ['.c-sicht-item', '.c-funktion', '.c-ableit-methode', '#res_maengel',
-       '#res_plakette', '#res_gewaehrleistung']);
+      ['.c-sicht-item', '.c-funktion', '.c-ableit-methode', '.c-device-maengel',
+       '.c-device-plakette', '.c-device-gewaehrleistung']);
     if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
   }
 
-  if (!isBlank && maengelBehobenBemerkungFehlt(maengelZustand, document.getElementById('res_bemerkungen')?.value)) {
+  if (!isBlank && irgendeinGeraetBehoben && maengelBehobenBemerkungFehlt(MAENGEL_BEHOBEN, document.getElementById('res_bemerkungen')?.value)) {
     await appAlert(MAENGEL_BEHOBEN_HINWEIS);
     document.getElementById('res_bemerkungen')?.focus();
     return;
@@ -637,6 +686,12 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   // Anzahl defekter Geraete (Befund #2, Ampel-Logik): genau EIN defektes
   // Geraet bei sonst i.O. Geraeten ist der neue gelbe Zwischenzustand.
   let deviceOutCount = 0;
+  /* [9.8.0] Pro-Geraet-Bewertung: je Geraet ein Eintrag mit Nummer,
+   * Bezeichnung, Mängel-/Plaketten-/Gewährleistungs-Wert und den bereits
+   * ermittelten Messwert-/Sichtpruefungs-Auffaelligkeiten (isDeviceOut) -
+   * Grundlage sowohl fuer den eigenen Bewertungsblock je Geraet (SEKTION 3)
+   * als auch fuer die protokollweite Ampel-Aggregation weiter unten. */
+  const deviceBewertungen = [];
   // Gewaehlte Blattzahl des Leerformulars (1-4).
   const blaetterGp = isBlank ? leerBlattzahlGeraete() : 1;
 
@@ -732,6 +787,21 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
       const isDeviceOut = isRpeOut || isRisoOut || isAbleitOut || sichtNiO || isFunktionOut;
       if (isDeviceOut) { anyDeviceOut = true; deviceOutCount++; }
 
+      /* [9.8.0] Pro-Geraet-Bewertung einsammeln (siehe Deklaration von
+       * deviceBewertungen oben). */
+      const deviceMaengelVal = card.querySelector('.c-device-maengel')?.value || '';
+      const deviceMaengelZustand = getMaengelZustand(deviceMaengelVal);
+      const devicePlaketteVal = card.querySelector('.c-device-plakette')?.value || 'Ja';
+      const deviceGewaehrleistungVal = card.querySelector('.c-device-gewaehrleistung')?.value || 'Ja';
+      deviceBewertungen.push({
+        nr: idx + 1,
+        bez: cleanStr(`${bez}${typ !== '-' ? ' (' + typ + ')' : ''}`),
+        maengelZustand: deviceMaengelZustand,
+        plaketteVal: devicePlaketteVal,
+        gewaehrleistungVal: deviceGewaehrleistungVal,
+        isDeviceOut: isDeviceOut
+      });
+
       tableRows.push([
         idx + 1,
         cleanStr(`${bez}${typ !== '-' ? ' (' + typ + ')' : ''}`),
@@ -786,7 +856,107 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
 
   let finalY = doc.lastAutoTable.finalY + 6;
 
-  // SEKTION 3: GESAMTBEWERTUNG (Kategorie "ergebnis")
+  /* ===========================================================================
+   *  [9.8.0] SEKTION 3: PRO-GERÄT-BEWERTUNG ("4. Beurteilung und Prüfplakette"
+   *  landet jetzt in jedem Gerät einzeln, statt einmal protokollweit)
+   * ---------------------------------------------------------------------------
+   *  Jedes Geraet bekommt seine EIGENE Zeile mit Mängel-/Plaketten-/
+   *  Gewährleistungsergebnis - keine einzelne globale Auswahl mehr. Die
+   *  protokollweite Ampel/Konformitätsaussage weiter unten ist eine
+   *  AGGREGATION dieser Einzelbewertungen (schlechtester Fall gewinnt: ein
+   *  einziges Geraet mit "Mängel festgestellt" macht das gesamte Protokoll
+   *  rot, unabhaengig davon, wie viele andere Geraete i.O. sind).
+   * ========================================================================== */
+  const beurteilungHead = [['Nr.', 'Bezeichnung', 'Gesamtbewertung Mängel', 'Plakette', 'Sicherer Gebrauch']];
+  const beurteilungRows = isBlank
+    ? [['', '', '', '', '']]
+    : deviceBewertungen.map(function (d) {
+        const dHatMaengel = d.maengelZustand === MAENGEL_OFFEN;
+        const dHatBehoben = d.maengelZustand === MAENGEL_BEHOBEN;
+        const dRestBeanstandungen = d.gewaehrleistungVal === 'Nein' || d.isDeviceOut;
+        const dHasIssues = dHatMaengel || dRestBeanstandungen;
+        return [
+          d.nr,
+          d.bez,
+          makeCell(cleanStr(d.maengelZustand === MAENGEL_UNBESTIMMT ? '-' :
+            (dHatMaengel ? 'Mängel festgestellt' : dHatBehoben ? 'Mängel behoben' : 'Keine Mängel')), dHasIssues),
+          makeCell(cleanStr(d.plaketteVal), dHasIssues && d.plaketteVal === 'Ja'),
+          makeCell(cleanStr(d.gewaehrleistungVal), dHasIssues && d.gewaehrleistungVal === 'Ja')
+        ];
+      });
+
+  const katBeurteilung = drawKategorieTitel(doc, "3. BEURTEILUNG JE GERÄT", finalY, 'ergebnis');
+  doc.autoTable(mitFormelHooks(doc, {
+    startY: finalY + 5,
+    head: beurteilungHead,
+    body: beurteilungRows,
+    theme: 'grid',
+    rowPageBreak: 'avoid',
+    headStyles: {
+      fillColor: katBeurteilung.kopf, textColor: katBeurteilung.akzent,
+      fontSize: 6, fontStyle: 'bold', halign: 'center', valign: 'middle',
+      lineColor: katBeurteilung.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+    },
+    bodyStyles: { fontSize: 6.4, textColor: textColor, halign: 'center', valign: 'middle' },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 62, halign: 'left' }, 2: { cellWidth: 45 }, 3: { cellWidth: 20 }, 4: { cellWidth: 45 } },
+    margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18, minCellHeight: isBlank ? LEER_ZEILENHOEHE_GP : 5.5,
+              overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
+  }));
+
+  finalY = doc.lastAutoTable.finalY + 6;
+
+  /* --- AGGREGATION AUS DEN GERAETE-EINZELBEWERTUNGEN ----------------------
+   * "Mängel festgestellt und behoben" ohne Beschreibung wurde bereits vor
+   * dem PDF-Aufbau abgefangen (irgendeinGeraetBehoben-Pruefung weiter oben).
+   * Hier: Gesamtstatus des Protokolls aus allen Geraeten. */
+  const hatMaengel = !isBlank && deviceBewertungen.some(d => d.maengelZustand === MAENGEL_OFFEN);
+  const hatBehoben = !isBlank && !hatMaengel && deviceBewertungen.some(d => d.maengelZustand === MAENGEL_BEHOBEN);
+  const hatKeineMaengel = !isBlank && !hatMaengel && !hatBehoben &&
+    deviceBewertungen.length > 0 && deviceBewertungen.every(d => d.maengelZustand === MAENGEL_KEINE);
+  const anyGewaehrleistungNein = !isBlank && deviceBewertungen.some(d => d.gewaehrleistungVal === 'Nein');
+  const restBeanstandungen = !isBlank && (anyGewaehrleistungNein || anyDeviceOut);
+  // Beanstandungen ohne das/die als defekt gezaehlten Geraet(e) - noetig, um
+  // "genau ein Geraet defekt, sonst alles i.O." (gelb) von "zusaetzlich noch
+  // andere Probleme" (rot) zu unterscheiden.
+  const restBeanstandungenOhneEinzelDefekt = anyGewaehrleistungNein;
+  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
+  const ampelStatus = ermittleAmpelStatus({
+    isBlank, hatKeineMaengel, hatBehoben, hatMaengel, restBeanstandungen,
+    einzelDefektAnzahl: deviceOutCount,
+    restBeanstandungenOhneEinzelDefekt
+  });
+  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
+
+  /* Widerspruchspruefungen jetzt JE GERAET statt einmal global: ein Geraet
+   * mit Mängeln/Auffaelligkeiten darf nicht gleichzeitig "Plakette: Ja" oder
+   * "Sicherer Gebrauch: Ja" haben. */
+  if (!isBlank) {
+    for (const d of deviceBewertungen) {
+      const dHatMaengel = d.maengelZustand === MAENGEL_OFFEN;
+      const dRestBeanstandungen = d.gewaehrleistungVal === 'Nein' || d.isDeviceOut;
+      const dHasIssues = dHatMaengel || dRestBeanstandungen;
+      if (freigabeWidersprichtBefund(isBlank, dHasIssues, d.gewaehrleistungVal)) {
+        await appAlert(`Gerät ${d.nr} (${d.bez}):\n\n` + freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+        document.querySelector(`#device_${d.nr} .c-device-gewaehrleistung`)?.focus();
+        return;
+      }
+      if (plaketteWidersprichtBefund(isBlank, dHasIssues, d.plaketteVal)) {
+        await appAlert(`Gerät ${d.nr} (${d.bez}):\n\n` + plaketteWiderspruchHinweis());
+        document.querySelector(`#device_${d.nr} .c-device-plakette`)?.focus();
+        return;
+      }
+    }
+  }
+
+  /* ===========================================================================
+   *  [9.8.0] SEKTION 4: ABSCHLUSS (schmal)
+   * ---------------------------------------------------------------------------
+   *  Nur noch Prüfumfang, das zentrale Bemerkungsfeld und die protokollweite
+   *  Konformitätsaussage/Ampel (aus der Pro-Geraet-Aggregation oben) - KEINE
+   *  eigene globale Mängel-/Plaketten-/Gewährleistungs-Auswahl mehr (siehe
+   *  Nutzerentscheid "Schmaler Abschluss bleibt").
+   * ========================================================================== */
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
   /* Schrift VOR dem Umbruch setzen: splitTextToSize misst mit der gerade
    * aktiven Schrift. Nach doc.autoTable() ist das nicht die Schrift, mit der
@@ -804,11 +974,11 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   // liegt bei y+5, siehe drawKategorieBox) - alles Weitere ruesckt um
   // denselben Abstand nach unten.
   const offUmfang = 9;
-  // Die Ergebniszeile braucht seit dem dritten Ankreuzfeld ("Mängel behoben")
-  // die volle Breite -> die Prüfplakette bekommt eine eigene Zeile.
-  const offErgebnis = offUmfang + 5.5;
-  const offPlakette = offErgebnis + 5.5;
-  const offBemLabel = offPlakette + 5.5;
+  // [9.8.0] Frueher folgten hier "Prüfergebnis"/"Prüfplakette" (je eine
+  // eigene Zeile, offErgebnis/offPlakette) - beide sind jetzt Teil der
+  // Pro-Geraet-Tabelle oben und entfallen hier. Die Bemerkungszeile ruesckt
+  // direkt nach dem Pruefumfang nach.
+  const offBemLabel = offUmfang + 5.5;
   const offBemStart = offBemLabel + 4.2;
   const boxHeight   = offBemStart + bemZeilen * 4.2 + 1.5;
 
@@ -816,58 +986,17 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
    * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen. */
   finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
 
-  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "3. GESAMTBEURTEILUNG", kat: 'ergebnis' });
+  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ABSCHLUSS", kat: 'ergebnis' });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
   drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + offUmfang, 177, isBlank);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-
-  /* --- DREI ZUSTAENDE STATT ZWEI (identisch zu den anderen Protokollen) --- */
-  const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
-  const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
-  const hatMaengel      = maengelZustand === MAENGEL_OFFEN;
-
-  // Beanstandungen unabhaengig von der Auswahl - nur ohne sie darf "behoben"
-  // positiv ausgehen.
-  const gewaehrleistungVal = document.getElementById('res_gewaehrleistung')?.value || 'Ja';
-  const restBeanstandungen = !isBlank && (gewaehrleistungVal === 'Nein' || anyDeviceOut);
-  // Beanstandungen ohne das/die als defekt gezaehlten Geraet(e) - noetig, um
-  // "genau ein Geraet defekt, sonst alles i.O." (gelb) von "zusaetzlich noch
-  // andere Probleme" (rot) zu unterscheiden. Da restBeanstandungen hier nur
-  // aus gewaehrleistungVal und anyDeviceOut besteht, bleibt bei genau einem
-  // defekten Geraet und "Ja" bei der Gewaehrleistung nichts Zusaetzliches uebrig.
-  const restBeanstandungenOhneEinzelDefekt = !isBlank && gewaehrleistungVal === 'Nein';
-  const behobenTrotzOffener = hatBehoben && restBeanstandungen;
-  const ampelStatus = ermittleAmpelStatus({
-    isBlank, hatKeineMaengel, hatBehoben, hatMaengel, restBeanstandungen,
-    einzelDefektAnzahl: deviceOutCount,
-    restBeanstandungenOhneEinzelDefekt
-  });
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
-  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
-  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Prüfplakette erteilt:", PDF_MARGIN_LEFT + 3, finalY + offPlakette);
-  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand).
-  drawCheckbox(doc, 55, finalY + offPlakette, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja", document.getElementById('res_plakette')?.value === "Ja" ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 67, finalY + offPlakette, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", 'rot');
-
   /* [7.1.0, Befund "Mängel/Bewertung immer rot hinterlegt"] Rot nur, wenn
-   * tatsaechlich "Mängel festgestellt" angekreuzt ist (hatMaengel) - vorher
-   * wurde JEDER eingetragene Text automatisch rot hinterlegt, auch ohne
-   * angekreuzten Mangel. Ist Text eingetragen, aber kein Mangel angekreuzt,
-   * wird stattdessen gelb hervorgehoben (siehe pdf-generator.js, gleiches
-   * Muster). */
+   * tatsaechlich mindestens ein Geraet "Mängel festgestellt" hat (hatMaengel)
+   * - ist Text eingetragen, aber kein Mangel angekreuzt, wird stattdessen
+   * gelb hervorgehoben (siehe pdf-generator.js, gleiches Muster). */
   const gelbCellBg = [254, 249, 195];
   const gelbCellText = [113, 63, 6];
   const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
@@ -895,24 +1024,6 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
 
   finalY += boxHeight + 5;
 
-  const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
-  const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
-
-  // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT ... betrieben werden" schreibt.
-  if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
-    await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
-    document.getElementById('res_gewaehrleistung')?.focus();
-    return;
-  }
-
-  // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
-  // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
-  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
-    await appAlert(plaketteWiderspruchHinweis());
-    document.getElementById('res_plakette')?.focus();
-    return;
-  }
-
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : ampelStatus === 'gelb'
@@ -930,21 +1041,14 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
   finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT, finalY);
-  // 4.7.0: um 10 mm nach rechts verschoben (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
-  drawCheckbox(doc, 68, finalY, "Ja (Geräte entsprechen den Normen)", !isBlank && gewaehrleistungVal === "Ja", gewaehrleistungVal === "Ja" ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 128, finalY, "Nein (Sicherheitsrisiko)", !isBlank && gewaehrleistungVal === "Nein", 'rot');
-
   doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const ampelTextFarbeGeraete = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
   doc.setTextColor(...ampelTextFarbeGeraete);
-  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY + 4);
+  doc.text(complianceLines, PDF_MARGIN_LEFT, finalY);
   doc.setTextColor(...textColor);
 
-  finalY += 4 + complianceLines.length * 3.2 + 4;
+  finalY += complianceLines.length * 3.2 + 4;
 
   const ortDatum = isBlank
     ? '________________, den ____________'
@@ -1072,11 +1176,16 @@ function GERAETE_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('GP', AK
 
 // [7.4.0, Punkt 7] 'pruefungsnummer' entfernt, 'anlage_bez' neu (siehe
 // Änderungsbericht 7.4.0, Punkt 7/11).
+// [9.8.0] 'res_maengel', 'res_plakette', 'res_gewaehrleistung' entfernt: diese
+// drei Felder gibt es nicht mehr als globale, protokollweite ids - sie werden
+// jetzt PRO GERAET erfasst und deshalb weiter unten in state.devices[]
+// gespeichert/wiederhergestellt (siehe collectGeraeteState()/
+// restoreGeraeteState()), nicht mehr hier in den protokollweiten Feldern.
 const GERAETE_FIELD_IDS = [
   'auftraggeber', 'anlage_bez', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
   'pruefart', 'pruefgrund', 'pruefintervall', 'res_termin_date',
   'pruefumfang',
-  'res_maengel', 'res_plakette', 'res_gewaehrleistung', 'res_bemerkungen',
+  'res_bemerkungen',
   'unterschrift_ort', 'unterschrift_datum', 'protokollnummer'
 ];
 
@@ -1106,7 +1215,13 @@ function collectGeraeteState() {
     rpe: card.querySelector('.c-rpe').value,
     riso: card.querySelector('.c-riso').value,
     ableitstrom: card.querySelector('.c-ableitstrom').value,
-    ableit_methode: card.querySelector('.c-ableit-methode').value
+    ableit_methode: card.querySelector('.c-ableit-methode').value,
+    // [9.8.0] Pro-Geraet-Bewertung (siehe addDeviceCard(), Abschnitt
+    // "4. Beurteilung und Prüfplakette") - ersetzt die frueheren globalen
+    // Felder res_maengel/res_plakette/res_gewaehrleistung in GERAETE_FIELD_IDS.
+    res_maengel: card.querySelector('.c-device-maengel')?.value || '',
+    res_plakette: card.querySelector('.c-device-plakette')?.value || '',
+    res_gewaehrleistung: card.querySelector('.c-device-gewaehrleistung')?.value || ''
   }));
 
   return state;
