@@ -54,7 +54,11 @@
     <h1>Prüfung elektrischer Geräte</h1>
     <!-- [7.3.0, Nutzerwunsch #8] siehe gleichlautender Kommentar in vde0100.html. -->
     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
-      <button type="button" class="btn btn-secondary" onclick="fillExampleDataGeraete()">+ Beispieldaten laden</button>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.beispieldaten_auswahl) - hier mit genau einer
+           Option rendert der Baustein einen einzelnen Button, byte-identisch
+           zum bisherigen Markup. -->
+      <div data-pruefschritt="beispieldaten_auswahl" data-ctx='{"optionen":[{"label":"+ Beispieldaten laden","fn":"fillExampleDataGeraete"}]}'></div>
       <button type="button" class="btn btn-secondary" onclick="neuesGeraeteProtokoll()">+ Neues Formular</button>
     </div>
   </div>
@@ -78,18 +82,10 @@
            1:1-Zuordnung zu einer einzelnen Prüflings-ID (siehe
            Änderungsbericht 7.4.0, Punkt 7). Ersetzt durch "Anlage/Objekt"
            (Punkt 11: einheitliches Feld für die Archiv-Anzeige, analog zu
-           vde0100.html/anschlusspruefung.html). -->
-      <div class="form-group"><label for="anlage_bez">Anlage / Objekt:</label><input type="text" id="anlage_bez" placeholder="z. B. Gerätepark Bühnentechnik"></div>
-      <div class="form-group">
-        <label for="protokollnummer">Protokoll-Nr.:</label>
-        <input type="text" id="protokollnummer" placeholder="z. B. GP-2026-08-11-001">
-        <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
-      </div>
-      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div data-pruefschritt="pruefer_qualifikation"></div>
-      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTermin()"></div>
-      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+           vde0100.html/anschlusspruefung.html).
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.stammdaten_kopf). -->
+      <div data-pruefschritt="stammdaten_kopf" data-ctx='{"anlageBezLabel":"Anlage / Objekt:","anlageBezPlatzhalter":"z. B. Gerätepark Bühnentechnik","protokollnummerPlatzhalter":"z. B. GP-2026-08-11-001","protokollnummerHinweis":"Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.","datumOnChange":"updateNaechsterTermin"}'></div>
     </div>
 
     <!-- 2. PRÜFART -->
@@ -107,16 +103,10 @@
         </select>
       </div>
       <!-- [8.0.0] NEU: "Grund der Prüfung" - bisher nur in vde0100.html,
-           jetzt einheitlich in allen drei Formularen. -->
-      <div class="form-group">
-        <label for="pruefgrund">Grund der Prüfung:</label>
-        <select id="pruefgrund">
-          <option selected>Wiederholungsprüfung</option>
-          <option>Neuanschaffung / Erstprüfung</option>
-          <option>Reparatur</option>
-          <option>Instandsetzung</option>
-        </select>
-      </div>
+           jetzt einheitlich in allen drei Formularen.
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.pruefgrund_dropdown). -->
+      <div data-pruefschritt="pruefgrund_dropdown" data-ctx='{"optionen":["Neuanschaffung / Erstprüfung","Reparatur","Instandsetzung"]}'></div>
       <!-- [8.0.0] Intervalle vereinheitlicht mit vde0100.html/
            anschlusspruefung.html. [Prüfschritt-Bibliothek] Baustein zentral
            in js/pruefschritte.js (PRUEFSCHRITTE.pruefintervall_schnellwahl). -->
@@ -137,85 +127,28 @@
     <!-- 4. BEWERTUNG -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">4. Gesamtbeurteilung & Prüfplakette</h2>
     <div class="grid">
-      <div class="form-group grid-full">
-        <label for="pruefumfang">Prüfumfang:</label>
-        <select id="pruefumfang">
-          <option>Vollprüfung (alle Geräte)</option>
-          <option>Stichprobe – siehe Bemerkung für Umfang</option>
-        </select>
-        <div class="limit-hint">Nach DIN VDE 0105-100 bei Wiederholungsprüfungen anzugeben. Bei „Stichprobe" bitte den geprüften Umfang (z. B. Anteil, Auswahlkriterium) unten in den Bemerkungen benennen.</div>
-      </div>
-      <div class="form-group">
-        <label for="res_maengel">Gesamtbewertung Mängel:</label>
-        <select id="res_maengel">
-          <option>Keine Mängel festgestellt</option>
-          <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
-          <option>Mängel festgestellt (siehe Bemerkung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="res_plakette">Prüfplakette erteilt:</label>
-        <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
-      </div>
-      <div class="form-group">
-        <label for="res_gewaehrleistung">Sicherer Gebrauch gewährleistet:</label>
-        <select id="res_gewaehrleistung">
-          <option value="Ja">Ja (Geräte entsprechen den Normen)</option>
-          <option value="Nein">Nein (Sicherheitsrisiko)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <!-- [7.3.0, Nutzerwunsch #5] Ans Ende der Pruefung verschoben (vorher
-             in Abschnitt 1, Stammdaten) - der Termin gehoert inhaltlich zum
-             Pruefergebnis, nicht zu den vorab feststehenden Stammdaten. -->
-        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
-        <input type="month" id="res_termin_date">
-        <div class="limit-hint">Ergibt sich aus der Prüffrist, kann überschrieben werden.</div>
-        <div id="pruefdatum_bestaetigung_platzhalter"></div>
-      </div>
+      <div data-pruefschritt="pruefumfang_auswahl" data-ctx='{"optionen":["Vollprüfung (alle Geräte)","Stichprobe – siehe Bemerkung für Umfang"]}'></div>
+      <div data-pruefschritt="res_maengel_dropdown"></div>
+      <div data-pruefschritt="res_plakette_dropdown"></div>
+      <div data-pruefschritt="res_gewaehrleistung_dropdown" data-ctx='{"jaLabel":"Ja (Geräte entsprechen den Normen)"}'></div>
+      <!-- [7.3.0, Nutzerwunsch #5] Ans Ende der Pruefung verschoben (vorher
+           in Abschnitt 1, Stammdaten) - der Termin gehoert inhaltlich zum
+           Pruefergebnis, nicht zu den vorab feststehenden Stammdaten. -->
+      <div data-pruefschritt="res_termin_date_feld" data-ctx='{"label":"Nächster Prüftermin (Monat/Jahr, automatisch):","hinweistext":"Ergibt sich aus der Prüffrist, kann überschrieben werden."}'></div>
     </div>
 
-    <div class="form-group" style="margin-top: 8px;">
-      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
-      <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      <div id="bemerkungen_fotos_platzhalter"></div>
-    </div>
+    <div data-pruefschritt="res_bemerkungen_feld"></div>
 
     <!-- 5. UNTERSCHRIFTEN -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">5. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
-      <div class="form-group">
-        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
-        <input type="date" id="unterschrift_datum">
-        <div class="limit-hint">Wird unter beide Unterschriften gedruckt.</div>
-      </div>
+      <div data-pruefschritt="unterschrift_ort_datum"></div>
     </div>
 
-    <div class="sig-block">
-      <div class="sig-card">
-        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
-        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
-      </div>
-      <div class="sig-card">
-        <label id="sigKunde_label">Unterschrift Auftraggeber / Betreiber:</label>
-        <canvas id="sigKunde" role="img" aria-labelledby="sigKunde_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padKunde.clear()">Löschen</button>
-      </div>
-    </div>
+    <div data-pruefschritt="unterschriften_block"></div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
-      <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
-        <select id="leer_blaetter">
-          <option value="1" selected>1 Blatt (13 Geräte)</option>
-          <option value="2">2 Blätter (43 Geräte)</option>
-          <option value="3">3 Blätter (73 Geräte)</option>
-          <option value="4">4 Blätter (103 Geräte)</option>
-        </select>
-        <div class="limit-hint">Blatt 2 und folgende sind Fortsetzungsblätter: nur die Gerätetabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1.</div>
-      </div>
+      <div data-pruefschritt="leer_blaetter_auswahl" data-ctx='{"optionen":["1 Blatt (13 Geräte)","2 Blätter (43 Geräte)","3 Blätter (73 Geräte)","4 Blätter (103 Geräte)"],"hinweistext":"Blatt 2 und folgende sind Fortsetzungsblätter: nur die Gerätetabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1."}'></div>
       <button type="button" class="btn btn-secondary" onclick="generatePDFGeraete(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
       <button type="button" class="btn btn-success" onclick="generatePDFGeraete(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
     </div>

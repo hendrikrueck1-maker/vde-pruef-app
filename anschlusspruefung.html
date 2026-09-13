@@ -54,7 +54,9 @@
     <h1>Anschlussprüfung Übergabepunkt</h1>
     <!-- [7.3.0, Nutzerwunsch #8] siehe gleichlautender Kommentar in vde0100.html. -->
     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
-      <button type="button" class="btn btn-secondary" onclick="fillExampleDataAnschluss()">+ Beispieldaten laden</button>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.beispieldaten_auswahl). -->
+      <div data-pruefschritt="beispieldaten_auswahl" data-ctx='{"optionen":[{"label":"+ Beispieldaten laden","fn":"fillExampleDataAnschluss"}]}'></div>
       <button type="button" class="btn btn-secondary" onclick="neuesAnschlussProtokoll()">+ Neues Formular</button>
     </div>
   </div>
@@ -87,17 +89,9 @@
            (PRUEFSCHRITTE.gebaeude_bereich). -->
       <div data-pruefschritt="gebaeude_bereich"></div>
 
-      <div class="form-group"><label for="anlage_bez">Anlage / Objekt:</label><input type="text" id="anlage_bez" placeholder="z. B. Übergabepunkt Bühneneingang"></div>
-      <div class="form-group">
-        <label for="protokollnummer">Protokoll-Nr.:</label>
-        <input type="text" id="protokollnummer" placeholder="z. B. AP-2026-08-11-001">
-        <div class="limit-hint">Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
-      </div>
-      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div data-pruefschritt="pruefer_qualifikation"></div>
-      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTerminAnschluss()"></div>
-      <div class="form-group"><label for="messgeraet">Verwendetes Prüfgerät:</label><input type="text" id="messgeraet"></div>
-      <div class="form-group"><label for="seriennummer">Seriennummer Messgerät:</label><input type="text" id="seriennummer"></div>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.stammdaten_kopf). -->
+      <div data-pruefschritt="stammdaten_kopf" data-ctx='{"anlageBezLabel":"Anlage / Objekt:","anlageBezPlatzhalter":"z. B. Übergabepunkt Bühneneingang","protokollnummerPlatzhalter":"z. B. AP-2026-08-11-001","protokollnummerHinweis":"Wird automatisch vergeben, kann überschrieben werden. Erscheint im Kopf jeder PDF-Seite.","datumOnChange":"updateNaechsterTerminAnschluss"}'></div>
     </div>
 
     <!-- 2. NETZSYSTEM, NETZBETREIBER -->
@@ -106,39 +100,23 @@
       Der Übergabepunkt markiert die Grenze zwischen der Anlage des Netzbetreibers/Bereitstellers und der eigenen (Veranstaltungs-)Anlage (vgl. DIN&nbsp;VDE&nbsp;0100-704). Ab hier übernimmt der Veranstalter/die Elektrofachkraft die Verantwortung.
     </p>
     <div class="grid">
-      <div class="form-group"><label for="firma_vermieter">Firma / Vermieter:</label><input type="text" id="firma_vermieter" placeholder="z. B. Veranstaltungstechnik Mustermann GmbH"></div>
-      <div class="form-group"><label for="vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="vnb" placeholder="z. B. Stadtwerke Konstanz" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
-      <div class="form-group"><label for="bereitsteller_ansprechpartner">Ansprechpartner/-in (optional):</label><input type="text" id="bereitsteller_ansprechpartner"></div>
-      <div class="form-group"><label for="bereitsteller_telefon">Telefon (optional):</label><input type="text" id="bereitsteller_telefon"></div>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.netzbetreiber_kontakt), mitBereitstellerFelder:true
+           blendet Firma/Vermieter + Ansprechpartner + Telefon zusätzlich zum
+           byte-identischen VNB-Feld ein (in vde0100.html steht dort nur VNB). -->
+      <div data-pruefschritt="netzbetreiber_kontakt" data-ctx='{"mitBereitstellerFelder":true,"vnbPlatzhalter":"z. B. Stadtwerke Konstanz"}'></div>
       <!-- [9.0.0] NEU: "Prüfart / Norm" gab es in der Anschlussprüfung bisher
            nicht als Feld - analog zu #pruefnorm in vde0100.html, hier mit
-           Optionen, die zur Übergabepunkt-Prüfung passen (DIN VDE 0100-704). -->
-      <div class="form-group">
-        <label for="pruefnorm">Prüfart / Norm:</label>
-        <select id="pruefnorm">
-          <option>DIN VDE 0100-600 / -704 (Erstprüfung)</option>
-          <option selected>DIN VDE 0105-100 (Wiederholungsprüfung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="einspeisung_art">Art der Einspeisung:</label>
-        <select id="einspeisung_art" onchange="toggleEinspeisungSonstiges(this.value)">
-          <option>Festanschluss / Zählerschrank</option>
-          <option>Baustromverteiler</option>
-          <option>Generator / Notstromaggregat</option>
-          <option>Sonstiges</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="pruefgrund">Grund der Prüfung:</label>
-        <select id="pruefgrund">
-          <option selected>Wiederholungsprüfung</option>
-          <option>Neuanlage / Erstprüfung</option>
-          <option>Änderung</option>
-          <option>Erweiterung</option>
-          <option>Instandsetzung</option>
-        </select>
-      </div>
+           Optionen, die zur Übergabepunkt-Prüfung passen (DIN VDE 0100-704).
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.pruefnorm_dropdown). -->
+      <div data-pruefschritt="pruefnorm_dropdown" data-ctx='{"optionen":["DIN VDE 0100-600 / -704 (Erstprüfung)","DIN VDE 0105-100 (Wiederholungsprüfung)"]}'></div>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.einspeisung_auswahl) - eigene id/Optionen/Handler,
+           siehe Kommentar dort (bewusst NICHT mit vde0100.html "einspeisung"
+           zusammengelegt). -->
+      <div data-pruefschritt="einspeisung_auswahl" data-ctx='{"id":"einspeisung_art","onChange":"toggleEinspeisungSonstiges","onChangeArg":"this.value","optionen":["Festanschluss / Zählerschrank","Baustromverteiler","Generator / Notstromaggregat","Sonstiges"],"mitSelectedErsteOption":false}'></div>
+      <div data-pruefschritt="pruefgrund_dropdown" data-ctx='{"optionen":["Neuanlage / Erstprüfung","Änderung","Erweiterung","Instandsetzung"]}'></div>
       <!-- Nur bei "Sonstiges" sichtbar: woher der Strom tatsächlich kommt -->
       <div class="form-group" id="einspeisung_sonstiges_gruppe" style="display:none;">
         <label for="einspeisung_sonstiges">Sonstiges &ndash; Herkunft der Einspeisung:</label>
@@ -187,18 +165,16 @@
 
     <div class="feed-card anschluss-uebergabepunkt" id="uebergabepunktBlock">
       <div class="grid">
-        <div class="form-group grid-full">
-          <label for="bez">Bezeichnung Übergabepunkt:</label>
-          <input type="text" class="c-bez" id="bez" placeholder="z. B. Bühnenversorgung Haupthaus">
-        </div>
+        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+             (PRUEFSCHRITTE.bezeichnung_feld) - siehe auch die gleichnamigen
+             Felder der Stromkreis-/Geräte-Karte (js/pruefschritte.js,
+             gemeinsame Klasse .c-bez). -->
+        <div data-pruefschritt="bezeichnung_feld" data-ctx='{"label":"Bezeichnung Übergabepunkt:","platzhalter":"z. B. Bühnenversorgung Haupthaus","gridFull":true}'></div>
         <div data-pruefschritt="netzsystem_dropdown" data-ctx='{"klasse":"c-netzsystem"}'></div>
-        <div class="form-group">
-          <label for="netzart">Netzart:</label>
-          <select class="c-netzart" id="netzart" onchange="updateFeedNetzart()">
-            <option value="Drehstrom" selected>Drehstrom (400 V, 3 Außenleiter)</option>
-            <option value="1-phasig">1-phasiger Wechselstrom (230 V)</option>
-          </select>
-        </div>
+        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+             (PRUEFSCHRITTE.netzart_auswahl) - eigene id "netzart"/Klasse
+             "c-netzart" bleiben unverändert (siehe Kommentar dort). -->
+        <div data-pruefschritt="netzart_auswahl" data-ctx='{"id":"netzart","klasse":"c-netzart","onChange":"updateFeedNetzart","zweiteOptionZusatz":""}'></div>
         <div class="form-group">
           <label for="frequenz">Frequenz (Hz):</label>
           <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
@@ -208,23 +184,15 @@
              (netzmessung_speisepunkt_art/netzmessung_steckverbindung), hier aber
              ohne eigene istSpeisepunktSteckstelle()-Kopie: dieselbe Funktion aus
              pdf-generator.js wird wiederverwendet (liest nur per getElementById,
-             ist also Datei-unabhängig), siehe updateFeedSpeisepunktArt() unten. -->
-        <div class="form-group">
-          <label for="speisepunkt_art">Art des Speisepunkts:</label>
-          <select id="speisepunkt_art" onchange="updateFeedSpeisepunktArt()">
-            <option value="Fest verkabelt">Fest verkabelt (Klemme/Verteiler)</option>
-            <option value="Steckstelle" selected>Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
-          </select>
-        </div>
+             ist also Datei-unabhängig), siehe updateFeedSpeisepunktArt() unten.
+             [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+             (PRUEFSCHRITTE.speisepunkt_art_auswahl). -->
+        <div data-pruefschritt="speisepunkt_art_auswahl" data-ctx='{"id":"speisepunkt_art","onChange":"updateFeedSpeisepunktArt","mitHinweistext":false}'></div>
       </div>
       <div class="form-group" id="feed_steckstelle_gruppe" style="display:none;">
-        <label for="steckverbindung">Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt):</label>
-        <select id="steckverbindung">
-          <option value="" selected>– bitte wählen –</option>
-          <option>i.O.</option>
-          <option>n.i.O.</option>
-        </select>
-        <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (z. B. CEE-Kupplung am Übergabepunkt) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt.</div>
+        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+             (PRUEFSCHRITTE.steckverbindung_auswahl). -->
+        <div data-pruefschritt="steckverbindung_auswahl" data-ctx='{"id":"steckverbindung","hinweistext":"Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (z. B. CEE-Kupplung am Übergabepunkt) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt."}'></div>
       </div>
 
       <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
@@ -255,15 +223,11 @@
             <input type="text" inputmode="decimal" class="c-unpe" id="unpe" placeholder="z. B. 0,3" oninput="validateFeedNorms()">
             <div class="limit-hint">Der einzige Wert, der eigenständig einen Fehler findet: hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.</div>
           </div>
-          <div class="form-group">
-            <label for="drehfeld">Drehfeldrichtung (bei Drehstrom):</label>
-            <select class="c-drehfeld erp-item" id="drehfeld" onchange="sichtErpNiOPruefen(this)">
-              <option value="" selected>– bitte wählen –</option>
-              <option value="i.O.">i.O. – rechtsdrehend</option>
-              <option value="n.i.O.">n.i.O. – linksdrehend</option>
-              <option value="n.a.">n.a.</option>
-            </select>
-          </div>
+          <!-- [Prüfschritt-Bibliothek] Baustein zentral in
+               js/pruefschritte.js (PRUEFSCHRITTE.drehfeld_auswahl) - siehe
+               dortiger Kommentar dazu, warum dies bewusst kein
+               sicht_erp_item-Aufruf ist. -->
+          <div data-pruefschritt="drehfeld_auswahl"></div>
         </div>
       </div>
 
@@ -322,78 +286,36 @@
     <!-- 7. GESAMTBEURTEILUNG & FREIGABE -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">7. Gesamtbeurteilung & Freigabe</h2>
     <div class="grid">
-      <div class="form-group grid-full">
-        <label for="pruefumfang">Prüfumfang:</label>
-        <input type="text" id="pruefumfang" placeholder="z. B. Übergabepunkt vollständig geprüft (Besichtigen, Erproben, Messen)">
-        <div class="limit-hint">Kurz benennen, was geprüft wurde - insbesondere bei einer Stichprobe oder Teilprüfung.</div>
-      </div>
-      <div class="form-group">
-        <label for="res_maengel">Gesamtbewertung Mängel:</label>
-        <select id="res_maengel">
-          <option>Keine Mängel festgestellt</option>
-          <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
-          <option>Mängel festgestellt (siehe Bemerkung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="res_leistung_ausreichend">Anschlussleistung ausreichend für geplante Last:</label>
-        <select id="res_leistung_ausreichend"><option>Ja</option><option>Nein</option><option>n.a.</option></select>
-      </div>
-      <div class="form-group">
-        <label for="res_plakette">Prüfplakette erteilt:</label>
-        <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
-      </div>
+      <div data-pruefschritt="pruefumfang_freitext"></div>
+      <div data-pruefschritt="res_maengel_dropdown"></div>
+      <div data-pruefschritt="res_leistung_ausreichend_dropdown"></div>
+      <div data-pruefschritt="res_plakette_dropdown"></div>
       <div data-pruefschritt="pruefintervall_schnellwahl" data-ctx='{"onChange":"updateNaechsterTerminAnschluss"}'></div>
-      <div class="form-group">
-        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr, automatisch):</label>
-        <input type="month" id="res_termin_date">
-        <div class="limit-hint">Ergibt sich aus dem Prüfintervall, kann überschrieben werden.</div>
-        <div id="pruefdatum_bestaetigung_platzhalter"></div>
-      </div>
-      <div class="form-group">
-        <!-- [9.0.0] Label wörtlich vom Nutzer vorgegeben, ersetzt die frühere
-             Formulierung "Freigabe zur Nutzung" - fachlich identischer
-             Mechanismus wie res_gewaehrleistung in vde0100.html. -->
-        <label for="res_freigabe">Sicherer Gebrauch gewährleistet:</label>
-        <select id="res_freigabe">
-          <option value="Ja">Ja (Übergabepunkt freigegeben)</option>
-          <option value="Nein">Nein (Sicherheitsrisiko)</option>
-        </select>
-      </div>
+      <div data-pruefschritt="res_termin_date_feld" data-ctx='{"label":"Nächster Prüftermin (Monat/Jahr, automatisch):"}'></div>
+      <!-- [9.0.0] Label wörtlich vom Nutzer vorgegeben, ersetzt die frühere
+           Formulierung "Freigabe zur Nutzung" - fachlich identischer
+           Mechanismus wie res_gewaehrleistung in vde0100.html.
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.res_gewaehrleistung_dropdown) - id bewusst
+           "res_freigabe" statt "res_gewaehrleistung" (siehe Kommentar dort). -->
+      <div data-pruefschritt="res_gewaehrleistung_dropdown" data-ctx='{"id":"res_freigabe","jaLabel":"Ja (Übergabepunkt freigegeben)"}'></div>
     </div>
 
-    <div class="form-group" style="margin-top: 8px;">
-      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
-      <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      <div id="bemerkungen_fotos_platzhalter"></div>
-    </div>
+    <div data-pruefschritt="res_bemerkungen_feld"></div>
 
     <!-- 8. KONFORMITÄTSBESTÄTIGUNG & UNTERSCHRIFTEN -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-2">8. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
-      <div class="form-group">
-        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
-        <input type="date" id="unterschrift_datum">
-        <div class="limit-hint">Wird unter beide Unterschriften gedruckt.</div>
-      </div>
+      <div data-pruefschritt="unterschrift_ort_datum"></div>
     </div>
 
     <!-- [9.0.0] Labels wörtlich vom Nutzer vorgegeben ("Prüfer/-in" /
          "Auftraggeber"), genau wie im Anlagenprotokoll - ersetzt die frühere
-         Formulierung "Übergebende/-r"/"Übernehmende/-r". -->
-    <div class="sig-block">
-      <div class="sig-card">
-        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
-        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
-      </div>
-      <div class="sig-card">
-        <label id="sigAuftraggeber_label">Unterschrift Auftraggeber / Betreiber:</label>
-        <canvas id="sigAuftraggeber" role="img" aria-labelledby="sigAuftraggeber_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padAuftraggeber.clear()">Löschen</button>
-      </div>
-    </div>
+         Formulierung "Übergebende/-r"/"Übernehmende/-r".
+         [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+         (PRUEFSCHRITTE.unterschriften_block) - zweiter Signer bewusst
+         "sigAuftraggeber" statt "sigKunde" (siehe Kommentar dort). -->
+    <div data-pruefschritt="unterschriften_block" data-ctx='{"zweiterSignerId":"sigAuftraggeber","zweiterSignerLabel":"Unterschrift Auftraggeber / Betreiber:","zweiterClearFn":"padAuftraggeber.clear()"}'></div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
       <button type="button" class="btn btn-secondary" onclick="generatePDFAnschluss(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>

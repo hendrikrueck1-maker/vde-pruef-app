@@ -125,39 +125,15 @@ function addCircuitCard(data = {}) {
     </div>
 
     <div class="grid">
-      <div class="form-group">
-        <label for="bez_${cardCounter}">Bezeichnung / Zweck:</label>
-        <input type="text" class="c-bez" id="bez_${cardCounter}" value="${attrEsc(data.bez)}" placeholder="z. B. Schukosteckdose Tonregie">
-      </div>
-      <div class="form-group">
-        <label for="kabel_typ_${cardCounter}">Kabeltyp:</label>
-        <input type="text" class="c-kabel-typ" id="kabel_typ_${cardCounter}" value="${attrEsc(data.kabel)}" placeholder="z. B. NYM-J / UP">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'NYM-J')">NYM-J</button>
-          <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'H07RN-F')">H07RN-F</button>
-          <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'TITANEX')">TITANEX</button>
-          <button type="button" class="quick-btn" onclick="setValue('kabel_typ_${cardCounter}', 'H07V-K')">H07V-K</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="leiter_${cardCounter}">Leiter-Anzahl:</label>
-        <input type="text" class="c-leiter" id="leiter_${cardCounter}" value="${attrEscOderVorgabe(data.leiter, '3G')}" placeholder="z. B. 3G">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('leiter_${cardCounter}', '3G')">3G</button>
-          <button type="button" class="quick-btn" onclick="setValue('leiter_${cardCounter}', '5G')">5G</button>
-          <button type="button" class="quick-btn" onclick="setValue('leiter_${cardCounter}', '4G')">4G</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="qs_${cardCounter}">Querschnitt:</label>
-        <input type="text" inputmode="decimal" class="c-querschnitt" id="qs_${cardCounter}" value="${attrEscOderVorgabe(data.qs, '1,5 mm²')}" placeholder="z. B. 1,5 mm²">
-        <div class="quick-btn-group">
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '1,5 mm²')">1,5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '2,5 mm²')">2,5 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '4 mm²')">4 mm²</button>
-          <button type="button" class="quick-btn" onclick="setValue('qs_${cardCounter}', '6 mm²')">6 mm²</button>
-        </div>
-      </div>
+      <!-- [Welle 4 / Prüfschritt-Bibliothek] Bausteine zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.bezeichnung_feld/kabeltyp_feld/
+           leiter_anzahl_feld/querschnitt_feld). idSuffix '_'+cardCounter
+           erzeugt exakt dieselben IDs/Klassen/Schnellwahl-Werte wie vorher
+           hier hart codiert. -->
+      ${PRUEFSCHRITTE.bezeichnung_feld.html({ idSuffix: '_' + cardCounter, wert: data.bez, mitWertAttribut: true, platzhalter: 'z. B. Schukosteckdose Tonregie' })}
+      ${PRUEFSCHRITTE.kabeltyp_feld.html({ idSuffix: '_' + cardCounter, wert: data.kabel })}
+      ${PRUEFSCHRITTE.leiter_anzahl_feld.html({ idSuffix: '_' + cardCounter, wert: data.leiter })}
+      ${PRUEFSCHRITTE.querschnitt_feld.html({ idSuffix: '_' + cardCounter, wert: data.qs })}
     </div>
 
     <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
@@ -255,34 +231,35 @@ function addCircuitCard(data = {}) {
     <!-- 7.1.0: kein eigenes Icon/keine eigene Anleitung mehr hier - die
          Berührungsspannung wird bei der RCD-Auslösezeitmessung automatisch
          mitgemessen (siehe Abschnitt 3 oben bzw. MESSGROESSEN_INFO.rcd in
-         js/infokarten.js). Ein eigener Block hier waere eine Dopplung. -->
+         js/infokarten.js). Ein eigener Block hier waere eine Dopplung.
+         [Welle 4 / Prüfschritt-Bibliothek] Das innere .grid (Spannungsart/
+         Gefährdung/UL-max/Umess) kommt jetzt aus
+         PRUEFSCHRITTE.rcd_messwerte.html({nurBeruehrungsspannung:true, ...}) -
+         das war bisher eine Kopie desselben Feld-Grundgerüsts, das der
+         Übergabepunkt über ctx.mitBeruehrungsspannung nutzt (siehe Kommentar
+         dort: "hier bewusst NICHT aktiviert, um ein doppeltes Feld zu
+         vermeiden" - dieser Fall ist jetzt aufgelöst). ctx.gefOptionen/
+         ctx.ulMaxLabel/ctx.umessLabel/ctx.umessId geben die hier abweichenden
+         Texte/IDs vor (siehe Ausführung in pruefschritte.js), ctx.umessWert
+         übernimmt die bisherige Werte-Vorbelegung aus data.umess. Der
+         äußere .sub-section/.sub-title-Rahmen bleibt unverändert hier
+         stehen. -->
     <div class="sub-section">
       <div class="sub-title mess-karte-titel"><span class="titel-text">4. Berührungsspannung & Netzart</span></div>
-      <div class="grid">
-        <div class="form-group">
-          <label for="art_${cardCounter}">Spannungsart Netzeinspeisung:</label>
-          <select class="c-spannung-art" id="art_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
-            <option value="AC">AC (Wechselstrom)</option>
-            <option value="DC">DC (Gleichstrom)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="gef_${cardCounter}">Bereich / Gefährdung:</label>
-          <select class="c-gefaehrdung" id="gef_${cardCounter}" onchange="validateCardNorms(${cardCounter})">
-            <option value="normal">Normalbereich (50 V AC / 120 V DC)</option>
-            <option value="erhoeht">Erhöhte Gefährdung (25 V AC / 60 V DC)</option>
-          </select>
-          <div class="limit-hint">Erhöhte Gefährdung z. B. Bühne, Open Air, feuchte/leitfähige Umgebung, Baustelle.</div>
-        </div>
-        <div class="form-group">
-          <label>Maximal zulässige Spannung U<sub>L</sub>:</label>
-          <input type="text" class="c-ul-max" id="ul_max_${cardCounter}" value="&le; 50 V AC" readonly>
-        </div>
-        <div class="form-group">
-          <label>Gemessene Berührungsspannung U<sub>mess</sub> (V):</label>
-          <input type="text" inputmode="decimal" class="c-umess" value="${attrEsc(data.umess)}" placeholder="z. B. 2,5 V" oninput="validateCardNorms(${cardCounter})">
-        </div>
-      </div>
+      ${PRUEFSCHRITTE.rcd_messwerte.html({
+        idSuffix: '_' + cardCounter,
+        mitCardId: true,
+        cardIdAusdruck: cardCounter,
+        mitBeruehrungsspannung: true,
+        mitSpannungsart: true,
+        nurBeruehrungsspannung: true,
+        gefOptionen: ['Normalbereich (50 V AC / 120 V DC)', 'Erhöhte Gefährdung (25 V AC / 60 V DC)'],
+        ulMaxLabel: 'Maximal zulässige Spannung U<sub>L</sub>:',
+        umessLabel: 'Gemessene Berührungsspannung U<sub>mess</sub> (V):',
+        umessId: 'umess_' + cardCounter,
+        umessWert: data.umess,
+        umessOnInput: 'validateCardNorms(' + cardCounter + ')'
+      })}
     </div>
     </div>
 
@@ -292,20 +269,10 @@ function addCircuitCard(data = {}) {
          (siehe .sicht-item/.erp-item). Ein Mangel (n.i.O.) klappt automatisch
          die Messpruefungen oben ein (nicht mehr relevant, da der Kreis
          freigeschaltet/totgelegt wird) und oeffnet/fokussiert das Feld fuer
-         den festgestellten Fehler. */-->
-    <div class="circuit-totlegung">
-      <div class="form-group">
-        <label for="totgelegt_${cardCounter}">Ergebnis Stromkreisprüfung:</label>
-        <select class="c-totgelegt" id="totgelegt_${cardCounter}" onchange="toggleTotlegung(this)">
-          <option value="i.O."${data.totgelegt ? '' : ' selected'}>i.O.</option>
-          <option value="n.i.O."${data.totgelegt ? ' selected' : ''}>n.i.O. – Mangel festgestellt (Stromkreis freigeschaltet/totgelegt, fließt nicht in die Gesamtbewertung ein)</option>
-        </select>
-      </div>
-      <div class="form-group grid-full totlegung-grund" style="${data.totgelegt ? '' : 'display:none;'}">
-        <label for="totlegung_grund_${cardCounter}">Festgestellter Fehler / Grund der Totlegung:</label>
-        <textarea class="c-totlegung-grund auto-grow" id="totlegung_grund_${cardCounter}" rows="1" placeholder="z. B. Schukosteckdose Bühne rechts: Isolationsfehler L-PE, einzeln abgesichert über eigene Sicherung, freigeschaltet und mit Warnschild versehen." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">${attrEsc(data.totlegung_grund)}</textarea>
-      </div>
-    </div>
+         den festgestellten Fehler.
+         [Welle 4 / Prüfschritt-Bibliothek] Baustein zentral in
+         js/pruefschritte.js (PRUEFSCHRITTE.totlegung_block). -->
+    ${PRUEFSCHRITTE.totlegung_block.html({ cardIdAusdruck: cardCounter, data: data })}
 
     ${typeof fotosLeisteHtml === 'function' ? fotosLeisteHtml(fotoKartenKey('PR', AKTUELLER_ENTWURF_ID, 'stromkreis', kartenId)) : ''}
 

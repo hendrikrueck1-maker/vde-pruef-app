@@ -153,6 +153,22 @@
     das Spannungsgrid der Netzmessung, die Potenzialausgleich-Feldgruppe sowie
     der Geräte-Messblock (R<sub>PE</sub>, R<sub>ISO</sub>, Ableitstrom,
     Messmethode) der Geräteprüfung.
+    <br><br>
+    <strong>Seit 9.6.0 (Welle 4)</strong> zusätzlich zentralisiert: der
+    gesamte Stammdaten-Kopf (Anlage-Bezeichnung, Protokoll-Nr., Prüfer,
+    Prüfdatum, Prüfgerät) inkl. Prüfnorm/Prüfgrund, die Netzmessungs-Auswahlfelder
+    (Art der Einspeisung, Netzart, Art des Speisepunkts, Steckverbindung,
+    Drehfeldrichtung) sowie der Verteilnetzbetreiber-/Bereitsteller-Kontaktblock,
+    die komplette Bewertungs-/Abschluss-Sektion (Prüfumfang, Mängel, Plakette,
+    Freigabe/Gewährleistung, nächster Prüftermin, Bemerkungen, Leerblätter),
+    der Unterschriften-Block (Ort/Datum, Unterschriftenfelder Prüfer + zweite
+    unterschreibende Person) sowie die wiederkehrenden Kartenfelder von
+    Stromkreis- und Geräte-Karte (Bezeichnung, Kabeltyp/Leiteranzahl/Querschnitt,
+    Gerätestammdaten, Heizelement, Totlegung). Ergänzend als reine
+    Dokumentations-Bausteine eingebunden: die Fotodokumentations-Leiste, die
+    Prüftermin-Bestätigungs-Checkbox, die „Beispieldaten laden"-Auswahl sowie
+    (illustrativ, ohne echte Funktion auf dieser Seite) das Eingabefeld des
+    „Gebäude/Bereich verwalten"-Dialogs.
   </div>
 
   <input type="search" id="ps_suche" class="ps-suche" placeholder="Prüfschritt suchen (Name, Titel, Beschreibung)…">
@@ -293,7 +309,45 @@
     rpe_riso_messblock: { titelNummer: '5.0', titelText: 'Schutzleiterwiderstand & Isolationswiderstand (Test)' },
     netzmessung_spannungsgrid: { mitKlasse: true, onInputFn: 'lt_noop', mitBindestrichArg: true, l1nLabelSpanKlasse: 'lt-l1n-label' },
     potenzialausgleich_messfelder: { erdungReOnInput: 'lt_noop' },
-    geraete_messblock: { cardIdAusdruck: 'test', data: {} }
+    geraete_messblock: { cardIdAusdruck: 'test', data: {} },
+
+    // ---- 9.6.0, Welle 4: Stammdaten/Bewertung/Unterschriften/Kartenfelder ----
+    stammdaten_kopf: { datumOnChange: 'lt_noop' },
+    pruefnorm_dropdown: {},
+    pruefgrund_dropdown: { optionen: ['Neuanlage', 'Änderung', 'Erweiterung', 'Instandsetzung'] },
+    netzbetreiber_kontakt: { mitBereitstellerFelder: true, vnbPlatzhalter: 'z. B. Stadtwerke Konstanz (Test)' },
+    einspeisung_auswahl: { onChange: 'lt_noop' },
+    netzart_auswahl: { onChange: 'lt_noop' },
+    speisepunkt_art_auswahl: { onChange: 'lt_noop' },
+    steckverbindung_auswahl: {},
+    drehfeld_auswahl: {},
+    pruefumfang_auswahl: {},
+    pruefumfang_freitext: {},
+    res_maengel_dropdown: {},
+    res_plakette_dropdown: {},
+    res_leistung_ausreichend_dropdown: {},
+    res_termin_date_feld: {},
+    res_gewaehrleistung_dropdown: {},
+    res_bemerkungen_feld: {},
+    leer_blaetter_auswahl: {},
+    unterschrift_ort_datum: {},
+    unterschriften_block: {},
+    foto_upload_leiste: { kartenKey: 'lt-test-foto' },
+    pruefdatum_bestaetigung_checkbox: {},
+    beispieldaten_auswahl: { optionen: [{ label: '+ Beispieldaten laden (Test)', fn: 'lt_noop' }] },
+    gebaeude_verwalten_eingabe: {},
+    // Kartenfelder (Stromkreis-/Geräte-Karte): im "Übergabepunkt-Stil" ohne
+    // echte Kartennummer getestet (idSuffix leer bzw. cardIdAusdruck 'test') -
+    // Schnellwahl-Buttons setzen den Wert sichtbar, oninput/onchange-Handler,
+    // die eine echte Karte erwarten (validateCardNorms u.Ä.), bleiben ohne
+    // sichtbaren Effekt, siehe Hinweistext oben.
+    bezeichnung_feld: { label: 'Bezeichnung (Test):' },
+    kabeltyp_feld: {},
+    leiter_anzahl_feld: {},
+    querschnitt_feld: {},
+    totlegung_block: { cardIdAusdruck: 'test', data: {} },
+    geraete_stammdaten: { cardIdAusdruck: 'test', data: {} },
+    heizelement_block: { cardIdAusdruck: 'test', data: {} }
   };
 
   // Neutraler Platzhalter fuer onchange/oninput-Handler, die im echten

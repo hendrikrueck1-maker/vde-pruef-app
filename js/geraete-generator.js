@@ -51,40 +51,14 @@ function addDeviceCard(data = {}) {
     </div>
 
     <div class="grid">
-      <div class="form-group grid-full">
-        <label for="bez_${cardCounter}">Bezeichnung / Verwendungszweck:</label>
-        <input type="text" class="c-bez" id="bez_${cardCounter}" value="${attrEsc(data.bez)}" placeholder="z. B. PAR-Scheinwerfer Lichtregie">
-      </div>
-      <div class="form-group">
-        <label for="typ_${cardCounter}">Hersteller / Typ:</label>
-        <input type="text" class="c-typ" id="typ_${cardCounter}" value="${attrEsc(data.typ)}" placeholder="z. B. ADB, PAR64">
-      </div>
-      <div class="form-group">
-        <label for="invnr_${cardCounter}">Inventar- / Seriennummer:</label>
-        <input type="text" class="c-invnr" id="invnr_${cardCounter}" value="${attrEsc(data.invnr)}" placeholder="z. B. INV-0231">
-      </div>
-      <div class="form-group">
-        <label for="sk_${cardCounter}">Schutzklasse:</label>
-        <select class="c-schutzklasse" id="sk_${cardCounter}" onchange="validateDeviceNorms(${cardCounter})">
-          <option value="I"${!data.schutzklasse || data.schutzklasse === 'I' ? ' selected' : ''}>I (Schutzleiter)</option>
-          <option value="II"${data.schutzklasse === 'II' ? ' selected' : ''}>II (Schutzisoliert)</option>
-          <option value="III"${data.schutzklasse === 'III' ? ' selected' : ''}>III (Schutzkleinspannung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="laenge_${cardCounter}">Anschlussleitung Länge (m):</label>
-        <input type="text" inputmode="decimal" class="c-laenge" id="laenge_${cardCounter}" value="${attrEsc(data.laenge)}" placeholder="z. B. 10" oninput="validateDeviceNorms(${cardCounter})">
-      </div>
-      <div class="form-group">
-        <label class="checkbox-item" style="margin-top: 20px;">
-          <input type="checkbox" class="c-heizelement" ${(data.heizelement || String(data.heizleistung || '').trim() !== '') ? 'checked' : ''} onchange="heizelementGeaendert(${cardCounter})"> Gerät mit Heizelement
-        </label>
-      </div>
-      <div class="form-group">
-        <label for="heizleistung_${cardCounter}">Heizleistung (kW), falls Heizelement:</label>
-        <input type="text" inputmode="decimal" class="c-heizleistung" id="heizleistung_${cardCounter}" value="${attrEsc(data.heizleistung)}" placeholder="z. B. 2,0" oninput="heizleistungGeaendert(${cardCounter})">
-        <div class="limit-hint">Nach DIN EN 50699 darf der Schutzleiterstrom bei Heizleistung &gt; 3,5 kW auf 1 mA je kW steigen, höchstens 10 mA.</div>
-      </div>
+      <!-- [Welle 4 / Prüfschritt-Bibliothek] Bausteine zentral in
+           js/pruefschritte.js (PRUEFSCHRITTE.bezeichnung_feld/
+           geraete_stammdaten/heizelement_block). cardIdAusdruck/idSuffix +
+           data erzeugen exakt dieselben IDs/Werte/Aufrufe wie vorher hier
+           hart codiert. -->
+      ${PRUEFSCHRITTE.bezeichnung_feld.html({ idSuffix: '_' + cardCounter, wert: data.bez, mitWertAttribut: true, gridFull: true, label: 'Bezeichnung / Verwendungszweck:', platzhalter: 'z. B. PAR-Scheinwerfer Lichtregie' })}
+      ${PRUEFSCHRITTE.geraete_stammdaten.html({ cardIdAusdruck: cardCounter, data: data })}
+      ${PRUEFSCHRITTE.heizelement_block.html({ cardIdAusdruck: cardCounter, data: data })}
     </div>
 
     <div class="sub-section">

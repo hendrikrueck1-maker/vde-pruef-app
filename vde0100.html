@@ -65,12 +65,10 @@
          sobald sie umbrechen (schmaler Bildschirm) - jetzt wie die Buttons
          oben (Zeile 57) explizit mit Abstand angeordnet. -->
     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
-      <select class="btn btn-secondary beispieldaten-auswahl" onchange="if(this.value){window[this.value](); this.value='';}" title="Beispieldaten laden (3 Varianten zum Testen)">
-        <option value="">+ Beispieldaten laden…</option>
-        <option value="fillExampleDataOhneMaengel">Ohne Mängel</option>
-        <option value="fillExampleDataMitMaengeln">Mit Mängeln</option>
-        <option value="fillExampleData1StromkreisDefekt">1 Stromkreis defekt</option>
-      </select>
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.beispieldaten_auswahl) - reine Entwickler-/Demo-
+           Hilfe, keine echte Prüfdateneingabe (siehe Kommentar dort). -->
+      <div data-pruefschritt="beispieldaten_auswahl" data-ctx='{"optionen":[{"label":"Ohne Mängel","fn":"fillExampleDataOhneMaengel"},{"label":"Mit Mängeln","fn":"fillExampleDataMitMaengeln"},{"label":"1 Stromkreis defekt","fn":"fillExampleData1StromkreisDefekt"}]}'></div>
       <button type="button" class="btn btn-secondary" onclick="neuesProtokoll()">+ Neues Formular</button>
     </div>
   </div>
@@ -95,21 +93,15 @@
            (PRUEFSCHRITTE.gebaeude_bereich) - siehe docs/ERWEITERN.md. -->
       <div data-pruefschritt="gebaeude_bereich" data-ctx='{"mitVerwalten":false}'></div>
 
-      <!-- MITWACHSENDES FELD ANLAGE -->
-      <div class="form-group grid-full">
-        <label for="anlage_bez">Anlage (Bezeichnung):</label>
-        <textarea id="anlage_bez" class="auto-grow" rows="1" placeholder="z. B. Hauptverteilung Unterbühne UV-1" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      </div>
-
+      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.stammdaten_kopf). "Prüflings-ID" (pruefungsnummer)
+           bleibt NUR in vde0100.html bestehen und ist bewusst NICHT Teil des
+           Bausteins (siehe Kommentar dort) - sie steht zwischen der Anlage-
+           Bezeichnung und dem Rest des Bausteins, deshalb hier ZWEI Aufrufe
+           (ctx.nurAnlageBez / ctx.ohneAnlageBez) mit dem Feld dazwischen. -->
+      <div data-pruefschritt="stammdaten_kopf" data-ctx='{"nurAnlageBez":true,"anlageBezPlatzhalter":"z. B. Hauptverteilung Unterbühne UV-1"}'></div>
       <div class="form-group"><label for="pruefungsnummer">Prüflings-ID:</label><input type="text" id="pruefungsnummer" placeholder="z. B. PR-2026-001"></div>
-      <div class="form-group">
-        <label for="protokollnummer">Protokoll-Nr.:</label>
-        <input type="text" id="protokollnummer" placeholder="z. B. PR-2026-08-11-001">
-        <div class="limit-hint">Wird automatisch vergeben, kann aber überschrieben werden. Erscheint im Kopf jeder PDF-Seite.</div>
-      </div>
-      <div class="form-group"><label for="pruefer">Prüfer/-in (Name):</label><input type="text" id="pruefer" placeholder="z. B. Max Mustermann"></div>
-      <div data-pruefschritt="pruefer_qualifikation"></div>
-      <div class="form-group"><label for="datum">Prüfdatum:</label><input type="date" id="datum" onchange="updateNaechsterTerminVde0100()"></div>
+      <div data-pruefschritt="stammdaten_kopf" data-ctx='{"ohneAnlageBez":true,"protokollnummerPlatzhalter":"z. B. PR-2026-08-11-001","datumOnChange":"updateNaechsterTerminVde0100","mitMessgeraetSeriennummer":false}'></div>
       <!-- [Nutzerwunsch] "Verwendetes Prüfgerät" + Seriennummer hierher aus
            Abschnitt 2 "Netzsystem, Netzbetreiber" verschoben - die Felder
            gehoeren zu den allgemeinen Pruef-Stammdaten, nicht zum Netzsystem
@@ -124,38 +116,12 @@
     <!-- 2. NETZSYSTEM, NETZBETREIBER & PRÜFGERÄTE -->
     <h2 class="kat-stamm" id="abschnitt-stammdaten-2">2. Netzsystem, Netzbetreiber</h2>
     <div class="grid">
-      <div class="form-group">
-        <label for="pruefnorm">Prüfart / Norm:</label>
-        <select id="pruefnorm">
-          <option>DIN VDE 0100-600 (Erstprüfung)</option>
-          <option selected>DIN VDE 0105-100 (Wiederholungsprüfung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="pruefgrund">Grund der Prüfung:</label>
-        <select id="pruefgrund">
-          <option selected>Wiederholungsprüfung</option>
-          <option>Neuanlage</option>
-          <option>Änderung</option>
-          <option>Erweiterung</option>
-          <option>Instandsetzung</option>
-        </select>
-      </div>
+      <div data-pruefschritt="pruefnorm_dropdown"></div>
+      <div data-pruefschritt="pruefgrund_dropdown" data-ctx='{"optionen":["Neuanlage","Änderung","Erweiterung","Instandsetzung"]}'></div>
       <div data-pruefschritt="netzsystem_dropdown"></div>
       <div data-pruefschritt="netzspannung_schnellwahl"></div>
-      <div class="form-group">
-        <label for="einspeisung">Art der Einspeisung:</label>
-        <select id="einspeisung" onchange="updateEinspeisung()">
-          <option selected>Netz (VNB)</option>
-          <option>Netzersatzanlage (NEA / Aggregat)</option>
-          <option>Wechselrichter / Batteriespeicher</option>
-        </select>
-        <div class="limit-hint">
-          <strong>VNB</strong> = Verteilnetzbetreiber (das öffentliche Stromnetz vor Ort, z. B. Stadtwerke).
-          Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten.
-        </div>
-      </div>
-      <div class="form-group"><label for="vnb">Verteilnetzbetreiber (VNB):</label><input type="text" id="vnb" title="Verteilnetzbetreiber – der öffentliche Netzbetreiber am Anschlusspunkt"></div>
+      <div data-pruefschritt="einspeisung_auswahl" data-ctx='{"hinweistext":"<strong>VNB</strong> = Verteilnetzbetreiber (das öffentliche Stromnetz vor Ort, z. B. Stadtwerke). Bei NEA und Wechselrichter ist die Frequenzmessung ein echter Messwert (Sollwert 50 Hz) und wird zur Pflichtangabe – Feld „Frequenz“ im Abschnitt „Netzmessung“ unten."}'></div>
+      <div data-pruefschritt="netzbetreiber_kontakt"></div>
     </div>
 
     <!-- NETZMESSUNG (optional, außer Frequenz bei Ersatzstromversorgung) -->
@@ -167,29 +133,17 @@
         der eigenständig einen Fehler findet (hochohmiger PEN, Fremdeinspeisung). Die Frequenz ist
         bei Netzersatzanlage/Wechselrichter Pflichtangabe (siehe „Art der Einspeisung“ oben).
       </p>
-      <div class="form-group" style="margin-bottom:10px;">
-        <label for="netzmessung_netzart">Netzart:</label>
-        <select id="netzmessung_netzart" onchange="updateNetzmessungNetzart()">
-          <option value="Drehstrom" selected>Drehstrom (400 V, 3 Außenleiter)</option>
-          <option value="1-phasig">1-phasiger Wechselstrom (230 V, z. B. Schukosteckdose)</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:10px;">
-        <label for="netzmessung_speisepunkt_art">Art des Speisepunkts:</label>
-        <select id="netzmessung_speisepunkt_art" onchange="updateNetzmessungArt()">
-          <option value="Fest verkabelt">Fest verkabelt (Klemme/Verteiler)</option>
-          <option value="Steckstelle" selected>Steckstelle (Kupplung/Steckdose/Verlängerung)</option>
-        </select>
-        <div class="limit-hint" id="netzmessung_art_hint">Messung wie gehabt am Speisepunkt – die einfache Messung nur der 230-V-Werte bleibt jederzeit möglich, eine volle 400-V-Drehstrommessung ist nicht zwingend.</div>
-      </div>
+      <!-- [Prüfschritt-Bibliothek] Bausteine zentral in js/pruefschritte.js
+           (PRUEFSCHRITTE.netzart_auswahl/speisepunkt_art_auswahl/
+           steckverbindung_auswahl). Ids/onchange-Handler unverändert
+           (netzmessung_netzart/netzmessung_speisepunkt_art/
+           netzmessung_steckverbindung), nur das HTML-Skelett kommt jetzt
+           zentral - siehe anschlusspruefung.html für die zweite, dort
+           abweichende Instanz (netzart/speisepunkt_art/steckverbindung). -->
+      <div data-pruefschritt="netzart_auswahl" data-ctx='{"id":"netzmessung_netzart","onChange":"updateNetzmessungNetzart","mitMarginBottom":true}'></div>
+      <div data-pruefschritt="speisepunkt_art_auswahl" data-ctx='{"id":"netzmessung_speisepunkt_art","onChange":"updateNetzmessungArt","hintId":"netzmessung_art_hint","mitMarginBottom":true}'></div>
       <div class="form-group" id="netzmessung_steckstelle_gruppe" style="display:none; margin-bottom:10px;">
-        <label for="netzmessung_steckverbindung">Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt):</label>
-        <select id="netzmessung_steckverbindung">
-          <option value="" selected>– bitte wählen –</option>
-          <option>i.O.</option>
-          <option>n.i.O.</option>
-        </select>
-        <div class="limit-hint">Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.</div>
+        <div data-pruefschritt="steckverbindung_auswahl" data-ctx='{"id":"netzmessung_steckverbindung"}'></div>
       </div>
       <div class="grid">
         <div data-pruefschritt="netzmessung_spannungsgrid" data-ctx='{"mitGruppenId":true,"onInputFn":"validateNetzspannungsfeld","l1nLabelSpanId":"netzmessung_l1n_label"}'></div>
@@ -289,87 +243,30 @@
     <!-- 8. BEWERTUNG -->
     <h2 class="kat-ergebnis" id="abschnitt-ergebnis-1">8. Gesamtbeurteilung, Gewährleistung & Prüftermin</h2>
     <div class="grid">
-      <div class="form-group grid-full">
-        <label for="pruefumfang">Prüfumfang:</label>
-        <select id="pruefumfang">
-          <option>Vollprüfung (100 % der Anlage)</option>
-          <option>Stichprobe – siehe Bemerkung für Umfang</option>
-        </select>
-        <div class="limit-hint">Nach DIN VDE 0105-100 bei Wiederholungsprüfungen anzugeben. Bei „Stichprobe" bitte den geprüften Umfang (z. B. Anteil, Auswahlkriterium) unten in den Bemerkungen benennen.</div>
-      </div>
-      <div class="form-group">
-        <label for="res_maengel">Gesamtbewertung Mängel:</label>
-        <select id="res_maengel">
-          <option>Keine Mängel festgestellt</option>
-          <option>Mängel festgestellt und behoben (siehe Bemerkung)</option>
-          <option>Mängel festgestellt (siehe Bemerkung)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="res_plakette">Prüfplakette erteilt:</label>
-        <select id="res_plakette"><option>Ja</option><option>Nein</option></select>
-      </div>
+      <div data-pruefschritt="pruefumfang_auswahl" data-ctx='{"optionen":["Vollprüfung (100 % der Anlage)","Stichprobe – siehe Bemerkung für Umfang"]}'></div>
+      <div data-pruefschritt="res_maengel_dropdown"></div>
+      <div data-pruefschritt="res_plakette_dropdown"></div>
       <!-- [8.0.0] Prüffristen-Schnellauswahl, einheitlich mit
            anschlusspruefung.html/geraetepruefung.html (1/2/3 Monate,
            1/2/4 Jahre). [Prüfschritt-Bibliothek] Baustein zentral in
            js/pruefschritte.js (PRUEFSCHRITTE.pruefintervall_schnellwahl). -->
       <div data-pruefschritt="pruefintervall_schnellwahl" data-ctx='{"onChange":"updateNaechsterTerminVde0100"}'></div>
-      <div class="form-group">
-        <label for="res_termin_date">Nächster Prüftermin (Monat/Jahr):</label>
-        <input type="month" id="res_termin_date">
-        <div class="limit-hint">Ergibt sich aus dem Prüfintervall, kann überschrieben werden.</div>
-        <div id="pruefdatum_bestaetigung_platzhalter"></div>
-      </div>
-      <div class="form-group">
-        <label for="res_gewaehrleistung">Sicherer Gebrauch gewährleistet:</label>
-        <select id="res_gewaehrleistung">
-          <option value="Ja">Ja (Anlage entspricht VDE-Regeln)</option>
-          <option value="Nein">Nein (Sicherheitsrisiko)</option>
-        </select>
-      </div>
+      <div data-pruefschritt="res_termin_date_feld"></div>
+      <div data-pruefschritt="res_gewaehrleistung_dropdown" data-ctx='{"jaLabel":"Ja (Anlage entspricht VDE-Regeln)"}'></div>
     </div>
 
-    <div class="form-group" style="margin-top: 8px;">
-      <label for="res_bemerkungen">Mängel / Bemerkungen / Auflagen:</label>
-      <textarea id="res_bemerkungen" class="auto-grow" rows="3" placeholder="Hier Mängel oder sonstige Bemerkungen eintragen..." oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'"></textarea>
-      <div id="bemerkungen_fotos_platzhalter"></div>
-    </div>
+    <div data-pruefschritt="res_bemerkungen_feld"></div>
 
     <!-- 9. UNTERSCHRIFTEN -->
     <h2 class="kat-ergebnis">9. Konformitätsbestätigung & Unterschriften</h2>
     <div class="grid" style="margin-bottom:8px;">
-      <div class="form-group"><label for="unterschrift_ort">Ort der Unterzeichnung:</label><input type="text" id="unterschrift_ort"></div>
-      <div class="form-group">
-        <label for="unterschrift_datum">Datum der Unterzeichnung:</label>
-        <input type="date" id="unterschrift_datum">
-        <div class="limit-hint">Wird unter beide Unterschriften gedruckt (bisher stand dort eine leere Linie).</div>
-      </div>
+      <div data-pruefschritt="unterschrift_ort_datum" data-ctx='{"hinweistext":"Wird unter beide Unterschriften gedruckt (bisher stand dort eine leere Linie)."}'></div>
     </div>
 
-    <div class="sig-block">
-      <div class="sig-card">
-        <label id="sigPruefer_label">Unterschrift Prüfer/-in:</label>
-        <canvas id="sigPruefer" role="img" aria-labelledby="sigPruefer_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padPruefer.clear()">Löschen</button>
-      </div>
-      <div class="sig-card">
-        <label id="sigKunde_label">Unterschrift Auftraggeber / Betreiber:</label>
-        <canvas id="sigKunde" role="img" aria-labelledby="sigKunde_label"></canvas>
-        <button type="button" class="btn btn-secondary" onclick="padKunde.clear()">Löschen</button>
-      </div>
-    </div>
+    <div data-pruefschritt="unterschriften_block"></div>
 
     <div class="actions" style="flex-wrap:wrap; align-items:flex-end;">
-      <div class="form-group" style="max-width:230px; margin:0 12px 0 0;">
-        <label for="leer_blaetter" style="font-size:0.78rem;">Leerformular: Anzahl Blätter</label>
-        <select id="leer_blaetter">
-          <option value="1" selected>1 Blatt</option>
-          <option value="2">2 Blätter</option>
-          <option value="3">3 Blätter</option>
-          <option value="4">4 Blätter</option>
-        </select>
-        <div class="limit-hint">Blatt 2 und folgende sind Fortsetzungsblätter: nur die Messtabelle, mit fortlaufender Nummerierung. Kopf, Bewertung und Unterschriften stehen einmal auf Blatt 1.</div>
-      </div>
+      <div data-pruefschritt="leer_blaetter_auswahl"></div>
       <button type="button" class="btn btn-secondary" onclick="generatePDF(true)">📄 Leeres Protokoll drucken (für Hand-Ausfüllung)</button>
       <button type="button" class="btn btn-success" onclick="generatePDF(false)">📥 Ausgefülltes PDF generieren & herunterladen</button>
     </div>
