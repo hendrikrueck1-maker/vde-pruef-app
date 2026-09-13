@@ -358,6 +358,21 @@ function fillExampleDataAnschluss() {
   // Uebergabepunkt-Block
   document.getElementById('bez').value = 'Bühnenversorgung Haupt';
   document.getElementById('netzsystem').value = 'TN-S';
+  /* [Fund bei 9.4.0-Nachpruefung] speisepunkt_art/steckverbindung (Art des
+   * Speisepunkts + Steckverbindung mitgeprüft, siehe istFeedSpeisepunktSteckstelle()
+   * oben) sowie rpe/riso/riso_mode/riso_verbraucher (Abschnitt "5.0 Schutzleiter-
+   * /Isolationswiderstand") wurden in 9.4.0 neu ergänzt, aber hier nie
+   * nachgezogen - das Beispiel-PDF zeigte diese Felder deshalb leer, obwohl
+   * "+ Beispieldaten laden" fehlerfrei durchlief. speisepunkt_art bleibt auf
+   * dem Vorgabewert "Steckstelle" des Formulars, macht "steckverbindung"
+   * damit sichtbar/relevant - 1:1 nach dem Muster der Stromkreis-Karte
+   * (riso_mode "500 V DC", riso_verbraucher "nein" -> ohne Verbraucher). */
+  document.getElementById('speisepunkt_art').value = 'Steckstelle';
+  document.getElementById('steckverbindung').value = 'i.O.';
+  document.getElementById('rpe').value = '0,09';
+  document.getElementById('riso_mode').value = '500 V DC (Stromkreis bis 500 V)';
+  document.getElementById('riso_verbraucher').value = 'nein';
+  document.getElementById('riso').value = '> 500';
   document.getElementById('netzart').value = 'Drehstrom';
   document.getElementById('frequenz').value = '50';
   document.getElementById('u_l1n').value = '231';

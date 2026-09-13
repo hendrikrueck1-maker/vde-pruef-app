@@ -791,7 +791,22 @@ function fillExampleDataStamm(auftraggeberPraefix) {
    'sicht_kennzeichnung', 'sicht_pa', 'sicht_basisschutz',
    'sicht_typenschild', 'sicht_brandschott', 'sicht_leiterverb'
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
-  ['erp_anlage', 'erp_schutz'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
+  /* [Fund bei 9.4.0-Nachpruefung] erp_drehfeld/erp_polaritaet/erp_prueftaste/
+   * erp_motoren wurden dem Formular (Abschnitt "Erproben") in fruehreren
+   * Versionen hinzugefuegt, aber hier nie ergaenzt - alle drei Beispieldaten-
+   * Buttons ("Ohne Maengel"/"Mit Maengeln"/"1 Stromkreis defekt") liefen
+   * dadurch beim Erzeugen des Beispiel-PDFs in den "Es ist noch eine
+   * Bewertung offen"-Abbruch (siehe ersteLeereAuswahl() in pdf-utils.js),
+   * weil diese vier .erp-item-Felder leer blieben. */
+  ['erp_anlage', 'erp_schutz', 'erp_drehfeld', 'erp_polaritaet', 'erp_prueftaste', 'erp_motoren']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = 'i.O.'; });
+  /* [Fund bei 9.4.0-Nachpruefung] netzmessung_steckverbindung (Abschnitt 1)
+   * ist seit 9.4.0 eine echte Pflichtangabe, sobald netzmessung_speisepunkt_art
+   * = "Steckstelle" ist - das ist zugleich der Vorgabewert des Formulars.
+   * Ohne diese Zeile bricht generatePDFInner() mit "Pflichtangabe fehlt:
+   * Steckverbindung mitgeprueft" ab, siehe pflichtfeldMelden()-Aufruf oben
+   * bei netzmessung_steckverbindung. */
+  { const el = document.getElementById('netzmessung_steckverbindung'); if (el) el.value = 'i.O.'; }
 
   document.getElementById('circuitsContainer').innerHTML = '';
   cardCounter = 0;
