@@ -526,24 +526,23 @@ const PRUEFFRISTEN_TEXT_ANSCHLUSS =
   'nach DIN VDE 0105-100 (siehe Prüfprotokoll elektrischer Anlagen).';
 
 /* praefix: 'PR' (vde0100), 'GP' (geraetepruefung), 'AP' (anschlusspruefung) -
- * bestimmt Text und ob eine Termin-Anzeige eingeblendet wird.
- * [Nutzerwunsch] Bei 'PR' (Prüfprotokoll elektrische Anlagen, vde0100.html)
- * wird die Infokarte "Wie wird die Prüffrist bestimmt?" auf ausdruecklichen
- * Wunsch NICHT mehr angezeigt - in den beiden anderen Formularen
- * (Geräteprüfung/Anschlussprüfung) bleibt sie unveraendert bestehen. */
+ * bestimmt, ob (frueher: und mit welchem Text) eine Infokarte eingeblendet
+ * wird.
+ * [Nutzerwunsch, 7.2.0] Bei 'PR' (Prüfprotokoll elektrische Anlagen,
+ * vde0100.html) wurde die Infokarte "Wie wird die Prüffrist bestimmt?"
+ * bereits entfernt.
+ * [9.9.0, Nutzerwunsch] Jetzt auch bei 'GP' (Geräteprüfung) und 'AP"
+ * (Anschlussprüfung) entfernt - alle drei Formulare zeigen diese Infokarte
+ * damit nicht mehr an. Die Funktion bleibt (liefert jetzt immer ''), statt
+ * sie und ihren Aufruf in js/infokarten.js/pruefdatum_infokarte_platzhalter
+ * ganz zu entfernen - das haette an drei Stellen (vde0100.html/
+ * anschlusspruefung.html/geraetepruefung.html) den Platzhalter-Div und den
+ * Aufruf mit entfernen muessen, ohne echten Nutzen: der leere Rueckgabewert
+ * fuellt den Platzhalter-Div ohnehin mit nichts. PRUEFFRISTEN_TEXT_GERAETE/
+ * PRUEFFRISTEN_TEXT_ANSCHLUSS/PRUEFFRISTEN_TEXT_VDE0100 bleiben als
+ * Textbausteine erhalten, falls die Infokarte spaeter wieder gewuenscht wird. */
 function pruefterminInfokarteHtml(praefix) {
-  if (praefix === 'PR') return '';
-  const text = praefix === 'GP' ? PRUEFFRISTEN_TEXT_GERAETE
-    : praefix === 'AP' ? PRUEFFRISTEN_TEXT_ANSCHLUSS
-    : PRUEFFRISTEN_TEXT_VDE0100;
-  return (
-    '<div class="pruefdatum-box">' +
-      '<details class="infokarte pruefdatum-infokarte">' +
-        '<summary>ℹ️ Wie wird die Prüffrist bestimmt?</summary>' +
-        '<div class="infokarte-inhalt"><p>' + text + '</p></div>' +
-      '</details>' +
-    '</div>'
-  );
+  return '';
 }
 
 /* ============================================================================

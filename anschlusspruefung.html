@@ -85,9 +85,16 @@
         <input type="text" id="auftraggeber" placeholder="z. B. Stadttheater Konstanz, Inselgasse 2-6, 78462 Konstanz">
       </div>
 
-      <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
+      <!-- [9.9.0] Nutzerwunsch: die "Verwalten"-Option fuer eigene Gebaeude/
+           Bereich-Eintraege soll nur noch auf der Hauptseite (index.html)
+           verfuegbar sein, nicht mehr in den einzelnen Formularen - analog zu
+           vde0100.html und geraetepruefung.html, wo der Button bereits per
+           mitVerwalten:false entfernt ist. Das Dropdown selbst bleibt
+           unveraendert; eigene Zusatzeintraege werden weiterhin ueber
+           gebaeudeOptionenAktualisieren() (storage.js) eingeblendet.
+           [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
            (PRUEFSCHRITTE.gebaeude_bereich). -->
-      <div data-pruefschritt="gebaeude_bereich"></div>
+      <div data-pruefschritt="gebaeude_bereich" data-ctx='{"mitVerwalten":false}'></div>
 
       <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
            (PRUEFSCHRITTE.stammdaten_kopf). -->
