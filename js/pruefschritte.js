@@ -258,10 +258,14 @@ PRUEFSCHRITTE.netzsystem_dropdown = {
   html: function (ctx) {
     ctx = ctx || {};
     var klasseAttr = ctx.klasse ? ' class="' + ctx.klasse + '"' : '';
+    // [Mehrfach-Übergabepunkte] ctx.idSuffix (Kartennummer) erlaubt mehrere
+    // Instanzen dieses Bausteins auf einer Seite (Übergabepunkt-Karten) - ohne
+    // ctx.idSuffix bleibt id="netzsystem" wie bisher (vde0100.html).
+    var s = ctx.idSuffix || '';
     return (
       '<div class="form-group">\n' +
-      '  <label for="netzsystem">Netzsystem:</label>\n' +
-      '  <select' + klasseAttr + ' id="netzsystem">\n' +
+      '  <label for="netzsystem' + s + '">Netzsystem:</label>\n' +
+      '  <select' + klasseAttr + ' id="netzsystem' + s + '">\n' +
       '    <option selected>TN-S</option>\n' +
       '    <option>TN-C-S</option>\n' +
       '    <option>TN-C</option>\n' +
@@ -882,6 +886,10 @@ PRUEFSCHRITTE.netzmessung_spannungsgrid = {
     ctx = ctx || {};
     var mitGruppenId = !!ctx.mitGruppenId; // vde0100: true: netzmessung_gruppe_lXX
     var mitKlasse = !!ctx.mitKlasse;       // anschluss: true: c-u-lXX an den Inputs
+    // [Mehrfach-Übergabepunkte] ctx.idSuffix (Kartennummer) fuer mehrere
+    // Karten auf einer Seite - ohne ctx.idSuffix bleiben die IDs wie bisher
+    // (u_l1n usw., vde0100.html/bisheriger Einzel-Übergabepunkt).
+    var s = ctx.idSuffix || '';
     var l1nLabelHtml = ctx.l1nLabelSpanKlasse
       ? '<span class="' + ctx.l1nLabelSpanKlasse + '">U L1&ndash;N (V):</span>'
       : '<span id="' + (ctx.l1nLabelSpanId || 'netzmessung_l1n_label') + '">U L1&ndash;N (V):</span>';
@@ -890,11 +898,16 @@ PRUEFSCHRITTE.netzmessung_spannungsgrid = {
     // Formular - ctx.onInputFn bestimmt NUR den Funktionsnamen und ob der
     // Bindestrich-Zweitparameter mitgegeben wird (Übergabepunkt) oder nicht
     // (vde0100), siehe Kommentar oben.
+    // [Mehrfach-Übergabepunkte] ctx.mitCardId stellt der Argumentliste die
+    // Kartennummer voran (validateFeedNetzspannungsfeld(cardId, klasse, id)) -
+    // ohne ctx.mitCardId unveraendert wie bisher (vde0100.html/bisheriger
+    // Einzel-Übergabepunkt).
+    var cardArgPrefix = ctx.mitCardId ? (ctx.cardIdAusdruck + ", ") : '';
     function onInput(feldId, bindestrichId) {
       if (ctx.mitBindestrichArg) {
-        return ctx.onInputFn + "('" + bindestrichId + "', '" + feldId + "')";
+        return ctx.onInputFn + "(" + cardArgPrefix + "'" + bindestrichId + "', '" + feldId + "')";
       }
-      return ctx.onInputFn + "('" + feldId + "')";
+      return ctx.onInputFn + "(" + cardArgPrefix + "'" + feldId + "')";
     }
 
     var felder = [
@@ -911,10 +924,16 @@ PRUEFSCHRITTE.netzmessung_spannungsgrid = {
       var gruppenIdAttr = mitGruppenId ? (' id="' + f.gruppenId + '"') : '';
       var inputKlasseAttr = mitKlasse ? (' class="c-' + f.id.replace('_', '-') + '"') : '';
       var labelInner = f.erstesLabel ? l1nLabelHtml : f.label;
+      var idMitSuffix = f.id + s;
+      // WICHTIG: f.id/f.bindestrich OHNE Suffix an onInput() uebergeben - sie
+      // dienen dort (in validateNetzspannungsfeld/validateFeedNetzspannungsfeld)
+      // dem Grenzwert-Lookup (NETZSPANNUNG_SOLL_JE_FELD['u_l1n']) bzw. der
+      // Klassen-Auswahl ('.c-u-l1n') - beide sind vom Kartensuffix unabhaengig.
+      // Nur die id/for-Attribute des Elements selbst bekommen den Suffix.
       return (
         '<div class="' + klasseAttr + '"' + gruppenIdAttr + '>' +
-        '<label for="' + f.id + '">' + labelInner + '</label>' +
-        '<input type="text" inputmode="decimal" pattern="[0-9]*"' + inputKlasseAttr + ' id="' + f.id + '" placeholder="' + f.platzhalter + '" oninput="' + onInput(f.id, f.bindestrich) + '">' +
+        '<label for="' + idMitSuffix + '">' + labelInner + '</label>' +
+        '<input type="text" inputmode="decimal" pattern="[0-9]*"' + inputKlasseAttr + ' id="' + idMitSuffix + '" placeholder="' + f.platzhalter + '" oninput="' + onInput(f.id, f.bindestrich) + '">' +
         '</div>'
       );
     }).join('\n        ');
@@ -937,8 +956,9 @@ PRUEFSCHRITTE.netzmessung_spannungsgrid = {
  *     eigener Platzhalter UND eigene Schnellwahl-Buttons-Liste je Formular
  *     (ctx.messpunktId, ctx.messpunktPlatzhalter, ctx.messpunktButtons).
  *   - pa_durchg: BYTE-IDENTISCH in beiden.
- *   - R_PA (Übergabepunkt-Widerstand): NUR am Übergabepunkt vorhanden, in
- *     vde0100.html gibt es dieses Feld nicht (ctx.mitRpa).
+ *   - R_PA (Übergabepunkt-Widerstand): [Korrektur] wieder entfernt, war ein
+ *     Messwert dieses Übergabepunkts und gehoerte hier nicht hin (ctx.mitRpa
+ *     existiert nicht mehr).
  * Der AEUSSERE Rahmen (h2 + .kat-block.kat-erdung in vde0100.html vs.
  * .sub-section + .sub-title am Übergabepunkt) ist NICHT Teil dieses
  * Bausteins - beide Rahmen sind zu verschieden (unterschiedliche
@@ -949,13 +969,19 @@ PRUEFSCHRITTE.netzmessung_spannungsgrid = {
 PRUEFSCHRITTE.potenzialausgleich_messfelder = {
   gruppe: 'Erdung & Potenzialausgleich',
   titel: 'Potenzialausgleich – Konzept, Erdungswiderstand, Messpunkt, Durchgängigkeit',
-  beschreibung: 'Grid-Inhalt (ohne äußeren Rahmen): Konzept-Dropdown, Erdungswiderstand R_E, Messpunkt-Freitext mit formularabhängiger Schnellwahl, Durchgängigkeit i.O./n.i.O./n.a. Am Übergabepunkt zusätzlich R_PA (dort per ctx.mitRpa aktiviert).',
+  beschreibung: 'Grid-Inhalt (ohne äußeren Rahmen): Konzept-Dropdown, Erdungswiderstand R_E, Messpunkt-Freitext mit formularabhängiger Schnellwahl, Durchgängigkeit i.O./n.i.O./n.a. [Korrektur] R_PA wurde entfernt (Messwert dieses Übergabepunkts, nicht relevant).',
   verwendetIn: ['vde0100', 'anschluss'],
   html: function (ctx) {
     ctx = ctx || {};
-    var erdungReOnInput = ctx.erdungReOnInput || 'validateErdung';
+    // [Mehrfach-Übergabepunkte] ctx.idSuffix (Kartennummer) + ctx.mitCardId
+    // (stellt der erdungReOnInput-Argumentliste die Kartennummer voran) fuer
+    // mehrere Karten auf einer Seite - ohne beides unveraendert wie bisher
+    // (vde0100.html/bisheriger Einzel-Übergabepunkt).
+    var s = ctx.idSuffix || '';
+    var erdungReOnInputFn = ctx.erdungReOnInput || 'validateErdung';
+    var erdungReOnInput = ctx.mitCardId ? (erdungReOnInputFn + '(' + ctx.cardIdAusdruck + ')') : (erdungReOnInputFn + '()');
     var erdungReLabel = 'Erdungswiderstand R<sub>E</sub> (&Omega;) [Richtwert &le; 10 &Omega;]' + (ctx.erdungReMitZusatz ? ', falls gemessen' : '') + ':';
-    var messpunktId = ctx.messpunktId || 'erdung_messpunkt';
+    var messpunktId = (ctx.messpunktId || 'erdung_messpunkt') + s;
     var messpunktPlatzhalter = ctx.messpunktPlatzhalter || 'z. B. HES im Keller / PA-Schiene UV-1';
     var messpunktButtons = ctx.messpunktButtons || [
       { wert: 'HES (Haupterdungsschiene)', label: 'HES' },
@@ -978,40 +1004,31 @@ PRUEFSCHRITTE.potenzialausgleich_messfelder = {
       return '<button type="button" class="quick-btn" onclick="setValue(\'' + messpunktId + '\', \'' + b.wert + '\')">' + b.label + '</button>';
     }).join('\n          ');
 
-    var rpaHtml = '';
-    if (ctx.mitRpa) {
-      rpaHtml =
-        '\n      <div class="form-group">\n' +
-        '        <label for="pa_widerstand">R<sub>PA</sub> (&Omega;), falls gemessen:</label>\n' +
-        '        <input type="text" inputmode="decimal" id="pa_widerstand" placeholder="z. B. 0,20">\n' +
-        '      </div>';
-    }
-
     return (
       '<div class="form-group">\n' +
-      '        <label for="pa_angeschlossen">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>\n' +
-      '        <select id="pa_angeschlossen"><option>Ja</option><option>Nein</option><option>n.a.</option></select>\n' +
+      '        <label for="pa_angeschlossen' + s + '">Potenzialausgleich grundsätzlich vorhanden (Konzept):</label>\n' +
+      '        <select class="c-pa-angeschlossen" id="pa_angeschlossen' + s + '"><option>Ja</option><option>Nein</option><option>n.a.</option></select>\n' +
       '      </div>\n' +
       '      <div class="form-group">\n' +
-      '        <label for="erdung_re">' + erdungReLabel + '</label>\n' +
-      '        <input type="text" inputmode="decimal" id="erdung_re" placeholder="z. B. 0,25" oninput="' + erdungReOnInput + '()">\n' +
+      '        <label for="erdung_re' + s + '">' + erdungReLabel + '</label>\n' +
+      '        <input type="text" inputmode="decimal" class="c-erdung-re" id="erdung_re' + s + '" placeholder="z. B. 0,25" oninput="' + erdungReOnInput + '">\n' +
       '      </div>\n' +
       '      <div class="form-group grid-full">\n' +
       '        <label for="' + messpunktId + '">Messpunkt / Bezugspunkt der Messung:</label>\n' +
-      '        <input type="text" id="' + messpunktId + '" placeholder="' + messpunktPlatzhalter + '">\n' +
+      '        <input type="text" class="c-pa-messpunkt" id="' + messpunktId + '" placeholder="' + messpunktPlatzhalter + '">\n' +
       '        <div class="quick-btn-group">\n' +
       '          ' + buttonsHtml + '\n' +
       '        </div>\n' +
       '      </div>\n' +
       '      <div class="form-group">\n' +
-      '        <label for="pa_durchg">Durchgängigkeit Potenzialausgleich:</label>\n' +
-      '        <select class="c-pa-durchg" id="pa_durchg">\n' +
+      '        <label for="pa_durchg' + s + '">Durchgängigkeit Potenzialausgleich:</label>\n' +
+      '        <select class="c-pa-durchg" id="pa_durchg' + s + '">\n' +
       '          <option value="" selected>– bitte wählen –</option>\n' +
       '          <option>i.O.</option>\n' +
       '          <option>n.i.O.</option>\n' +
       '          <option>n.a.</option>\n' +
       '        </select>\n' +
-      '      </div>' + rpaHtml
+      '      </div>'
     );
   }
 };
@@ -1352,10 +1369,14 @@ PRUEFSCHRITTE.netzart_auswahl = {
     // - anschlusspruefung.html uebergibt hier bewusst '', um exakt den
     // bisherigen Text "230 V" ohne Zusatz zu erhalten.
     var zweiteOptionZusatz = ctx.zweiteOptionZusatz !== undefined ? ctx.zweiteOptionZusatz : ', z. B. Schukosteckdose';
+    // [Mehrfach-Übergabepunkte] ctx.onChangeArg fuegt der onchange-Funktion ein
+    // Argument hinzu (z. B. die Kartennummer) - ohne ctx.onChangeArg
+    // unveraendert "onChange()" wie bisher.
+    var onChangeArg = ctx.onChangeArg !== undefined ? ctx.onChangeArg : '';
     return (
       '<div class="form-group"' + (ctx.mitMarginBottom ? ' style="margin-bottom:10px;"' : '') + '>\n' +
       '  <label for="' + id + '">Netzart:</label>\n' +
-      '  <select' + klasseAttr + ' id="' + id + '" onchange="' + onChange + '()">\n' +
+      '  <select' + klasseAttr + ' id="' + id + '" onchange="' + onChange + '(' + onChangeArg + ')">\n' +
       '    <option value="Drehstrom" selected>Drehstrom (400 V, 3 Außenleiter)</option>\n' +
       '    <option value="1-phasig">1-phasiger Wechselstrom (230 V' + zweiteOptionZusatz + ')</option>\n' +
       '  </select>\n' +
@@ -1392,10 +1413,15 @@ PRUEFSCHRITTE.speisepunkt_art_auswahl = {
     var hinweisHtml = mitHinweistext
       ? ('\n  <div class="limit-hint"' + hintAttr + '>' + hinweistext + '</div>')
       : '';
+    // [Mehrfach-Übergabepunkte] ctx.onChangeArg fuegt der onchange-Funktion ein
+    // Argument hinzu (z. B. die Kartennummer), ctx.klasse eine Kartenkontext-
+    // Klasse fuer card.querySelector() - ohne beides unveraendert wie bisher.
+    var onChangeArg = ctx.onChangeArg !== undefined ? ctx.onChangeArg : '';
+    var klasseAttrSp = ctx.klasse ? (' class="' + ctx.klasse + '"') : '';
     return (
       '<div class="form-group"' + (ctx.mitMarginBottom ? ' style="margin-bottom:10px;"' : '') + '>\n' +
       '  <label for="' + id + '">Art des Speisepunkts:</label>\n' +
-      '  <select id="' + id + '" onchange="' + onChange + '()">\n' +
+      '  <select' + klasseAttrSp + ' id="' + id + '" onchange="' + onChange + '(' + onChangeArg + ')">\n' +
       '    <option value="Fest verkabelt">Fest verkabelt (Klemme/Verteiler)</option>\n' +
       '    <option value="Steckstelle" selected>Steckstelle (Kupplung/Steckdose/Verlängerung)</option>\n' +
       '  </select>' + hinweisHtml + '\n' +
@@ -1425,9 +1451,12 @@ PRUEFSCHRITTE.steckverbindung_auswahl = {
     ctx = ctx || {};
     var id = ctx.id || 'netzmessung_steckverbindung';
     var hinweistext = ctx.hinweistext || 'Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (Pflichtangabe) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt, nicht zusätzlich an jeder einzelnen Steckdose.';
+    // [Mehrfach-Übergabepunkte] ctx.klasse fuer card.querySelector() - ohne
+    // ctx.klasse unveraendert wie bisher (kein class-Attribut).
+    var klasseAttrSv = ctx.klasse ? (' class="' + ctx.klasse + '"') : '';
     return (
       '<label for="' + id + '">Steckverbindung mitgeprüft (Zustand, Verriegelung, Kontakt):</label>\n' +
-      '<select id="' + id + '">\n' +
+      '<select' + klasseAttrSv + ' id="' + id + '">\n' +
       '  <option value="" selected>– bitte wählen –</option>\n' +
       '  <option>i.O.</option>\n' +
       '  <option>n.i.O.</option>\n' +
@@ -1457,11 +1486,15 @@ PRUEFSCHRITTE.drehfeld_auswahl = {
   titel: 'Drehfeldrichtung (bei Drehstrom, Übergabepunkt)',
   beschreibung: 'Prüft, ob das Drehfeld am Übergabepunkt rechtsdrehend ist (Voraussetzung für korrekte Drehrichtung angeschlossener Drehstrommotoren, z. B. Bühnenzüge/Hebebühnen) - ein linksdrehendes Feld ist ein klassischer Fehler nach Reparatur/Neuverkabelung des Anschlusses.',
   verwendetIn: ['anschluss'],
-  html: function () {
+  html: function (ctx) {
+    ctx = ctx || {};
+    // [Mehrfach-Übergabepunkte] ctx.idSuffix erlaubt mehrere Karten auf einer
+    // Seite - ohne ctx.idSuffix bleibt id="drehfeld" wie bisher.
+    var s = ctx.idSuffix || '';
     return (
       '<div class="form-group">\n' +
-      '  <label for="drehfeld">Drehfeldrichtung (bei Drehstrom):</label>\n' +
-      '  <select class="c-drehfeld erp-item" id="drehfeld" onchange="sichtErpNiOPruefen(this)">\n' +
+      '  <label for="drehfeld' + s + '">Drehfeldrichtung (bei Drehstrom):</label>\n' +
+      '  <select class="c-drehfeld erp-item" id="drehfeld' + s + '" onchange="sichtErpNiOPruefen(this)">\n' +
       '    <option value="" selected>– bitte wählen –</option>\n' +
       '    <option value="i.O.">i.O. – rechtsdrehend</option>\n' +
       '    <option value="n.i.O.">n.i.O. – linksdrehend</option>\n' +
@@ -1676,6 +1709,37 @@ PRUEFSCHRITTE.res_gewaehrleistung_dropdown = {
       '    <option value="Ja">' + jaLabel + '</option>\n' +
       '    <option value="Nein">Nein (Sicherheitsrisiko)</option>\n' +
       '  </select>\n' +
+      '</div>'
+    );
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * 32b. BEMERKUNGSFELD PRO GERÄT (nur Geräteprüfung)
+ * ---------------------------------------------------------------------------
+ * [Korrektur, Nutzerwunsch] Zusaetzlich zum protokollweiten Freitextfeld
+ * (PRUEFSCHRITTE.res_bemerkungen_feld, Abschnitt "4. Abschluss") bekommt
+ * jedes Geraet jetzt ein EIGENES kurzes Bemerkungsfeld direkt in seiner
+ * Karte (Abschnitt "4. Beurteilung und Prüfplakette", neben Mängel/
+ * Plakette/Sicherer Gebrauch) - analog zu res_maengel_dropdown/
+ * res_plakette_dropdown/res_gewaehrleistung_dropdown per ctx.idSuffix.
+ * Erscheint im PDF als eigene Spalte in der Tabelle "3. BEURTEILUNG JE
+ * GERÄT" (siehe js/geraete-generator.js).
+ * ------------------------------------------------------------------------ */
+PRUEFSCHRITTE.geraet_bemerkung_feld = {
+  gruppe: 'Bewertung',
+  titel: 'Bemerkung je Gerät',
+  beschreibung: 'Kurze Bemerkung zu genau diesem Gerät (z. B. Grund für n.i.O., Auflage, Hinweis) - zusätzlich zum protokollweiten Bemerkungsfeld. Nur in der Geräteprüfung, eine eigene id je Karte (siehe ctx.idSuffix).',
+  verwendetIn: ['geraete'],
+  html: function (ctx) {
+    ctx = ctx || {};
+    var idSuffix = ctx.idSuffix || '';
+    var id = 'geraet_bemerkung' + idSuffix;
+    var klasseAttr = ctx.klasse ? (' ' + ctx.klasse) : '';
+    return (
+      '<div class="form-group grid-full">\n' +
+      '  <label for="' + id + '">Bemerkung zu diesem Gerät:</label>\n' +
+      '  <textarea id="' + id + '" class="auto-grow' + klasseAttr + '" rows="1" placeholder="z. B. Grund für n.i.O., Auflage, Hinweis..." oninput="this.style.height=\'auto\'; this.style.height=this.scrollHeight+\'px\'"></textarea>\n' +
       '</div>'
     );
   }

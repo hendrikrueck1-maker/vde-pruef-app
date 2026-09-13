@@ -6,30 +6,55 @@
 // DIN VDE 0100-600 (allgemeine Prüfmethodik Besichtigen-Erproben-Messen), DIN VDE 0100-520
 // (max. 4% Spannungsfall vom Übergabepunkt zum Verbrauchsmittel).
 //
-// [9.0.0] KOMPLETTER STRUKTURUMBAU (siehe Aenderungsbericht 9.0.0):
+// [Korrektur, nach 9.0.0] MEHRFACH-ÜBERGABEPUNKTE WIEDER EINGEFUEHRT
 // -----------------------------------------------------------------------------
-// Bisher konnte dieses Formular beliebig viele Uebergabepunkte als
-// .feed-card-Karten in #feedsContainer verwalten (addFeedCard/removeCard/
-// dupliziereUebergabepunkt). Der Nutzer hat das als zu kompliziert
-// zurueckgemeldet und ausdruecklich EINEN Uebergabepunkt pro Protokoll
-// vorgegeben: wer mehrere Uebergabepunkte hat, fuellt mehrere separate
-// Protokolle aus. Der gesamte Karten-Mechanismus (cardCounter,
-// addFeedCard/removeCard/dupliziereUebergabepunkt, kartenId je Karte) entfaellt
-// deshalb komplett - die Felder des einen Uebergabepunkts sind direkt Teil
-// des Formulars (siehe anschlusspruefung.html, #uebergabepunktBlock), genauso
-// wie Stammdaten. Die fachliche Validierungslogik (validateFeedNorms,
-// onFeedZsInput, onFeedIkInput, koppleImpedanzMitStrom, getRcdIdnRangeMa,
-// getRcdMaxAusloesezeitMs, npeUeberschritten, zsIkPaarPruefen) bleibt
-// vollstaendig erhalten, nur ohne cardId-Parameter (es gibt nur noch ein
-// Element pro Selektor statt vieler Karten).
+// 9.0.0 hatte den Karten-Mechanismus (mehrere Uebergabepunkte je Protokoll)
+// bewusst auf GENAU EINEN Uebergabepunkt vereinfacht - der Nutzer hatte das
+// damals ausdruecklich so gewuenscht. In der Praxis stellte sich das als
+// Rueckschritt heraus: ein Theater/Veranstaltungsbetrieb hat regelmaessig
+// MEHRERE Uebergabepunkte (z. B. Buehne + Foyer + Aussenbereich), die bisher
+// nur ueber mehrere komplett separate Protokolle abgebildet werden konnten.
+// Der Karten-Mechanismus ist deshalb JETZT WIEDER da - 1:1 nach dem in
+// js/pdf-generator.js (addCircuitCard/dupliziereStromkreis, Anlagenpruefung)
+// und js/geraete-generator.js (addDeviceCard/dupliziereGeraet, Geraetepruefung)
+// etablierten Muster:
+//   - #feedsContainer haelt beliebig viele .feed-card-Karten (addFeedCard()).
+//   - Jede Karte bekommt per ctx.idSuffix ('_' + cardCounter) eindeutige
+//     Feld-IDs/-Klassen; die Live-Validierung/Kopplung (Z_S<->I_K, RCD-
+//     Messwerte-Einklappen, Schutzbasisdaten-Spiegelung) ist deshalb auf
+//     eine Kartennummer (cardId) parametrisiert: validateCardNorms(cardId),
+//     onZsInput(cardId), onZlnInput(cardId), onIkInput(cardId),
+//     schutzBasisdatenGeaendert(cardId, feld),
+//     schutzBasisdatenAusEinzelfeldernUebernehmen(cardId) - EXAKT dieselben
+//     Funktionsnamen wie in js/pdf-generator.js (Stromkreis-Karte), da beide
+//     Dateien NIE auf derselben Seite gemeinsam geladen werden (anschlusspruefung.html
+//     laedt js/anschluss-generator.js, vde0100.html laedt js/pdf-generator.js) -
+//     keine Namenskollision moeglich.
+//   - PRUEFSCHRITTE.schutz_basisdaten/rpe_riso_messblock/absicherung_schleifenimpedanz/
+//     rcd_typ_hauptfeld/rcd_messwerte (js/pruefschritte.js) unterstuetzten den
+//     Karten-Modus (ctx.mitCardId/ctx.cardIdAusdruck) bereits vorher - nur fuer
+//     die Anschlusspruefung wurde er bisher nie genutzt. netzsystem_dropdown/
+//     drehfeld_auswahl/netzmessung_spannungsgrid/potenzialausgleich_messfelder/
+//     netzart_auswahl/speisepunkt_art_auswahl/steckverbindung_auswahl wurden dafuer
+//     jetzt zusaetzlich um ctx.idSuffix/ctx.mitCardId/ctx.klasse/ctx.onChangeArg
+//     ergaenzt (rein additiv, Default-Verhalten fuer vde0100.html/geraetepruefung.html
+//     unveraendert).
+//   - CARD_FELD_SELEKTOREN (weiter unten) bildet jedes Uebergabepunkt-Feld auf
+//     seinen (kartenweit eindeutigen) CSS-Selektor ab - zentrale Grundlage fuer
+//     addFeedCard()-Vorbelegung, dupliziereUebergabepunkt(), collectAnschlussState()/
+//     restoreAnschlussState() und die PDF-Erzeugung (Abschnitt 5 laeuft jetzt in
+//     einer Schleife ueber alle Karten statt einmalig).
+//   - Rueckwaerts-kompatibel: ein VOR dieser Aenderung gespeicherter Autosave-
+//     Zwischenstand (state.uebergabepunkt, Singular, flaches Objekt) wird beim
+//     Wiederherstellen weiterhin erkannt und als EINE Karte aufgebaut (siehe
+//     restoreAnschlussState()).
 //
-// Neu hinzugekommen: Potenzialausgleich/Erdung wieder als Unterpunkt INNERHALB
-// der messtechnischen Feststellungen (Punkt 5.2), ein Schutzeinrichtungs-
-// Basisdaten-Aufklapp-Panel (1:1 nach dem Muster aus vde0100.html/
-// js/pdf-generator.js), automatisches Einklappen der RCD-Messwerte bei
-// "Ohne RCD" (analog syncRcdMesswerteAnzeige()), sowie mehrere neue Einzelfelder
-// (Z_L-N/I_K2 gab es hier schon aus 7.4.0, neu: I_n RCD, Bereich/Gefährdung,
-// U_L-Felder, Prüfumfang, Prüfplakette - siehe unten).
+// Neu hinzugekommen (9.4.0/9.6.0, unveraendert erhalten): Potenzialausgleich/
+// Erdung als Unterpunkt INNERHALB der messtechnischen Feststellungen (Punkt
+// 5.2), ein Schutzeinrichtungs-Basisdaten-Aufklapp-Panel, automatisches
+// Einklappen der RCD-Messwerte bei "Ohne RCD", sowie mehrere Einzelfelder
+// (Z_L-N/I_K2, I_n RCD, Bereich/Gefährdung, U_L-Felder, Prüfumfang,
+// Prüfplakette).
 
 /* [7.4.0, Punkt 4] Automatische Prueffrist-Berechnung, analog zu
  * updateNaechsterTermin() in js/geraete-generator.js (dort im selben Zug
@@ -51,70 +76,107 @@ function updateNaechsterTerminAnschluss() {
   }
 }
 
-/* [9.0.0] DREHSTROM vs. 1-PHASIG - jetzt GLOBAL statt kartenbezogen, weil es
- * nur noch EINEN Uebergabepunkt gibt (frueher: istFeedDrehstrom(cardId)/
- * updateFeedNetzart(cardId) je .feed-card). 1:1 uebernommenes Muster aus
- * vde0100.html (istNetzmessungDrehstrom()/updateNetzmessungNetzart()).
- * Drehstrom ist der praxisuebliche Regelfall bei einer Veranstaltungs-
- * Einspeisung (CEE) und deshalb vorausgewaehlt. */
-function istFeedDrehstrom() {
-  const sel = document.getElementById('netzart');
+let cardCounter = 0;
+
+/* ---------------------------------------------------------------------------
+ *  CARD_FELD_SELEKTOREN
+ * ---------------------------------------------------------------------------
+ *  Zentrale Zuordnung: Feldname (wie in einem gespeicherten Zwischenstand/
+ *  data-Objekt) -> CSS-Selektor, mit dem das Feld INNERHALB einer .feed-card
+ *  gefunden wird (card.querySelector(...)). Wird von addFeedCard()
+ *  (Vorbelegung), dupliziereUebergabepunkt(), collectAnschlussState() und
+ *  restoreAnschlussState() gemeinsam genutzt, damit es nur EINE Stelle gibt,
+ *  die "kennt", wie ein Uebergabepunkt-Feld wiedergefunden wird. */
+const CARD_FELD_SELEKTOREN = {
+  bez: '.c-bez', netzsystem: '.c-netzsystem', netzart: '.c-netzart', frequenz: '.c-frequenz',
+  speisepunkt_art: '.c-speisepunkt-art', steckverbindung: '.c-steckverbindung',
+  rpe: '.c-rpe', riso_verbraucher: '.c-riso-verbraucher', riso_mode: '.c-riso-mode', riso: '.c-riso',
+  u_l1n: '.c-u-l1n', u_l2n: '.c-u-l2n', u_l3n: '.c-u-l3n',
+  u_l12: '.c-u-l12', u_l23: '.c-u-l23', u_l13: '.c-u-l13',
+  unpe: '.c-unpe', drehfeld: '.c-drehfeld',
+  pa_angeschlossen: '.c-pa-angeschlossen', erdung_re: '.c-erdung-re',
+  pa_messpunkt: '.c-pa-messpunkt', pa_durchg: '.c-pa-durchg',
+  sich: '.c-sich-typ', zs: '.c-zs', ik: '.c-ik', zln: '.c-zln', ik2: '.c-ik2',
+  rcd_typ: '.c-rcd-typ', rcd_in: '.c-rcd-in', rcd_idn: '.c-rcd-idn', rcd_imess: '.c-rcd-imess',
+  rcd_ta: '.c-rcd-ta', rcd_pruefstrom: '.c-rcd-pruefstrom',
+  gef: '.c-gefaehrdung', art: '.c-spannung-art', umess: '.c-umess'
+};
+
+/* Felder, die dupliziereUebergabepunkt() NICHT mitkopiert (Messwerte/
+ * Ergebnisse) - analog zu dupliziereGeraet()/dupliziereStromkreis(): Typ-/
+ * Konfigurationsfelder werden uebernommen, Messwerte bleiben leer, damit eine
+ * Kopie nicht faelschlich als bereits gemessen erscheint. */
+const CARD_FELD_DUPLIZIERBAR = [
+  'netzsystem', 'netzart', 'frequenz', 'speisepunkt_art', 'steckverbindung',
+  'riso_mode', 'sich', 'rcd_typ', 'rcd_in', 'rcd_idn', 'rcd_pruefstrom', 'gef', 'art'
+];
+
+/* DREHSTROM vs. 1-PHASIG - jetzt kartenbezogen (cardId), 1:1 nach dem Muster
+ * istNetzmessungDrehstrom() aus vde0100.html. Drehstrom ist der praxisuebliche
+ * Regelfall bei einer Veranstaltungs-Einspeisung (CEE) und deshalb
+ * vorausgewaehlt. */
+function istFeedDrehstrom(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const sel = card && card.querySelector('.c-netzart');
   return !sel || sel.value !== '1-phasig';
 }
 
 /* [9.4.0, Gap-Analyse Masterliste] "Art des Speisepunkts" + "Steckverbindung
- * mitgeprüft" fehlten am Übergabepunkt komplett - 1:1 nach dem Muster
- * istSpeisepunktSteckstelle()/updateNetzmessungArt() aus pdf-generator.js
- * übernommen, hier mit eigenen IDs (speisepunkt_art/steckverbindung statt
- * netzmessung_speisepunkt_art/netzmessung_steckverbindung), da es am
- * Übergabepunkt keine "Netzmessung"-Präfix-Konvention gibt. */
-function istFeedSpeisepunktSteckstelle() {
-  const v = document.getElementById('speisepunkt_art')?.value || '';
+ * mitgeprüft" - 1:1 nach dem Muster istSpeisepunktSteckstelle()/
+ * updateNetzmessungArt() aus pdf-generator.js, hier kartenbezogen. */
+function istFeedSpeisepunktSteckstelle(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const v = card && card.querySelector('.c-speisepunkt-art')?.value || '';
   return v === 'Steckstelle';
 }
 
-function updateFeedSpeisepunktArt() {
-  const gruppe = document.getElementById('feed_steckstelle_gruppe');
+function updateFeedSpeisepunktArt(cardId) {
+  const gruppe = document.getElementById('feed_steckstelle_gruppe_' + cardId);
   if (!gruppe) return;
-  gruppe.style.display = istFeedSpeisepunktSteckstelle() ? '' : 'none';
+  gruppe.style.display = istFeedSpeisepunktSteckstelle(cardId) ? '' : 'none';
 }
 
-function updateFeedNetzart() {
-  const drehstrom = istFeedDrehstrom();
-  document.querySelectorAll('.netzmessung-drehstrom-feld').forEach(function (el) {
+function updateFeedNetzart(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (!card) return;
+  const drehstrom = istFeedDrehstrom(cardId);
+  card.querySelectorAll('.netzmessung-drehstrom-feld').forEach(function (el) {
     el.style.display = drehstrom ? '' : 'none';
     if (!drehstrom) {
       // Ausgeblendete Drehstromwerte duerfen nicht unsichtbar als Messwert
-      // im PDF landen bzw. eine Pflichtfeld-Warnung ausloesen (siehe
-      // updateNetzmessungNetzart() in js/pdf-generator.js, gleiches Muster).
+      // im PDF landen bzw. eine Pflichtfeld-Warnung ausloesen.
       const feld = el.querySelector('input, select');
       if (feld && feld.tagName === 'INPUT') feld.value = '';
     }
   });
-  const label = document.querySelector('.c-l1n-label');
+  const label = card.querySelector('.c-l1n-label');
   if (label) label.textContent = drehstrom ? 'U L1–N (V):' : 'U (V):';
   if (!drehstrom) {
-    const drehfeldSel = document.getElementById('drehfeld');
+    const drehfeldSel = card.querySelector('.c-drehfeld');
     if (drehfeldSel) drehfeldSel.value = '';
   }
-  validateFeedNorms();
+  validateCardNorms(cardId);
 }
 
-/* [9.0.0] Live-Validierung der sechs Aussenleiterfelder - jetzt global statt
- * kartenbezogen (frueher validateFeedNetzspannungsfeld(cardId, klasse, feldName)). */
-function validateFeedNetzspannungsfeld(klasse, feldName) {
-  const el = document.querySelector('.c-' + klasse);
+/* Live-Validierung der sechs Aussenleiterfelder - kartenbezogen. klasse ist
+ * die Bindestrich-Form OHNE Kartensuffix (z. B. "u-l1n"), feldName die
+ * Unterstrich-Form OHNE Kartensuffix (z. B. "u_l1n") - beide dienen NUR dem
+ * Klassen-/Grenzwert-Lookup und sind deshalb kartenunabhaengig (siehe
+ * PRUEFSCHRITTE.netzmessung_spannungsgrid in js/pruefschritte.js). */
+function validateFeedNetzspannungsfeld(cardId, klasse, feldName) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const el = card && card.querySelector('.c-' + klasse);
   if (!el) return;
   el.classList.toggle('out-of-norm', netzspannungAusserNorm(feldName, el.value));
 }
 
-/* [9.0.0] Schutzeinrichtungs-Basisdaten-Aufklappmenue: spiegelt die vier
- * Sammel-Felder (Absicherung, RCD-Typ, I_n, I_dn) 1:1 in die jeweils "echten"
- * Einzelfelder weiter unten (Absicherung/RCD-Sektion) und umgekehrt - beide
- * Eingabewege bleiben synchron. 1:1 nach dem Muster
- * schutzBasisdatenGeaendert(cardId, feld) aus js/pdf-generator.js, hier ohne
- * cardId (nur ein Uebergabepunkt-Block). */
-function schutzBasisdatenGeaendert(feld) {
+/* Schutzeinrichtungs-Basisdaten-Aufklappmenue: spiegelt die vier Sammel-
+ * Felder (Absicherung, RCD-Typ, I_n, I_dn) 1:1 in die jeweils "echten"
+ * Einzelfelder der Karte und umgekehrt. 1:1 nach dem Muster
+ * schutzBasisdatenGeaendert(cardId, feld) aus js/pdf-generator.js. */
+function schutzBasisdatenGeaendert(cardId, feld) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (!card) return;
   const paare = {
     sich:    ['.c-basis-sich',    '.c-sich-typ'],
     rcd_typ: ['.c-basis-rcd-typ', '.c-rcd-typ'],
@@ -123,21 +185,20 @@ function schutzBasisdatenGeaendert(feld) {
   };
   const paar = paare[feld];
   if (!paar) return;
-  const basisElem = document.querySelector(paar[0]);
-  const zielElem = document.querySelector(paar[1]);
+  const basisElem = card.querySelector(paar[0]);
+  const zielElem = card.querySelector(paar[1]);
   if (basisElem && zielElem) zielElem.value = basisElem.value;
-  if (feld === 'rcd_typ') syncRcdMesswerteAnzeigeAnschluss();
-  validateFeedNorms();
+  if (feld === 'rcd_typ') syncRcdMesswerteAnzeigeAnschluss(cardId);
+  validateCardNorms(cardId);
   if (typeof autosaveProtocol === 'function') autosaveProtocol();
 }
 
 /* Umgekehrte Richtung: die "echten" Einzelfelder in die Basisdaten-Sammel-
- * ansicht uebernehmen - aufgerufen beim Aufklappen des Panels (siehe
- * toggleMessSections() in js/pdf-utils.js), damit das Panel von Anfang an
- * denselben Stand zeigt. Ohne Parameter, da es nur einen Uebergabepunkt-
- * Block gibt (js/pdf-utils.js ruft die Funktion je nach Formular mit oder
- * ohne cardId auf, siehe dort). */
-function schutzBasisdatenAusEinzelfeldernUebernehmen() {
+ * ansicht uebernehmen - aufgerufen beim Anlegen/Wiederherstellen/
+ * Duplizieren einer Karte. */
+function schutzBasisdatenAusEinzelfeldernUebernehmen(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (!card) return;
   const paare = [
     ['.c-basis-sich',    '.c-sich-typ'],
     ['.c-basis-rcd-typ', '.c-rcd-typ'],
@@ -145,39 +206,66 @@ function schutzBasisdatenAusEinzelfeldernUebernehmen() {
     ['.c-basis-rcd-idn', '.c-rcd-idn']
   ];
   paare.forEach(([basisSel, zielSel]) => {
-    const basisElem = document.querySelector(basisSel);
-    const zielElem = document.querySelector(zielSel);
+    const basisElem = card.querySelector(basisSel);
+    const zielElem = card.querySelector(zielSel);
     if (basisElem && zielElem) basisElem.value = zielElem.value;
   });
 }
 
-/* [9.0.0] RCD-MESSWERTE EIN-/AUSKLAPPEN JE NACH "OHNE RCD" - 1:1 nach dem
- * Muster syncRcdMesswerteAnzeige(cardId) aus js/pdf-generator.js, hier ohne
- * cardId (nur ein Uebergabepunkt-Block, .c-rcd-messwerte ist global
- * eindeutig). Das ist der Kern der urspruenglichen Nutzer-Beschwerde: "wenn
- * ohne RCD geprueft wird, sollen sich Felder einklappen". */
-function syncRcdMesswerteAnzeigeAnschluss() {
-  const rcdTypElem = document.querySelector('.c-rcd-typ');
+/* RCD-MESSWERTE EIN-/AUSKLAPPEN JE NACH "OHNE RCD" - kartenbezogen, 1:1 nach
+ * dem Muster syncRcdMesswerteAnzeige(cardId) aus js/pdf-generator.js. */
+function syncRcdMesswerteAnzeigeAnschluss(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (!card) return;
+  const rcdTypElem = card.querySelector('.c-rcd-typ');
   const ohneRcd = !!(rcdTypElem && /ohne\s*rcd/i.test(rcdTypElem.value));
-  const wrapper = document.querySelector('.c-rcd-messwerte');
+  const wrapper = card.querySelector('.c-rcd-messwerte');
   if (wrapper) wrapper.classList.toggle('mess-sections-collapsed', ohneRcd);
 }
 
-function validateFeedNorms() {
-  const block = document.getElementById('uebergabepunktBlock');
-  if (!block) return;
+/* Erdungswiderstand R_E der Karte bewerten - kartenbezogene Variante von
+ * validateErdung()/validateErdungAnschluss() (js/pdf-utils.js), die fest auf
+ * #erdung_re (ohne Kartensuffix) zugreifen und deshalb bei mehreren Karten
+ * nicht mehr passen. Gleiche Grenzwertlogik, nur kartenbezogen. */
+function validateErdungAnschlussCard(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const elem = card && card.querySelector('.c-erdung-re');
+  if (!elem) return;
+  const val = elem.value.trim();
+  if (val === '') { elem.classList.remove('out-of-norm'); return; }
+  const num = parseMesswert(val);
+  if (!isNaN(num) && num > ERDUNG_RE_GRENZWERT_ANSCHLUSS) elem.classList.add('out-of-norm');
+  else elem.classList.remove('out-of-norm');
+}
 
-  const rpeElem = block.querySelector('.c-rpe');
+/* "Verbraucher angeschlossen?" setzt die Pruefspannung nicht mehr automatisch
+ * (siehe PRUEFSCHRITTE.rpe_riso_messblock), loest aber weiterhin eine
+ * Neubewertung + Autosave aus - 1:1 nach dem Muster
+ * risoVerbraucherGeaendert(cardId) aus js/pdf-generator.js. */
+function risoVerbraucherGeaendert(cardId) {
+  validateCardNorms(cardId);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+}
+
+/* HAUPT-VALIDIERUNG EINER ÜBERGABEPUNKT-KARTE - kartenbezogene Variante von
+ * validateFeedNorms() (vor dieser Aenderung: genau ein Block statt vieler
+ * Karten). Deckt R_PE/R_ISO, U_N-PE (Sollwert 0 V), Berührungsspannung U_L,
+ * Z_S/I_K (inkl. Z_S<->I_K-Widerspruch), Z_L-N/I_K2 sowie die RCD-Messwerte
+ * (I_Δmess/t_A) ab. */
+function validateCardNorms(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (!card) return;
+
+  const rpeElem = card.querySelector('.c-rpe');
   if (rpeElem && rpeElem.value.trim() !== '') {
     const num = parseMesswert(rpeElem.value);
     if (!isNaN(num) && num > 0.30) rpeElem.classList.add('out-of-norm'); else rpeElem.classList.remove('out-of-norm');
   } else if (rpeElem) rpeElem.classList.remove('out-of-norm');
 
-  // [9.4.0] Mindestwert haengt von der gewaehlten Pruefspannung ab (SELV/PELV
-  // 0,5 MOhm, sonst 1,0 MOhm - DIN VDE 0100-600 Tabelle 6.1), 1:1 wie in der
-  // Stromkreis-Karte (siehe validateCardNorms() in js/pdf-generator.js).
-  const risoElem = block.querySelector('.c-riso');
-  const risoModeElem = block.querySelector('.c-riso-mode');
+  // Mindestwert haengt von der gewaehlten Pruefspannung ab (SELV/PELV
+  // 0,5 MOhm, sonst 1,0 MOhm - DIN VDE 0100-600 Tabelle 6.1).
+  const risoElem = card.querySelector('.c-riso');
+  const risoModeElem = card.querySelector('.c-riso-mode');
   const risoMin = (risoModeElem && risoModeElem.value.includes('SELV')) ? 0.5 : 1.0;
   if (risoElem && risoElem.value.trim() !== '') {
     const txt = risoElem.value.trim();
@@ -188,27 +276,23 @@ function validateFeedNorms() {
     }
   } else if (risoElem) risoElem.classList.remove('out-of-norm');
 
-  /* 4.5.0 (B1): U N-PE bewerten. Sollwert 0 V, ab 1 V Beanstandung.
-   * Fehlt der Wert ganz, wird das Feld als fehlende Pflichtangabe markiert. */
-  const unpeElem = block.querySelector('.c-unpe');
+  /* U_N-PE bewerten. Sollwert 0 V, ab 1 V Beanstandung. Fehlt der Wert ganz,
+   * wird das Feld als fehlende Pflichtangabe markiert. */
+  const unpeElem = card.querySelector('.c-unpe');
   if (unpeElem) {
     const leer = unpeElem.value.trim() === '';
     unpeElem.classList.toggle('out-of-norm', npeUeberschritten(unpeElem.value));
     unpeElem.classList.toggle('missing-value', leer);
   }
 
-  /* U_L (Beruehrungsspannung) bei der RCD-Pruefung, analog zu
-   * validateCardNorms() in js/pdf-generator.js: Grenzwert haengt von
-   * Spannungsart und Gefaehrdungsbereich ab. [9.4.0] Spannungsart kommt jetzt
-   * aus dem Formularfeld .c-spannung-art (ctx.mitSpannungsart im Baustein
-   * rcd_messwerte) statt fest 'AC' zu sein - Fallback 'AC' bleibt fuer den
-   * Fall, dass das Feld aus irgendeinem Grund fehlt. */
-  const umessElem = block.querySelector('.c-umess');
-  const gefElem = block.querySelector('.c-gefaehrdung');
+  /* U_L (Beruehrungsspannung) bei der RCD-Pruefung: Grenzwert haengt von
+   * Spannungsart und Gefaehrdungsbereich ab. */
+  const umessElem = card.querySelector('.c-umess');
+  const gefElem = card.querySelector('.c-gefaehrdung');
   const gefVal = gefElem ? gefElem.value : 'normal';
-  const artElem = block.querySelector('.c-spannung-art');
+  const artElem = card.querySelector('.c-spannung-art');
   const artVal = artElem ? artElem.value : 'AC';
-  const ulFeld = block.querySelector('.c-ul-max');
+  const ulFeld = card.querySelector('.c-ul-max');
   if (ulFeld) ulFeld.value = getUlText(artVal, gefVal);
   const ulLimit = getUlGrenzwert(artVal, gefVal);
   if (umessElem && umessElem.value.trim() !== '') {
@@ -216,14 +300,14 @@ function validateFeedNorms() {
     if (!isNaN(num) && num > ulLimit) umessElem.classList.add('out-of-norm'); else umessElem.classList.remove('out-of-norm');
   } else if (umessElem) umessElem.classList.remove('out-of-norm');
 
-  const sichElem = block.querySelector('.c-sich-typ');
-  const ikElem = block.querySelector('.c-ik');
+  const sichElem = card.querySelector('.c-sich-typ');
+  const ikElem = card.querySelector('.c-ik');
   const minIk = sichElem ? getMinIk(sichElem.value) : null;
 
   /* Z_S GEGEN DEN ZULAESSIGEN HOECHSTWERT PRUEFEN (Zs_max = 230 V / I_a). */
   const maxZs = sichElem ? getMaxZs(sichElem.value) : null;
-  const zsElem = block.querySelector('.c-zs');
-  const zsLimitLabel = document.getElementById('fzs_limit');
+  const zsElem = card.querySelector('.c-zs');
+  const zsLimitLabel = document.getElementById('zs_limit_' + cardId);
   if (zsLimitLabel) {
     zsLimitLabel.innerHTML = maxZs !== null
       ? `max. ${maxZs.toFixed(2).replace('.', ',')} &Omega; &middot; Praxiswert (2/3): ${(maxZs * 2 / 3).toFixed(2).replace('.', ',')} &Omega;`
@@ -235,7 +319,7 @@ function validateFeedNorms() {
     else zsElem.classList.remove('out-of-norm');
   }
   /* Z_L-N gegen denselben Hoechstwert wie Z_S bewerten. */
-  const zlnElem = block.querySelector('.c-zln');
+  const zlnElem = card.querySelector('.c-zln');
   if (zlnElem) {
     const zlnNum = parseMesswert(zlnElem.value);
     if (zlnElem.value.trim() !== '' && maxZs !== null && !isNaN(zlnNum) && (zlnNum > maxZs || zlnNum < 0)) zlnElem.classList.add('out-of-norm');
@@ -243,8 +327,8 @@ function validateFeedNorms() {
   }
 
   // Widerspruch zwischen Z_S und I_K sichtbar machen (I = 230 V / Z).
-  const zlnIkOk = zsIkPaarPruefen(block, '.c-zln', '.c-ik2');
-  if (zsLimitLabel && (!zsIkPaarPruefen(block, '.c-zs', '.c-ik') || !zlnIkOk)) {
+  const zlnIkOk = zsIkPaarPruefen(card, '.c-zln', '.c-ik2');
+  if (zsLimitLabel && (!zsIkPaarPruefen(card, '.c-zs', '.c-ik') || !zlnIkOk)) {
     zsLimitLabel.innerHTML += ' &middot; <b>Z und I<sub>K</sub> passen nicht zusammen (I = 230 V / Z) &ndash; einer der Werte ist falsch.</b>';
   }
 
@@ -258,8 +342,8 @@ function validateFeedNorms() {
     }
   }
 
-  const idnElem = block.querySelector('.c-rcd-idn');
-  const imessElem = block.querySelector('.c-rcd-imess');
+  const idnElem = card.querySelector('.c-rcd-idn');
+  const imessElem = card.querySelector('.c-rcd-imess');
   if (imessElem && imessElem.value.trim() !== '') {
     const range = idnElem ? getRcdIdnRangeMa(idnElem.value) : null;
     const num = parseMesswert(imessElem.value);
@@ -267,16 +351,16 @@ function validateFeedNorms() {
   } else if (imessElem) imessElem.classList.remove('out-of-norm');
 
   // Ausloesezeit gegen den zum Pruefstrom passenden Grenzwert pruefen
-  // (40 ms gelten nur bei 5x I_dn, bei 1x I_dn sind 300 ms zulaessig)
-  const pruefstromElem = block.querySelector('.c-rcd-pruefstrom');
-  const rcdTypElem = block.querySelector('.c-rcd-typ');
+  // (40 ms gelten nur bei 5x I_dn, bei 1x I_dn sind 300 ms zulaessig).
+  const pruefstromElem = card.querySelector('.c-rcd-pruefstrom');
+  const rcdTypElem = card.querySelector('.c-rcd-typ');
   const istSelektiv = rcdTypElem ? /(^|\s)(typ\s*)?s(\s|$)|selektiv/i.test(rcdTypElem.value) : false;
   const pruefstromGewaehlt = !!(pruefstromElem && pruefstromElem.value);
   const taMax = pruefstromGewaehlt ? getRcdMaxAusloesezeitMs(pruefstromElem.value, istSelektiv) : null;
-  const taLimitLabel = document.getElementById('fta_limit');
+  const taLimitLabel = document.getElementById('ta_limit_' + cardId);
   if (taLimitLabel) taLimitLabel.textContent = taMax !== null ? `[max. ${taMax} ms]` : '[Prüfstrom wählen]';
 
-  const taElem = block.querySelector('.c-rcd-ta');
+  const taElem = card.querySelector('.c-rcd-ta');
   if (taElem && taMax !== null && taElem.value.trim() !== '') {
     const num = parseMesswert(taElem.value);
     if (!isNaN(num) && (num > taMax || num < 0)) taElem.classList.add('out-of-norm'); else taElem.classList.remove('out-of-norm');
@@ -284,9 +368,8 @@ function validateFeedNorms() {
 
   // Ist ein RCD eingetragen, muss er auch geprueft worden sein
   // (DIN VDE 0100-600 Abschn. 6.4.3.7).
-  const imessMarkElem = block.querySelector('.c-rcd-imess');
   const hatRcd = rcdTypElem && rcdTypElem.value.trim() !== '' && !/ohne\s*rcd/i.test(rcdTypElem.value);
-  [imessMarkElem, taElem].forEach(el => {
+  [imessElem, taElem].forEach(el => {
     if (!el) return;
     if (hatRcd && rcdWertFehlt(el.value)) el.classList.add('missing-value');
     else el.classList.remove('missing-value');
@@ -295,26 +378,29 @@ function validateFeedNorms() {
 
 /* Z_S -> I_K automatisch rechnen; eine Eingabe von Hand hebt die Kopplung auf.
  * Gleiche Logik wie in der Anlagenpruefung (koppleImpedanzMitStrom in
- * pdf-utils.js), hier ohne cardId. */
-function onFeedZsInput() {
-  const block = document.getElementById('uebergabepunktBlock');
-  if (block) koppleImpedanzMitStrom(block, '.c-zs', '.c-ik');
-  validateFeedNorms();
+ * pdf-utils.js), hier kartenbezogen. */
+function onZsInput(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (card) koppleImpedanzMitStrom(card, '.c-zs', '.c-ik');
+  validateCardNorms(cardId);
 }
 
-function onFeedZlnInput() {
-  const block = document.getElementById('uebergabepunktBlock');
-  if (block) koppleImpedanzMitStrom(block, '.c-zln', '.c-ik2');
-  validateFeedNorms();
+function onZlnInput(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  if (card) koppleImpedanzMitStrom(card, '.c-zln', '.c-ik2');
+  validateCardNorms(cardId);
 }
 
-function onFeedIkInput() {
-  const el = document.querySelector('.c-ik');
+function onIkInput(cardId) {
+  const card = document.getElementById(`feed_${cardId}`);
+  const el = card && card.querySelector('.c-ik');
   if (el) delete el.dataset.auto;
-  validateFeedNorms();
+  validateCardNorms(cardId);
 }
 
-// validateErdungAnschluss() liegt zentral in pdf-utils.js (Alias auf validateErdung).
+// validateErdungAnschluss() liegt zentral in pdf-utils.js (Alias auf
+// validateErdung) - fuer die (jetzt kartenbezogenen) Uebergabepunkt-Karten
+// gilt stattdessen validateErdungAnschlussCard(cardId) oben.
 const ERDUNG_RE_GRENZWERT_ANSCHLUSS = ERDUNG_RE_RICHTWERT;
 
 function initSignaturePadsAnschluss() {
@@ -322,6 +408,165 @@ function initSignaturePadsAnschluss() {
     pruefer: setupSignatureCanvas('sigPruefer'),
     auftraggeber: setupSignatureCanvas('sigAuftraggeber')
   };
+}
+
+/* ---------------------------------------------------------------------------
+ *  ÜBERGABEPUNKT-KARTE ANLEGEN
+ * ---------------------------------------------------------------------------
+ *  Baut eine komplette Uebergabepunkt-Karte (Abschnitt 5.0-5.4 + Fotos) und
+ *  haengt sie an #feedsContainer an - 1:1 nach dem Muster addCircuitCard()
+ *  (js/pdf-generator.js) / addDeviceCard() (js/geraete-generator.js). data.*
+ *  wird ueber CARD_FELD_SELEKTOREN generisch auf die passenden Karten-Felder
+ *  angewendet (Vorbelegung beim Wiederherstellen/Duplizieren/Beispieldaten).
+ * ------------------------------------------------------------------------ */
+function addFeedCard(data = {}) {
+  cardCounter++;
+  const c = cardCounter;
+  const s = '_' + c;
+  // Stabiler, vom cardCounter unabhaengiger Foto-Schluessel (siehe
+  // neueKartenId() in pdf-utils.js).
+  const kartenId = data.kartenId || neueKartenId();
+  const container = document.getElementById('feedsContainer');
+  const card = document.createElement('div');
+  card.className = 'feed-card anschluss-uebergabepunkt';
+  card.id = `feed_${c}`;
+  card.dataset.kartenId = kartenId;
+
+  const messpunktButtons = [
+    { wert: 'HES (Haupterdungsschiene)', label: 'HES' },
+    { wert: 'Potenzialausgleichsschiene (PAS)', label: 'PA-Schiene' },
+    { wert: 'PE-Schiene Übergabeverteiler', label: 'PE-Schiene Übergabe' },
+    { wert: 'Baustromverteiler', label: 'Baustromverteiler' },
+    { wert: 'Zählerschrank / Hausanschlusskasten', label: 'Zählerschrank' },
+    { wert: 'Generator-Sternpunkt', label: 'Generator-Sternpunkt' },
+    { wert: 'Erdspieß / Tiefenerder', label: 'Erdspieß' },
+    { wert: 'Fundamenterder', label: 'Fundamenterder' },
+    { wert: 'CEE-Verteiler Bühne', label: 'CEE-Verteiler' },
+    { wert: 'Traverse / Tribüne', label: 'Traverse/Tribüne' },
+    { wert: 'Bauzaun / Absperrung', label: 'Bauzaun' },
+    { wert: 'Bühnenpodest / Bühnenwagen', label: 'Bühnenpodest' }
+  ];
+
+  card.innerHTML = `
+    <div class="feed-header">
+      <span>Übergabepunkt #${c}</span>
+      <span>
+        <button type="button" class="btn btn-secondary" onclick="dupliziereUebergabepunkt('feed_${c}')" title="Legt eine neue Karte mit denselben Netz-/Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
+        <button type="button" class="btn-danger" onclick="removeCard('feed_${c}')">Entfernen</button>
+      </span>
+    </div>
+
+    <div class="grid">
+      ${PRUEFSCHRITTE.bezeichnung_feld.html({ idSuffix: s, label: 'Bezeichnung Übergabepunkt:', platzhalter: 'z. B. Bühnenversorgung Haupthaus', gridFull: true, wert: data.bez, mitWertAttribut: true })}
+      ${PRUEFSCHRITTE.netzsystem_dropdown.html({ idSuffix: s, klasse: 'c-netzsystem' })}
+      ${PRUEFSCHRITTE.netzart_auswahl.html({ id: 'netzart' + s, klasse: 'c-netzart', onChange: 'updateFeedNetzart', onChangeArg: c, zweiteOptionZusatz: '' })}
+      ${PRUEFSCHRITTE.speisepunkt_art_auswahl.html({ id: 'speisepunkt_art' + s, klasse: 'c-speisepunkt-art', onChange: 'updateFeedSpeisepunktArt', onChangeArg: c, mitHinweistext: false })}
+    </div>
+    <div class="form-group" id="feed_steckstelle_gruppe${s}" style="display:none;">
+      ${PRUEFSCHRITTE.steckverbindung_auswahl.html({ id: 'steckverbindung' + s, klasse: 'c-steckverbindung', hinweistext: 'Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (z. B. CEE-Kupplung am Übergabepunkt) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt.' })}
+    </div>
+
+    ${PRUEFSCHRITTE.schutz_basisdaten.html({ idSuffix: s, mitCardId: true, cardIdAusdruck: c, rcdTypOptionen: ['Typ A', 'Typ B', 'Typ B+', 'Ohne RCD'] })}
+
+    ${PRUEFSCHRITTE.rpe_riso_messblock.html({ idSuffix: s, mitCardId: true, cardIdAusdruck: c, data: data, titelNummer: '5.0', titelText: 'Schutzleiter- & Isolationswiderstand', mitMessgroessenkarten: false })}
+
+    <div class="sub-section">
+      <div class="sub-title mess-karte-titel" id="netzmessung_icon_wrap${s}"><span class="titel-text">5.1 Netzmessung &ndash; Spannungen, Frequenz &amp; N&ndash;PE</span></div>
+      <p class="limit-hint" style="margin:0 0 8px;">Sollwerte: L gegen N je 230 V (&plusmn;10&nbsp;%) &middot; L gegen L je 400 V (&plusmn;10&nbsp;%) &middot; N gegen PE 0 V &middot; Frequenz 50 Hz.</p>
+      <div class="grid">
+        ${PRUEFSCHRITTE.netzmessung_spannungsgrid.html({ idSuffix: s, mitKlasse: true, onInputFn: 'validateFeedNetzspannungsfeld', mitBindestrichArg: true, mitCardId: true, cardIdAusdruck: c, l1nLabelSpanKlasse: 'c-l1n-label' })}
+        <div class="form-group">
+          <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
+          <input type="text" inputmode="decimal" class="c-unpe" id="unpe${s}" placeholder="z. B. 0,3" oninput="validateCardNorms(${c})">
+          <div class="limit-hint">Der einzige Wert, der eigenständig einen Fehler findet: hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.</div>
+        </div>
+        <div class="form-group">
+          <label for="frequenz${s}">Frequenz (Hz):</label>
+          <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz${s}" placeholder="z. B. 50 Hz">
+        </div>
+        ${PRUEFSCHRITTE.drehfeld_auswahl.html({ idSuffix: s })}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.2 Durchgängigkeit Potenzialausgleich (Messwert dieses Übergabepunkts)</div>
+      <div class="grid">
+        ${PRUEFSCHRITTE.potenzialausgleich_messfelder.html({
+          idSuffix: s, mitCardId: true, cardIdAusdruck: c,
+          erdungReOnInput: 'validateErdungAnschlussCard', erdungReMitZusatz: true,
+          messpunktId: 'pa_messpunkt', messpunktPlatzhalter: 'z. B. PA-Schiene im Übergabeverteiler',
+          messpunktButtons: messpunktButtons
+        })}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title mess-karte-titel"><span class="titel-text">5.3 Absicherung &amp; Schleifenimpedanz am Übergabepunkt</span></div>
+      ${PRUEFSCHRITTE.absicherung_schleifenimpedanz.html({ idSuffix: s, mitCardId: true, cardIdAusdruck: c })}
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title mess-karte-titel"><span class="titel-text">5.4 Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
+      ${PRUEFSCHRITTE.rcd_typ_hauptfeld.html({ idSuffix: s, mitCardId: true, cardIdAusdruck: c, syncFn: 'syncRcdMesswerteAnzeigeAnschluss', rcdTypOptionen: ['Typ A', 'Typ B', 'Typ B+', 'Ohne RCD'] })}
+      ${PRUEFSCHRITTE.rcd_messwerte.html({ idSuffix: s, mitCardId: true, cardIdAusdruck: c, mitBeruehrungsspannung: true, mitSpannungsart: true })}
+    </div>
+
+    <div id="uebergabepunkt_fotos_platzhalter${s}"></div>
+
+    <div class="circuit-footer-actions">
+      <button type="button" class="btn btn-secondary" onclick="dupliziereUebergabepunkt('feed_${c}')" title="Legt eine neue Karte mit denselben Netz-/Schutzdaten an. Messwerte bleiben leer.">⧉ Duplizieren</button>
+      <button type="button" class="btn-danger" onclick="removeCard('feed_${c}')">Entfernen</button>
+    </div>
+  `;
+
+  // Generische Vorbelegung aus data.* - deckt alle Selects/Textfelder ab, die
+  // (anders als bez/rpe/riso oben) kein value-Attribut im Markup bekommen.
+  Object.keys(data).forEach(key => {
+    if (key === 'kartenId' || data[key] === undefined || data[key] === '') return;
+    const sel = CARD_FELD_SELEKTOREN[key];
+    if (!sel) return;
+    const el = card.querySelector(sel);
+    if (el) el.value = data[key];
+  });
+
+  container.appendChild(card);
+  nummeriereKartenNeu('#feedsContainer', '.feed-card', 'Übergabepunkt');
+
+  schutzBasisdatenAusEinzelfeldernUebernehmen(c);
+  updateFeedNetzart(c);
+  updateFeedSpeisepunktArt(c);
+  syncRcdMesswerteAnzeigeAnschluss(c);
+  validateErdungAnschlussCard(c);
+  validateCardNorms(c);
+
+  // G17: vorhandene Fotos dieser Karte laden (z. B. beim Wiederherstellen aus
+  // Autosave/Archiv) - 1:1 nach dem Muster addDeviceCard()/addCircuitCard().
+  const fotoPlatzhalter = card.querySelector(`#uebergabepunkt_fotos_platzhalter${s}`);
+  if (fotoPlatzhalter && typeof fotosLeisteHtml === 'function') {
+    const fotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', kartenId);
+    fotoPlatzhalter.innerHTML = fotosLeisteHtml(fotoKey);
+    if (typeof fotosLeisteAktualisieren === 'function') fotosLeisteAktualisieren(fotoKey);
+  }
+
+  return card;
+}
+
+/* Karte duplizieren - ohne Messwerte, mit denselben Netz-/Schutzdaten (Typ-/
+ * Konfigurationsfelder, siehe CARD_FELD_DUPLIZIERBAR). Analog zu
+ * dupliziereGeraet()/dupliziereStromkreis(): ein Übergabepunkt mit
+ * mehreren baugleichen Speisepunkten muss nicht jedes Mal komplett neu
+ * konfiguriert werden. */
+function dupliziereUebergabepunkt(cardDomId) {
+  const card = document.getElementById(cardDomId);
+  if (!card) return;
+  const w = (key) => card.querySelector(CARD_FELD_SELEKTOREN[key])?.value || '';
+  const bezAlt = w('bez').trim();
+  const data = { bez: bezAlt ? bezAlt + ' (Kopie)' : '' };
+  CARD_FELD_DUPLIZIERBAR.forEach(key => { data[key] = w(key); });
+  addFeedCard(data);
+  if (typeof autosaveProtocol === 'function') autosaveProtocol();
+  const neu = document.querySelector('#feedsContainer .feed-card:last-child .c-bez');
+  if (neu) neu.focus();
 }
 
 function fillExampleDataAnschluss() {
@@ -355,58 +600,34 @@ function fillExampleDataAnschluss() {
   // PDF-Export des eigenen Beispieldatensatzes.
   document.querySelectorAll('.sicht-item').forEach(el => { el.value = 'i.O.'; });
 
-  // Uebergabepunkt-Block
-  document.getElementById('bez').value = 'Bühnenversorgung Haupt';
-  document.getElementById('netzsystem').value = 'TN-S';
-  /* [Fund bei 9.4.0-Nachpruefung] speisepunkt_art/steckverbindung (Art des
-   * Speisepunkts + Steckverbindung mitgeprüft, siehe istFeedSpeisepunktSteckstelle()
-   * oben) sowie rpe/riso/riso_mode/riso_verbraucher (Abschnitt "5.0 Schutzleiter-
-   * /Isolationswiderstand") wurden in 9.4.0 neu ergänzt, aber hier nie
-   * nachgezogen - das Beispiel-PDF zeigte diese Felder deshalb leer, obwohl
-   * "+ Beispieldaten laden" fehlerfrei durchlief. speisepunkt_art bleibt auf
-   * dem Vorgabewert "Steckstelle" des Formulars, macht "steckverbindung"
-   * damit sichtbar/relevant - 1:1 nach dem Muster der Stromkreis-Karte
-   * (riso_mode "500 V DC", riso_verbraucher "nein" -> ohne Verbraucher). */
-  document.getElementById('speisepunkt_art').value = 'Steckstelle';
-  document.getElementById('steckverbindung').value = 'i.O.';
-  document.getElementById('rpe').value = '0,09';
-  document.getElementById('riso_mode').value = '500 V DC (Stromkreis bis 500 V)';
-  document.getElementById('riso_verbraucher').value = 'nein';
-  document.getElementById('riso').value = '> 500';
-  document.getElementById('netzart').value = 'Drehstrom';
-  document.getElementById('frequenz').value = '50';
-  document.getElementById('u_l1n').value = '231';
-  document.getElementById('u_l2n').value = '230';
-  document.getElementById('u_l3n').value = '229';
-  document.getElementById('u_l12').value = '399';
-  document.getElementById('u_l23').value = '400';
-  document.getElementById('u_l13').value = '401';
-  document.getElementById('unpe').value = '0,3';
-  document.getElementById('drehfeld').value = 'i.O.';
-  document.getElementById('pa_angeschlossen').value = 'Ja';
-  document.getElementById('erdung_re').value = '3,2';
-  document.getElementById('pa_messpunkt').value = 'PA-Schiene im Übergabeverteiler Bühnenzugang Ost';
-  document.getElementById('pa_durchg').value = 'i.O.';
-  document.getElementById('pa_widerstand').value = '0,20';
-  document.getElementById('sich').value = 'C 32A';
-  document.getElementById('zs').value = '0,31';
-  document.getElementById('ik').value = '740';
-  document.getElementById('zln').value = '0,29';
-  document.getElementById('ik2').value = '793';
-  document.getElementById('rcd_typ').value = 'Typ A';
-  document.getElementById('rcd_in').value = '40 A';
-  document.getElementById('rcd_idn').value = '30 mA';
-  document.getElementById('rcd_imess').value = '21';
-  document.getElementById('rcd_ta').value = '17';
-  document.getElementById('rcd_pruefstrom').value = '5';
-  document.getElementById('gef').value = 'normal';
-  document.getElementById('umess').value = '2,5';
-
-  updateFeedNetzart();
-  updateFeedSpeisepunktArt();
-  syncRcdMesswerteAnzeigeAnschluss();
-  validateErdungAnschluss();
-  validateFeedNorms();
+  // Genau EINE Beispiel-Uebergabepunkt-Karte (bestehende Karten werden ersetzt).
+  document.getElementById('feedsContainer').innerHTML = '';
+  cardCounter = 0;
+  addFeedCard({
+    bez: 'Bühnenversorgung Haupt',
+    netzsystem: 'TN-S',
+    speisepunkt_art: 'Steckstelle',
+    steckverbindung: 'i.O.',
+    rpe: '0,09',
+    riso_mode: '500 V DC (Stromkreis bis 500 V)',
+    riso_verbraucher: 'nein',
+    riso: '> 500',
+    netzart: 'Drehstrom',
+    frequenz: '50',
+    u_l1n: '231', u_l2n: '230', u_l3n: '229',
+    u_l12: '399', u_l23: '400', u_l13: '401',
+    unpe: '0,0',
+    drehfeld: 'i.O.',
+    pa_angeschlossen: 'Ja',
+    erdung_re: '3,2',
+    pa_messpunkt: 'PA-Schiene im Übergabeverteiler Bühnenzugang Ost',
+    pa_durchg: 'i.O.',
+    sich: 'C 32A',
+    zs: '0,31', ik: '740', zln: '0,29', ik2: '793',
+    rcd_typ: 'Typ A', rcd_in: '40 A', rcd_idn: '30 mA',
+    rcd_imess: '21', rcd_ta: '17', rcd_pruefstrom: '5',
+    gef: 'normal', umess: '2,5'
+  });
 
   // Ampel-Status nach dem Setzen der Werte nachziehen (das blosse Setzen von
   // .value loest kein 'change'-Ereignis aus).
@@ -424,20 +645,16 @@ const ANSCHLUSS_KOPF = {
 const ANSCHLUSS_REVISION = "Formular Rev. 2026-09 · Normstand: VDE 0100-600:2017-06 · VDE 0100-718:2019-06";
 
 /* ===========================================================================
- *  [9.0.0] PDF-AUFBAU - KOMPLETT NEU NACH DEM KATEGORIE-BOXEN-STIL DER
- *  ANLAGENPRUEFUNG (siehe Aenderungsbericht 9.0.0)
+ *  PDF-AUFBAU NACH DEM KATEGORIE-BOXEN-STIL DER ANLAGENPRUEFUNG
  * ---------------------------------------------------------------------------
- *  Bisher: eine autoTable-Zeilentabelle mit einer Zeile je .feed-card
- *  (HEAD_AUSGEFUELLT_AP/LEER_HEAD_AP). Das ergab bei mehreren Uebergabepunkten
- *  Sinn, ist aber bei GENAU EINEM Uebergabepunkt (Nutzervorgabe) unnoetig
- *  komprimiert und fachlich schlechter lesbar als eine Kategorie-Box mit
- *  Einzelfeldern.
- *  Jetzt: Kategorie-Boxen mit drawKategorieBox/drawFeldZeile/drawCheckbox aus
- *  pdf-utils.js - GENAU der visuelle Stil, den vde0100.html fuer die
- *  Anlagenpruefung nutzt. Sowohl das ausgefuellte PDF als auch das
- *  Leerformular durchlaufen densselben Code mit isBlank-Parameter (etabliertes
- *  Muster im Projekt) - bei isBlank=true zeichnet drawFeldZeile automatisch
- *  eine Schreiblinie statt eines Werts.
+ *  Kategorie-Boxen mit drawKategorieBox/drawFeldZeile/drawCheckbox aus
+ *  pdf-utils.js. Sowohl das ausgefuellte PDF als auch das Leerformular
+ *  durchlaufen denselben Code mit isBlank-Parameter - bei isBlank=true
+ *  zeichnet drawFeldZeile automatisch eine Schreiblinie statt eines Werts.
+ *  Abschnitt 5 ("Messtechnische Feststellungen") laeuft in einer Schleife
+ *  ueber alle Uebergabepunkt-Karten (#feedsContainer .feed-card); im
+ *  Leerformular wird unabhaengig von der tatsaechlichen Kartenzahl GENAU
+ *  EIN leeres Template gezeichnet (siehe Schleifenbeginn unten).
  * ======================================================================== */
 
 async function generatePDFAnschluss(isBlank = false) {
@@ -485,17 +702,26 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   const maengelVal = isBlank ? '' : (document.getElementById('res_maengel')?.value || '');
   const maengelZustand = getMaengelZustand(maengelVal);
 
+  const feedCardsGuard = Array.from(document.querySelectorAll('#feedsContainer .feed-card'));
+
   /* Offene Bewertungen (leere Auswahlfelder) abfangen - siehe pdf-utils.js.
-   * .c-drehfeld bleibt bei einer 1-phasigen Einspeisung bewusst leer (kein
-   * Drehfeld ohne Drehstrom) - nur bei Drehstrom wird eine Auswahl verlangt. */
+   * .c-pa-durchg/.c-pa-angeschlossen sind jetzt kartenbezogene Klassen statt
+   * fester IDs (mehrere Karten moeglich) - ersteLeereAuswahl() prueft ALLE
+   * Treffer eines Selektors, deckt also automatisch alle Karten ab. */
   if (!isBlank) {
-    const offeneAuswahl = ersteLeereAuswahl(['.sicht-item', '.erp-item', '#pa_angeschlossen', '#res_maengel',
+    const offeneAuswahl = ersteLeereAuswahl(['.sicht-item', '.erp-item', '.c-pa-angeschlossen', '#res_maengel',
        '#res_leistung_ausreichend', '#res_plakette', '#res_freigabe', '.c-pa-durchg']);
     if (offeneAuswahl) { await offeneBewertungMelden(offeneAuswahl); return; }
 
-    if (istFeedDrehstrom() && document.getElementById('drehfeld')?.value === '') {
-      await offeneBewertungMelden(document.getElementById('drehfeld'));
-      return;
+    // .c-drehfeld bleibt bei einer 1-phasigen Einspeisung bewusst leer (kein
+    // Drehfeld ohne Drehstrom) - nur bei Drehstrom wird eine Auswahl verlangt,
+    // und das je Karte einzeln (jede Karte kann eine andere Netzart haben).
+    for (const card of feedCardsGuard) {
+      const cId = parseInt(card.id.replace('feed_', ''), 10);
+      if (istFeedDrehstrom(cId)) {
+        const drehEl = card.querySelector('.c-drehfeld');
+        if (drehEl && drehEl.value === '') { await offeneBewertungMelden(drehEl); return; }
+      }
     }
   }
 
@@ -505,47 +731,50 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     return;
   }
 
-  /* Der Übergabepunkt ohne Messwert ist keine Pruefung - siehe pdf-utils.js.
-   * [9.0.0] Es gibt nur noch einen Block statt mehrerer Karten. */
+  /* Ein Übergabepunkt ohne Messwert ist keine Pruefung - siehe pdf-utils.js.
+   * prueflingeOhneMessung() deckt beliebig viele Karten automatisch ab. */
   if (!isBlank) {
     const ohneMessung = prueflingeOhneMessung(
-      document.querySelectorAll('.anschluss-uebergabepunkt'),
+      feedCardsGuard,
       ['.c-rpe', '.c-riso', '.c-unpe', '.c-zs', '.c-ik', '.c-zln', '.c-rcd-imess', '.c-rcd-ta', '.c-umess']);
-    if (ohneMessung.length) {
-      await appAlert('Am Übergabepunkt wurde kein einziger Messwert eingetragen.\n\n' +
-        'Ein Protokoll ohne Messwert ist keine Prüfung. Bitte mindestens einen Messwert ' +
-        '(Schutzleiterwiderstand, Isolationswiderstand, U N–PE, Z_S/I_K, Z_L-N/I_K2, ' +
-        'RCD-Auslösestrom/-zeit oder U_L) eintragen.\n\nDas PDF wurde deshalb nicht erstellt.');
-      return;
-    }
+    if (ohneMessung.length) { await ohneMessungMelden(ohneMessung, 'Übergabepunkt'); return; }
   }
 
   /* 4.5.0 (B1): U N-PE ist Pflichtangabe. Hinter einem fremden Uebergabepunkt
    * ist die N-PE-Spannung der einzige Messwert, der eigenstaendig einen
    * Fehler findet (hochohmiger PEN, Fremdeinspeisung, vertauschte
-   * Einspeisung am Aggregat). */
-  if (!isBlank && String(document.getElementById('unpe')?.value || '').trim() === '') {
-    await appAlert('Spannung U N–PE fehlt.\n\n' +
-          'Sollwert 0 V. Die N–PE-Spannung ist der einzige Wert, der eigenständig einen Fehler ' +
-          'findet (hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat) - ' +
-          'genau die Fehler, die hinter einem fremden Übergabepunkt liegen.\n\n' +
-          'Das PDF wurde deshalb nicht erstellt.');
-    document.getElementById('unpe')?.focus();
-    return;
+   * Einspeisung am Aggregat) - jetzt je Karte geprueft. */
+  if (!isBlank) {
+    for (let i = 0; i < feedCardsGuard.length; i++) {
+      const unpeEl = feedCardsGuard[i].querySelector('.c-unpe');
+      if (unpeEl && String(unpeEl.value || '').trim() === '') {
+        await appAlert('Spannung U N–PE fehlt' + (feedCardsGuard.length > 1 ? ` (Übergabepunkt #${i + 1})` : '') + '.\n\n' +
+              'Sollwert 0 V. Die N–PE-Spannung ist der einzige Wert, der eigenständig einen Fehler ' +
+              'findet (hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat) - ' +
+              'genau die Fehler, die hinter einem fremden Übergabepunkt liegen.\n\n' +
+              'Das PDF wurde deshalb nicht erstellt.');
+        unpeEl.focus();
+        return;
+      }
+    }
   }
 
   /* [8.0.0, Teil 6.5] Netzmessung: echte Pflichtfeld-Sperre bei
-   * Nicht-Festanschluss (Steckstelle/Baustromverteiler/Generator/Sonstiges). */
+   * Nicht-Festanschluss (Steckstelle/Baustromverteiler/Generator/Sonstiges),
+   * jetzt je Karte geprueft. */
   if (!isBlank && document.getElementById('einspeisung_art')?.value !== 'Festanschluss / Zählerschrank') {
-    if (String(document.getElementById('u_l1n')?.value || '').trim() === '') {
-      await appAlert('Netzmessung (U L1–N) fehlt.\n\n' +
-            'Bei jeder Einspeisungsart außer "Festanschluss / Zählerschrank" (hier: "' +
-            (document.getElementById('einspeisung_art')?.value || '-') + '") ist die tatsächlich ' +
-            'gemessene Netzspannung die einzige eigenständige Prüfung dieser Einspeisung ' +
-            '(Baustromverteiler, Generator, sonstige provisorische Versorgung).\n\n' +
-            'Das PDF wurde deshalb nicht erstellt.');
-      document.getElementById('u_l1n')?.focus();
-      return;
+    for (let i = 0; i < feedCardsGuard.length; i++) {
+      const ul1nEl = feedCardsGuard[i].querySelector('.c-u-l1n');
+      if (ul1nEl && String(ul1nEl.value || '').trim() === '') {
+        await appAlert('Netzmessung (U L1–N) fehlt' + (feedCardsGuard.length > 1 ? ` (Übergabepunkt #${i + 1})` : '') + '.\n\n' +
+              'Bei jeder Einspeisungsart außer "Festanschluss / Zählerschrank" (hier: "' +
+              (document.getElementById('einspeisung_art')?.value || '-') + '") ist die tatsächlich ' +
+              'gemessene Netzspannung die einzige eigenständige Prüfung dieser Einspeisung ' +
+              '(Baustromverteiler, Generator, sonstige provisorische Versorgung).\n\n' +
+              'Das PDF wurde deshalb nicht erstellt.');
+        ul1nEl.focus();
+        return;
+      }
     }
   }
 
@@ -578,6 +807,16 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   const feldWert = (id) => {
     if (isBlank) return '';
     const el = document.getElementById(id);
+    return el && el.value.trim() ? cleanStr(el.value.trim()) : '';
+  };
+
+  /* Kartenbezogene Variante von feldWert() - liest ein Uebergabepunkt-Feld
+   * ueber CARD_FELD_SELEKTOREN aus der jeweiligen Karte statt ueber eine
+   * (nicht mehr eindeutige) globale ID. card ist null im Leerformular. */
+  const feldWertCard = (card, key) => {
+    if (isBlank || !card) return '';
+    const sel = CARD_FELD_SELEKTOREN[key];
+    const el = sel && card.querySelector(sel);
     return el && el.value.trim() ? cleanStr(el.value.trim()) : '';
   };
 
@@ -698,225 +937,238 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
 
   y += SEK4_H + 6;
 
-  /* --- SEKTION 5: MESSTECHNISCHE FESTSTELLUNGEN --------------------------
-   * Kopf (Bezeichnung/Netzsystem/Netzart) + Unterpunkte 5.1-5.4 als eigene
-   * Kategorie-Boxen, GENAU im Stil der Anlagenpruefung. */
-  const netzsystemVal = feldWert('netzsystem') || 'TN-S';
-  const netzartVal = feldWert('netzart') || 'Drehstrom';
-  const istDrehstromZeile = netzartVal !== '1-phasig';
-  let freqVal = feldWert('frequenz');
-  if (freqVal && !freqVal.toLowerCase().includes('hz')) freqVal += ' Hz';
+  /* --- SEKTION 5: MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT ----------
+   * Schleife ueber alle Uebergabepunkt-Karten. Im Leerformular wird
+   * unabhaengig von der tatsaechlichen Kartenzahl GENAU EIN leeres Template
+   * gezeichnet (card=null -> feldWertCard() liefert ueberall ''). */
+  const feedCards = Array.from(document.querySelectorAll('#feedsContainer .feed-card'));
+  let anyFeedMeasurementOutGesamt = false;
+  let anyDokumentationsmangelGesamt = false;
+  let isErdungOutGesamt = false;
+  let isPaFehltGesamt = false;
 
-  const SEK5_H = 16;
-  y = pdfPlatzPruefen(doc, y, SEK5_H + 12);
-  drawKategorieBox(doc, { y, h: SEK5_H, titel: "5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT", kat: 'messen' });
-  drawFeldZeile(doc, "Bezeichnung Übergabepunkt:", feldWert('bez'), spL, y + 10, spB, isBlank);
-  drawFeldZeile(doc, "Netzsystem:",  netzsystemVal, spR, y + 10, 40, isBlank);
-  drawFeldZeile(doc, "Netzart:",     istDrehstromZeile ? 'Drehstrom' : '1-phasig', spR + 45, y + 10, 40, isBlank);
+  const kartenAnzahlSchleife = isBlank ? 1 : Math.max(feedCards.length, 1);
+  for (let kIdx = 0; kIdx < kartenAnzahlSchleife; kIdx++) {
+    const card = isBlank ? null : feedCards[kIdx];
+    const kartenNr = kIdx + 1;
+    const fw = (key) => feldWertCard(card, key);
 
-  y += SEK5_H + 4;
+    const netzsystemVal = fw('netzsystem') || 'TN-S';
+    const netzartVal = fw('netzart') || 'Drehstrom';
+    const istDrehstromZeile = netzartVal !== '1-phasig';
+    let freqVal = fw('frequenz');
+    if (freqVal && !freqVal.toLowerCase().includes('hz')) freqVal += ' Hz';
 
-  /* [9.4.0, Gap-Analyse Masterliste] 5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND +
-   * ART DES SPEISEPUNKTS/STECKVERBINDUNG - alle vier Felder fehlten bisher
-   * komplett im PDF-Export (RPE/RISO existierten im Formular vorher gar
-   * nicht, Speisepunkt-Art/Steckverbindung sind neu). 1:1 im Stil von 5.3. */
-  const rpeValAP = feldWert('rpe');
-  const risoValAP = feldWert('riso');
-  const risoModeValAP = feldWert('riso_mode') || '';
-  const risoMinAP = risoModeValAP.includes('SELV') ? 0.5 : 1.0;
-  const rpeNumAP = parseMesswert(rpeValAP);
-  const isRpeOutAP = !isBlank && !isNaN(rpeNumAP) && rpeNumAP > 0.30;
-  const risoTxtAP = (risoValAP || '').trim();
-  const isRisoOutAP = !isBlank && risoTxtAP !== '' && !risoTxtAP.startsWith('>') &&
-    !isNaN(parseMesswert(risoTxtAP)) && parseMesswert(risoTxtAP) < risoMinAP;
-  const speisepunktArtValAP = feldWert('speisepunkt_art') || 'Steckstelle';
-  const istSteckstelleAP = speisepunktArtValAP === 'Steckstelle';
+    const SEK5_H = 16;
+    y = pdfPlatzPruefen(doc, y, SEK5_H + 12);
+    drawKategorieBox(doc, { y, h: SEK5_H, titel: kartenAnzahlSchleife > 1
+        ? `5. MESSTECHNISCHE FESTSTELLUNGEN – ÜBERGABEPUNKT #${kartenNr}`
+        : "5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT", kat: 'messen' });
+    drawFeldZeile(doc, "Bezeichnung Übergabepunkt:", fw('bez'), spL, y + 10, spB, isBlank);
+    drawFeldZeile(doc, "Netzsystem:",  netzsystemVal, spR, y + 10, 40, isBlank);
+    drawFeldZeile(doc, "Netzart:",     istDrehstromZeile ? 'Drehstrom' : '1-phasig', spR + 45, y + 10, 40, isBlank);
 
-  const SEK50_H = 10 + 2 * ZA + 4;
-  y = pdfPlatzPruefen(doc, y, SEK50_H + 8);
-  drawKategorieBox(doc, { y, h: SEK50_H, titel: "5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND", kat: 'messen' });
-  const z50 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "R_{PE} (Ω) [Richtwert ≤ 0,30 Ω]:", rpeValAP ? withUnit(rpeValAP, 'Ω') : '', spL, z50(0), 85, isBlank, { rot: isRpeOutAP });
-  drawFeldZeile(doc, `R_{ISO} (MΩ) [min. ${risoMinAP}]:`, risoValAP ? withUnit(risoValAP, 'MΩ') : '', spR, z50(0), 90, isBlank, { rot: isRisoOutAP });
-  drawFeldZeile(doc, "Art des Speisepunkts:", speisepunktArtValAP, spL, z50(1), 85, isBlank);
-  drawFeldZeile(doc, "Steckverbindung mitgeprüft:", istSteckstelleAP ? feldWert('steckverbindung') : 'n. a. (fest verkabelt)', spR, z50(1), 90, isBlank);
+    y += SEK5_H + 4;
 
-  y += SEK50_H + 4;
+    /* 5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND + ART DES SPEISEPUNKTS/STECKVERBINDUNG */
+    const rpeValAP = fw('rpe');
+    const risoValAP = fw('riso');
+    const risoModeValAP = fw('riso_mode') || '';
+    const risoMinAP = risoModeValAP.includes('SELV') ? 0.5 : 1.0;
+    const rpeNumAP = parseMesswert(rpeValAP);
+    const isRpeOutAP = !isBlank && !isNaN(rpeNumAP) && rpeNumAP > 0.30;
+    const risoTxtAP = (risoValAP || '').trim();
+    const isRisoOutAP = !isBlank && risoTxtAP !== '' && !risoTxtAP.startsWith('>') &&
+      !isNaN(parseMesswert(risoTxtAP)) && parseMesswert(risoTxtAP) < risoMinAP;
+    const speisepunktArtValAP = fw('speisepunkt_art') || 'Steckstelle';
+    const istSteckstelleAP = speisepunktArtValAP === 'Steckstelle';
 
-  /* 5.1 NETZMESSUNG */
-  const uL1n = feldWert('u_l1n'), uL2n = feldWert('u_l2n'), uL3n = feldWert('u_l3n');
-  const uL12 = feldWert('u_l12'), uL23 = feldWert('u_l23'), uL13 = feldWert('u_l13');
-  const unpeVal = feldWert('unpe');
-  const isUnpeOut = !isBlank && (npeUeberschritten(unpeVal) || istMesswertUngueltig(unpeVal));
-  const drehfeldVal = feldWert('drehfeld');
-  const isDrehfeldOut = !isBlank && drehfeldVal === 'n.i.O.';
+    const SEK50_H = 10 + 2 * ZA + 4;
+    y = pdfPlatzPruefen(doc, y, SEK50_H + 8);
+    drawKategorieBox(doc, { y, h: SEK50_H, titel: "5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND", kat: 'messen' });
+    const z50 = (i) => y + 10 + i * ZA;
+    drawFeldZeile(doc, "R_{PE} (Ω) [Richtwert ≤ 0,30 Ω]:", rpeValAP ? withUnit(rpeValAP, 'Ω') : '', spL, z50(0), 85, isBlank, { rot: isRpeOutAP });
+    drawFeldZeile(doc, `R_{ISO} (MΩ) [min. ${risoMinAP}]:`, risoValAP ? withUnit(risoValAP, 'MΩ') : '', spR, z50(0), 90, isBlank, { rot: isRisoOutAP });
+    drawFeldZeile(doc, "Art des Speisepunkts:", speisepunktArtValAP, spL, z50(1), 85, isBlank);
+    drawFeldZeile(doc, "Steckverbindung mitgeprüft:", istSteckstelleAP ? fw('steckverbindung') : 'n. a. (fest verkabelt)', spR, z50(1), 90, isBlank);
 
-  // istDrehstromZeile: 4 Zeilen ab y+10 im Abstand ZA (4,4 mm) -> letzte
-  // Zeile bei y+10+3*ZA=23,2 mm; +3 mm Rand darunter, damit die Schreiblinie
-  // nicht auf dem unteren Boxrand landet.
-  const SEK51_H = istDrehstromZeile ? (10 + 3 * ZA + 4) : 18;
-  y = pdfPlatzPruefen(doc, y, SEK51_H + 8);
-  drawKategorieBox(doc, { y, h: SEK51_H, titel: "5.1 NETZMESSUNG – SPANNUNGEN, FREQUENZ & N–PE", kat: 'messen' });
-  const z51 = (i) => y + 10 + i * ZA;
-  if (istDrehstromZeile) {
-    const isL1nOut = !isBlank && uL1n && netzspannungAusserNorm('u_l1n', uL1n);
-    const isL2nOut = !isBlank && uL2n && netzspannungAusserNorm('u_l2n', uL2n);
-    const isL3nOut = !isBlank && uL3n && netzspannungAusserNorm('u_l3n', uL3n);
-    const isL12Out = !isBlank && uL12 && netzspannungAusserNorm('u_l12', uL12);
-    const isL23Out = !isBlank && uL23 && netzspannungAusserNorm('u_l23', uL23);
-    const isL13Out = !isBlank && uL13 && netzspannungAusserNorm('u_l13', uL13);
-    drawFeldZeile(doc, "U L1–N (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank, { rot: isL1nOut });
-    drawFeldZeile(doc, "U L2–N (V):", uL2n ? withUnit(uL2n, 'V') : '', spL + 60, z51(0), 55, isBlank, { rot: isL2nOut });
-    drawFeldZeile(doc, "U L3–N (V):", uL3n ? withUnit(uL3n, 'V') : '', spL + 120, z51(0), 55, isBlank, { rot: isL3nOut });
-    drawFeldZeile(doc, "U L1–L2 (V):", uL12 ? withUnit(uL12, 'V') : '', spL, z51(1), 55, isBlank, { rot: isL12Out });
-    drawFeldZeile(doc, "U L2–L3 (V):", uL23 ? withUnit(uL23, 'V') : '', spL + 60, z51(1), 55, isBlank, { rot: isL23Out });
-    drawFeldZeile(doc, "U L1–L3 (V):", uL13 ? withUnit(uL13, 'V') : '', spL + 120, z51(1), 55, isBlank, { rot: isL13Out });
-    drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL, z51(2), 90, isBlank, { rot: isUnpeOut });
-    drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL + 95, z51(2), 40, isBlank);
-    drawFeldZeile(doc, "Drehfeldrichtung:", drehfeldVal, spL, z51(3), 90, isBlank, { rot: isDrehfeldOut });
-  } else {
-    drawFeldZeile(doc, "U (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank);
-    drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL + 60, z51(0), 60, isBlank, { rot: isUnpeOut });
-    drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL, z51(1), 55, isBlank);
+    y += SEK50_H + 4;
+
+    /* 5.1 NETZMESSUNG */
+    const uL1n = fw('u_l1n'), uL2n = fw('u_l2n'), uL3n = fw('u_l3n');
+    const uL12 = fw('u_l12'), uL23 = fw('u_l23'), uL13 = fw('u_l13');
+    const unpeVal = fw('unpe');
+    const isUnpeOut = !isBlank && (npeUeberschritten(unpeVal) || istMesswertUngueltig(unpeVal));
+    const drehfeldVal = fw('drehfeld');
+    const isDrehfeldOut = !isBlank && drehfeldVal === 'n.i.O.';
+
+    const SEK51_H = istDrehstromZeile ? (10 + 3 * ZA + 4) : 18;
+    y = pdfPlatzPruefen(doc, y, SEK51_H + 8);
+    drawKategorieBox(doc, { y, h: SEK51_H, titel: "5.1 NETZMESSUNG – SPANNUNGEN, FREQUENZ & N–PE", kat: 'messen' });
+    const z51 = (i) => y + 10 + i * ZA;
+    if (istDrehstromZeile) {
+      const isL1nOut = !isBlank && uL1n && netzspannungAusserNorm('u_l1n', uL1n);
+      const isL2nOut = !isBlank && uL2n && netzspannungAusserNorm('u_l2n', uL2n);
+      const isL3nOut = !isBlank && uL3n && netzspannungAusserNorm('u_l3n', uL3n);
+      const isL12Out = !isBlank && uL12 && netzspannungAusserNorm('u_l12', uL12);
+      const isL23Out = !isBlank && uL23 && netzspannungAusserNorm('u_l23', uL23);
+      const isL13Out = !isBlank && uL13 && netzspannungAusserNorm('u_l13', uL13);
+      drawFeldZeile(doc, "U L1–N (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank, { rot: isL1nOut });
+      drawFeldZeile(doc, "U L2–N (V):", uL2n ? withUnit(uL2n, 'V') : '', spL + 60, z51(0), 55, isBlank, { rot: isL2nOut });
+      drawFeldZeile(doc, "U L3–N (V):", uL3n ? withUnit(uL3n, 'V') : '', spL + 120, z51(0), 55, isBlank, { rot: isL3nOut });
+      drawFeldZeile(doc, "U L1–L2 (V):", uL12 ? withUnit(uL12, 'V') : '', spL, z51(1), 55, isBlank, { rot: isL12Out });
+      drawFeldZeile(doc, "U L2–L3 (V):", uL23 ? withUnit(uL23, 'V') : '', spL + 60, z51(1), 55, isBlank, { rot: isL23Out });
+      drawFeldZeile(doc, "U L1–L3 (V):", uL13 ? withUnit(uL13, 'V') : '', spL + 120, z51(1), 55, isBlank, { rot: isL13Out });
+      drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL, z51(2), 90, isBlank, { rot: isUnpeOut });
+      drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL + 95, z51(2), 40, isBlank);
+      drawFeldZeile(doc, "Drehfeldrichtung:", drehfeldVal, spL, z51(3), 90, isBlank, { rot: isDrehfeldOut });
+    } else {
+      drawFeldZeile(doc, "U (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank);
+      drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL + 60, z51(0), 60, isBlank, { rot: isUnpeOut });
+      drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL, z51(1), 55, isBlank);
+    }
+
+    y += SEK51_H + 4;
+
+    /* 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH */
+    const paVal = fw('pa_angeschlossen');
+    const erdungReVal = fw('erdung_re');
+    const erdungReNum = parseMesswert(erdungReVal);
+    const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS || erdungReNum < 0);
+    const paDurchgVal = fw('pa_durchg');
+    const isPaFehlt = !isBlank && paVal === 'Nein';
+    const isPaDurchgOut = !isBlank && paDurchgVal === 'n.i.O.';
+    isErdungOutGesamt = isErdungOutGesamt || isErdungOut;
+    isPaFehltGesamt = isPaFehltGesamt || isPaFehlt;
+
+    const SEK52_H = 22;
+    y = pdfPlatzPruefen(doc, y, SEK52_H + 8);
+    drawKategorieBox(doc, { y, h: SEK52_H, titel: "5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH", kat: 'erdung' });
+    const z52 = (i) => y + 10 + i * ZA;
+    drawFeldZeile(doc, "PA grundsätzlich vorhanden (Konzept):", paVal, spL, z52(0), 90, isBlank, { rot: isPaFehlt });
+    drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
+                  erdungReVal ? withUnit(erdungReVal, 'Ω') : '', spR, z52(0), 90, isBlank, { rot: isErdungOut });
+    drawFeldZeile(doc, "Messpunkt / Bezugspunkt:", fw('pa_messpunkt'), spL, z52(1), 177, isBlank);
+    drawFeldZeile(doc, "Durchgängigkeit PA (Messwert):", paDurchgVal, spL, z52(2), 90, isBlank, { rot: isPaDurchgOut });
+
+    y += SEK52_H + 4;
+
+    /* 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ */
+    const sichVal = fw('sich');
+    const zsVal = fw('zs');
+    const ikVal = fw('ik');
+    const zlnVal = fw('zln');
+    const ik2Val = fw('ik2');
+    const minIkAP = getMinIk(sichVal);
+    const ikNumAP = parseMesswert(ikVal);
+    const isIkOutAP = !isBlank && minIkAP !== null && !isNaN(ikNumAP) && ikNumAP < minIkAP;
+    const maxZsAP = getMaxZs(sichVal);
+    const zsNumAP = parseMesswert(zsVal);
+    const zlnNumAP = parseMesswert(zlnVal);
+    const isZlnOutAP = !isBlank && maxZsAP !== null && !isNaN(zlnNumAP) && (zlnNumAP > maxZsAP || zlnNumAP < 0);
+    const isZsOutAP = !isBlank && ((maxZsAP !== null && !isNaN(zsNumAP) && (zsNumAP > maxZsAP || zsNumAP < 0)) || isZlnOutAP
+      || istMesswertUngueltig(zsVal) || istMesswertUngueltig(ikVal) || istMesswertUngueltig(zlnVal) || istMesswertUngueltig(ik2Val));
+    const zsIkWiderspruchAP = !isBlank && (!zIkPlausibel(zsVal, ikVal) || !zIkPlausibel(zlnVal, ik2Val));
+    const absicherungUnbekanntAP = !isBlank && istAbsicherungUnbekannt(sichVal);
+    if (zsIkWiderspruchAP || absicherungUnbekanntAP) anyDokumentationsmangelGesamt = true;
+
+    const SEK53_H = 22;
+    y = pdfPlatzPruefen(doc, y, SEK53_H + 8);
+    drawKategorieBox(doc, { y, h: SEK53_H, titel: "5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ AM ÜBERGABEPUNKT", kat: 'messen' });
+    const z53 = (i) => y + 10 + i * ZA;
+    drawFeldZeile(doc, "Absicherung (Typ/I_{n}):", sichVal, spL, z53(0), 85, isBlank);
+    drawFeldZeile(doc, `Z_{S} (Ω) [max. ${maxZsAP !== null ? maxZsAP.toFixed(2).replace('.', ',') : '?'}]:`,
+                  zsVal ? withUnit(zsVal, 'Ω') : '', spR, z53(0), 90, isBlank, { rot: isZsOutAP });
+    drawFeldZeile(doc, `I_{K} (A) [min. ${minIkAP !== null ? minIkAP : '?'}]:`,
+                  ikVal ? withUnit(ikVal, 'A') : '', spL, z53(1), 85, isBlank, { rot: isIkOutAP });
+    drawFeldZeile(doc, "Z_{L-N} (Ω) – Netzimpedanz:", zlnVal ? withUnit(zlnVal, 'Ω') : '', spR, z53(1), 90, isBlank, { rot: isZlnOutAP });
+    drawFeldZeile(doc, "I_{K2} (A) – Kurzschlussstrom L–N:", ik2Val ? withUnit(ik2Val, 'A') : '', spL, z53(2), 85, isBlank);
+    if (absicherungUnbekanntAP) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.4);
+      doc.setTextColor(...redCellText);
+      doc.text('Absicherung nicht erkannt – Z_S/I_K nicht bewertet.', spR, z53(2));
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.2);
+    }
+    if (zsIkWiderspruchAP) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.4);
+      doc.setTextColor(...redCellText);
+      doc.text('Z und I_{K} passen nicht zusammen (I = 230 V / Z).', spL, z53(3));
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.2);
+    }
+
+    y += SEK53_H + 4;
+
+    /* 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) */
+    const rcdTypVal = fw('rcd_typ');
+    const rcdInVal = fw('rcd_in');
+    const rcdIdnVal = fw('rcd_idn');
+    const rcdImessVal = fw('rcd_imess');
+    const rcdTaVal = fw('rcd_ta');
+    const rcdPruefstromVal = fw('rcd_pruefstrom');
+    const rcdZelleAP = buildRcdZelle({
+      typ: rcdTypVal, in: rcdInVal, idn: rcdIdnVal, imess: rcdImessVal, ta: rcdTaVal, pruefstrom: rcdPruefstromVal
+    });
+    const taNumAP = parseMesswert(rcdTaVal);
+    const isTaOutAP = !isBlank && rcdZelleAP.taMax !== null && !isNaN(taNumAP) && (taNumAP > rcdZelleAP.taMax || taNumAP < 0);
+    const idnRangeAP = getRcdIdnRangeMa(rcdIdnVal);
+    const imessNumAP = parseMesswert(rcdImessVal);
+    const isImessOutAP = !isBlank && idnRangeAP !== null && !isNaN(imessNumAP) && (imessNumAP < idnRangeAP.min || imessNumAP > idnRangeAP.max);
+    if (!isBlank && rcdZelleAP.isDokumentationsmangel) anyDokumentationsmangelGesamt = true;
+
+    const gefVal = fw('gef') || 'normal';
+    const artValAP = fw('art') || 'AC';
+    const umessVal = fw('umess');
+    const umessNumAP = parseMesswert(umessVal);
+    const limitUAP = getUlGrenzwert(artValAP, gefVal || 'normal');
+    const isUmessOutAP = !isBlank && ((!isNaN(umessNumAP) && (umessNumAP > limitUAP || umessNumAP < 0)) || istMesswertUngueltig(umessVal));
+
+    const SEK54_H = 27;
+    y = pdfPlatzPruefen(doc, y, SEK54_H + 8);
+    drawKategorieBox(doc, { y, h: SEK54_H, titel: "5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) AM ÜBERGABEPUNKT", kat: 'messen' });
+    const z54 = (i) => y + 10 + i * ZA;
+    drawFeldZeile(doc, "RCD Typ:", rcdTypVal, spL, z54(0), 55, isBlank);
+    drawFeldZeile(doc, "I_{n} (RCD):", rcdInVal, spL + 60, z54(0), 40, isBlank);
+    drawFeldZeile(doc, "I_{Δn}:", rcdIdnVal, spL + 105, z54(0), 40, isBlank);
+    const rcdPruefstromSelectAP = card && card.querySelector('.c-rcd-pruefstrom');
+    const rcdPruefstromTextAP = (!isBlank && rcdPruefstromSelectAP && rcdPruefstromSelectAP.value)
+      ? rcdPruefstromSelectAP.value + 'x I_{Δn}' : '';
+    drawFeldZeile(doc, "Prüfstrom:", rcdPruefstromTextAP, spL + 145, z54(0), 32, isBlank);
+    drawFeldZeile(doc, "I_{Δmess} (mA):", rcdImessVal ? withUnit(rcdImessVal, 'mA') : '', spL, z54(1), 55, isBlank, { rot: isImessOutAP });
+    drawFeldZeile(doc, `t_{A} (ms) [max. ${rcdZelleAP.taMax !== null ? rcdZelleAP.taMax : '?'}]:`,
+                  rcdTaVal ? withUnit(rcdTaVal, 'ms') : '', spL + 60, z54(1), 55, isBlank, { rot: isTaOutAP });
+    drawFeldZeile(doc, "Bereich/Gefährdung:", gefVal === 'erhoeht' ? `Erhöhte Gefährdung (25 V ${artValAP})` : `Normalbereich (50 V ${artValAP})`, spL, z54(2), 90, isBlank);
+    drawFeldZeile(doc, "Max. zul. U_{L}:", getUlText(artValAP, gefVal), spR, z54(2), 45, isBlank);
+    drawFeldZeile(doc, "Gemessene U_{L} (V):", umessVal ? withUnit(umessVal, 'V') : '', spL, z54(3), 90, isBlank, { rot: isUmessOutAP });
+    if (rcdZelleAP.isPruefungUnvollstaendig && !isBlank) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.4);
+      doc.setTextColor(...redCellText);
+      doc.text('RCD eingetragen, aber nicht vollständig geprüft (I_{Δmess}/t_{A} fehlt).', spL, z54(4));
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.2);
+    }
+
+    y += SEK54_H + 6;
+
+    const anyFeedMeasurementOutK = !isBlank && (isDrehfeldOut ||
+      (uL1n && netzspannungAusserNorm('u_l1n', uL1n)) || (uL2n && netzspannungAusserNorm('u_l2n', uL2n)) ||
+      (uL3n && netzspannungAusserNorm('u_l3n', uL3n)) || (uL12 && netzspannungAusserNorm('u_l12', uL12)) ||
+      (uL23 && netzspannungAusserNorm('u_l23', uL23)) || (uL13 && netzspannungAusserNorm('u_l13', uL13)) ||
+      isUnpeOut || isIkOutAP || isZsOutAP || isTaOutAP || isImessOutAP || rcdZelleAP.isPruefungUnvollstaendig ||
+      isUmessOutAP || isPaDurchgOut);
+    anyFeedMeasurementOutGesamt = anyFeedMeasurementOutGesamt || anyFeedMeasurementOutK;
   }
 
-  y += SEK51_H + 4;
-
-  /* 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH */
-  const paVal = feldWert('pa_angeschlossen');
-  const erdungReVal = feldWert('erdung_re');
-  const erdungReNum = parseMesswert(erdungReVal);
-  const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS || erdungReNum < 0);
-  const paDurchgVal = feldWert('pa_durchg');
-  const paWiderstandVal = feldWert('pa_widerstand');
-  const isPaFehlt = !isBlank && paVal === 'Nein';
-  const isPaDurchgOut = !isBlank && paDurchgVal === 'n.i.O.';
-
-  const SEK52_H = 22;
-  y = pdfPlatzPruefen(doc, y, SEK52_H + 8);
-  drawKategorieBox(doc, { y, h: SEK52_H, titel: "5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH", kat: 'erdung' });
-  const z52 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "PA grundsätzlich vorhanden (Konzept):", paVal, spL, z52(0), 90, isBlank, { rot: isPaFehlt });
-  drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
-                erdungReVal ? withUnit(erdungReVal, 'Ω') : '', spR, z52(0), 90, isBlank, { rot: isErdungOut });
-  drawFeldZeile(doc, "Messpunkt / Bezugspunkt:", feldWert('pa_messpunkt'), spL, z52(1), 177, isBlank);
-  drawFeldZeile(doc, "Durchgängigkeit PA (Messwert):", paDurchgVal, spL, z52(2), 90, isBlank, { rot: isPaDurchgOut });
-  drawFeldZeile(doc, "R_{PA} (Ω), falls gemessen:", paWiderstandVal ? withUnit(paWiderstandVal, 'Ω') : '', spR, z52(2), 90, isBlank);
-
-  y += SEK52_H + 4;
-
-  /* 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ */
-  const sichVal = feldWert('sich');
-  const zsVal = feldWert('zs');
-  const ikVal = feldWert('ik');
-  const zlnVal = feldWert('zln');
-  const ik2Val = feldWert('ik2');
-  const minIkAP = getMinIk(sichVal);
-  const ikNumAP = parseMesswert(ikVal);
-  const isIkOutAP = !isBlank && minIkAP !== null && !isNaN(ikNumAP) && ikNumAP < minIkAP;
-  const maxZsAP = getMaxZs(sichVal);
-  const zsNumAP = parseMesswert(zsVal);
-  const zlnNumAP = parseMesswert(zlnVal);
-  const isZlnOutAP = !isBlank && maxZsAP !== null && !isNaN(zlnNumAP) && (zlnNumAP > maxZsAP || zlnNumAP < 0);
-  const isZsOutAP = !isBlank && ((maxZsAP !== null && !isNaN(zsNumAP) && (zsNumAP > maxZsAP || zsNumAP < 0)) || isZlnOutAP
-    || istMesswertUngueltig(zsVal) || istMesswertUngueltig(ikVal) || istMesswertUngueltig(zlnVal) || istMesswertUngueltig(ik2Val));
-  const zsIkWiderspruchAP = !isBlank && (!zIkPlausibel(zsVal, ikVal) || !zIkPlausibel(zlnVal, ik2Val));
-  const absicherungUnbekanntAP = !isBlank && istAbsicherungUnbekannt(sichVal);
-  let anyDokumentationsmangel = zsIkWiderspruchAP || absicherungUnbekanntAP;
-
-  const SEK53_H = 22;
-  y = pdfPlatzPruefen(doc, y, SEK53_H + 8);
-  drawKategorieBox(doc, { y, h: SEK53_H, titel: "5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ AM ÜBERGABEPUNKT", kat: 'messen' });
-  const z53 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "Absicherung (Typ/I_{n}):", sichVal, spL, z53(0), 85, isBlank);
-  drawFeldZeile(doc, `Z_{S} (Ω) [max. ${maxZsAP !== null ? maxZsAP.toFixed(2).replace('.', ',') : '?'}]:`,
-                zsVal ? withUnit(zsVal, 'Ω') : '', spR, z53(0), 90, isBlank, { rot: isZsOutAP });
-  drawFeldZeile(doc, `I_{K} (A) [min. ${minIkAP !== null ? minIkAP : '?'}]:`,
-                ikVal ? withUnit(ikVal, 'A') : '', spL, z53(1), 85, isBlank, { rot: isIkOutAP });
-  drawFeldZeile(doc, "Z_{L-N} (Ω) – Netzimpedanz:", zlnVal ? withUnit(zlnVal, 'Ω') : '', spR, z53(1), 90, isBlank, { rot: isZlnOutAP });
-  drawFeldZeile(doc, "I_{K2} (A) – Kurzschlussstrom L–N:", ik2Val ? withUnit(ik2Val, 'A') : '', spL, z53(2), 85, isBlank);
-  if (absicherungUnbekanntAP) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.4);
-    doc.setTextColor(...redCellText);
-    doc.text('Absicherung nicht erkannt – Z_S/I_K nicht bewertet.', spR, z53(2));
-    doc.setTextColor(...textColor);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.2);
-  }
-  if (zsIkWiderspruchAP) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.4);
-    doc.setTextColor(...redCellText);
-    doc.text('Z und I_{K} passen nicht zusammen (I = 230 V / Z).', spL, z53(3));
-    doc.setTextColor(...textColor);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.2);
-  }
-
-  y += SEK53_H + 4;
-
-  /* 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) */
-  const rcdTypVal = feldWert('rcd_typ');
-  const rcdInVal = feldWert('rcd_in');
-  const rcdIdnVal = feldWert('rcd_idn');
-  const rcdImessVal = feldWert('rcd_imess');
-  const rcdTaVal = feldWert('rcd_ta');
-  const rcdPruefstromVal = feldWert('rcd_pruefstrom');
-  const rcdZelleAP = buildRcdZelle({
-    typ: rcdTypVal, in: rcdInVal, idn: rcdIdnVal, imess: rcdImessVal, ta: rcdTaVal, pruefstrom: rcdPruefstromVal
-  });
-  const taNumAP = parseMesswert(rcdTaVal);
-  const isTaOutAP = !isBlank && rcdZelleAP.taMax !== null && !isNaN(taNumAP) && (taNumAP > rcdZelleAP.taMax || taNumAP < 0);
-  const idnRangeAP = getRcdIdnRangeMa(rcdIdnVal);
-  const imessNumAP = parseMesswert(rcdImessVal);
-  const isImessOutAP = !isBlank && idnRangeAP !== null && !isNaN(imessNumAP) && (imessNumAP < idnRangeAP.min || imessNumAP > idnRangeAP.max);
-  if (!isBlank && rcdZelleAP.isDokumentationsmangel) anyDokumentationsmangel = true;
-
-  const gefVal = feldWert('gef') || 'normal';
-  // [9.4.0] Spannungsart kommt jetzt aus dem Formularfeld #art (ctx.mitSpannungsart),
-  // Fallback 'AC' wie gehabt.
-  const artValAP = feldWert('art') || 'AC';
-  const umessVal = feldWert('umess');
-  const umessNumAP = parseMesswert(umessVal);
-  const limitUAP = getUlGrenzwert(artValAP, gefVal || 'normal');
-  const isUmessOutAP = !isBlank && ((!isNaN(umessNumAP) && (umessNumAP > limitUAP || umessNumAP < 0)) || istMesswertUngueltig(umessVal));
-
-  const SEK54_H = 27;
-  y = pdfPlatzPruefen(doc, y, SEK54_H + 8);
-  drawKategorieBox(doc, { y, h: SEK54_H, titel: "5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) AM ÜBERGABEPUNKT", kat: 'messen' });
-  const z54 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "RCD Typ:", rcdTypVal, spL, z54(0), 55, isBlank);
-  drawFeldZeile(doc, "I_{n} (RCD):", rcdInVal, spL + 60, z54(0), 40, isBlank);
-  drawFeldZeile(doc, "I_{Δn}:", rcdIdnVal, spL + 105, z54(0), 40, isBlank);
-  const rcdPruefstromSelectAP = document.getElementById('rcd_pruefstrom');
-  const rcdPruefstromTextAP = (!isBlank && rcdPruefstromSelectAP && rcdPruefstromSelectAP.value)
-    ? rcdPruefstromSelectAP.value + 'x I_{Δn}' : '';
-  drawFeldZeile(doc, "Prüfstrom:", rcdPruefstromTextAP, spL + 145, z54(0), 32, isBlank);
-  drawFeldZeile(doc, "I_{Δmess} (mA):", rcdImessVal ? withUnit(rcdImessVal, 'mA') : '', spL, z54(1), 55, isBlank, { rot: isImessOutAP });
-  drawFeldZeile(doc, `t_{A} (ms) [max. ${rcdZelleAP.taMax !== null ? rcdZelleAP.taMax : '?'}]:`,
-                rcdTaVal ? withUnit(rcdTaVal, 'ms') : '', spL + 60, z54(1), 55, isBlank, { rot: isTaOutAP });
-  drawFeldZeile(doc, "Bereich/Gefährdung:", gefVal === 'erhoeht' ? `Erhöhte Gefährdung (25 V ${artValAP})` : `Normalbereich (50 V ${artValAP})`, spL, z54(2), 90, isBlank);
-  drawFeldZeile(doc, "Max. zul. U_{L}:", getUlText(artValAP, gefVal), spR, z54(2), 45, isBlank);
-  drawFeldZeile(doc, "Gemessene U_{L} (V):", umessVal ? withUnit(umessVal, 'V') : '', spL, z54(3), 90, isBlank, { rot: isUmessOutAP });
-  if (rcdZelleAP.isPruefungUnvollstaendig && !isBlank) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.4);
-    doc.setTextColor(...redCellText);
-    doc.text('RCD eingetragen, aber nicht vollständig geprüft (I_{Δmess}/t_{A} fehlt).', spL, z54(4));
-    doc.setTextColor(...textColor);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.2);
-  }
-
-  y += SEK54_H + 6;
-
-  const anyFeedMeasurementOut = !isBlank && (isDrehfeldOut ||
-    (uL1n && netzspannungAusserNorm('u_l1n', uL1n)) || (uL2n && netzspannungAusserNorm('u_l2n', uL2n)) ||
-    (uL3n && netzspannungAusserNorm('u_l3n', uL3n)) || (uL12 && netzspannungAusserNorm('u_l12', uL12)) ||
-    (uL23 && netzspannungAusserNorm('u_l23', uL23)) || (uL13 && netzspannungAusserNorm('u_l13', uL13)) ||
-    isUnpeOut || isIkOutAP || isZsOutAP || isTaOutAP || isImessOutAP || rcdZelleAP.isPruefungUnvollstaendig ||
-    isUmessOutAP || isPaDurchgOut);
+  const anyFeedMeasurementOut = anyFeedMeasurementOutGesamt;
+  const isErdungOut = isErdungOutGesamt;
+  const isPaFehlt = isPaFehltGesamt;
 
   /* --- SEKTION 6: ERPROBEN ------------------------------------------------
    * [9.4.0, Gap-Analyse Masterliste] "Polarität / Steckdosenbelegung" neu
@@ -961,7 +1213,39 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   const OFF_BEM_START = OFF_BEM_LABEL + 4.2;
   const boxHeight = OFF_BEM_START + bemZeilen * 4.2 + 2.5;
 
-  y = pdfPlatzPruefen(doc, y, boxHeight + 5 + 32);
+  // [Korrektur] ampelStatus/hasIssues/hatMaengel muessen fuer complianceText
+  // schon hier bekannt sein - deshalb die drei Gesamtbewertungs-Konstanten
+  // (hatKeineMaengel/hatBehoben/hatMaengel, weiter unten ohnehin gebraucht)
+  // vorgezogen. complianceText/complianceLines selbst folgen gleich danach,
+  // damit die Platzpruefung unten den ECHTEN Platzbedarf des Abschlusstexts
+  // kennt statt eines pauschalen "+32"-Schaetzwerts.
+  const hatKeineMaengelVor = maengelZustand === MAENGEL_KEINE;
+  const hatBehobenVor      = maengelZustand === MAENGEL_BEHOBEN;
+  const hatMaengelVor      = maengelZustand === MAENGEL_OFFEN;
+  const restBeanstandungenVor = !isBlank && (
+    (document.getElementById('res_freigabe')?.value || 'Ja') === 'Nein' ||
+    (document.getElementById('res_leistung_ausreichend')?.value || '') === 'Nein' ||
+    Array.from(s).some(el => el?.value === 'n.i.O.') ||
+    anyFeedMeasurementOut || isErdungOut || isPaFehlt);
+  const ampelStatusVor = ermittleAmpelStatus({
+    isBlank, hatKeineMaengel: hatKeineMaengelVor, hatBehoben: hatBehobenVor, hatMaengel: hatMaengelVor,
+    restBeanstandungen: restBeanstandungenVor, einzelDefektAnzahl: 0
+  });
+  const hasIssuesVor = !isBlank && (hatMaengelVor || restBeanstandungenVor);
+  const complianceTextVor = isBlank
+    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
+    : hasIssuesVor
+      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei der Sichtprüfung, eine nicht ausreichende Anschlussleistung oder ein Sicherheitsrisiko festgestellt. Der Übergabepunkt ist in diesem Zustand NICHT freigegeben. Eine Nutzung ist erst nach Beseitigung der genannten Mängel und erneuter Prüfung zulässig."
+      : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik. Sicherer Gebrauch ist im genannten Rahmen gewährleistet.";
+  const complianceGesamtVor = complianceTextVor +
+    (!isBlank && anyDokumentationsmangelGesamt ? DOKU_MANGEL_ZUSATZ : '');
+  doc.setFont("helvetica", ampelStatusVor === 'neutral' ? "italic" : "bold");
+  doc.setFontSize(6.5);
+  const complianceHoeheVor = doc.splitTextToSize(complianceGesamtVor, PDF_CONTENT_WIDTH).length * 3.2 + 6 + 16;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+
+  y = pdfPlatzPruefen(doc, y, boxHeight + 5 + complianceHoeheVor);
   drawKategorieBox(doc, { y, h: boxHeight, titel: "7. GESAMTBEURTEILUNG & FREIGABE", kat: 'ergebnis' });
 
   doc.setFont("helvetica", "normal");
@@ -1045,12 +1329,16 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
       : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik. Sicherer Gebrauch ist im genannten Rahmen gewährleistet.";
 
   const complianceGesamt = complianceText +
-    (!isBlank && anyDokumentationsmangel ? DOKU_MANGEL_ZUSATZ : '');
+    (!isBlank && anyDokumentationsmangelGesamt ? DOKU_MANGEL_ZUSATZ : '');
 
+  // [Korrektur] Die eigene Platzpruefung hier ENTFAELLT: Box 7 UND dieser
+  // Abschlusstext wurden bereits VOR dem Zeichnen von Box 7 gemeinsam auf
+  // Platz geprueft (siehe complianceHoeheVor weiter oben) - ein zweiter,
+  // hier separater Seitenumbruch koennte sonst wieder Box 7 allein auf
+  // Blatt 1 und die Unterschriften auf Blatt 2 zuruecklassen.
   doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
-  finalY = pdfPlatzPruefen(doc, finalY, complianceLines.length * 3.2 + 6 + 16);
 
   const ampelTextFarbeAnschluss = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
   doc.setTextColor(...ampelTextFarbeAnschluss);
@@ -1113,11 +1401,9 @@ entwurfAusUrlUebernehmen('AP');
 let AKTUELLER_ENTWURF_ID = aktivenEntwurfSicherstellen('AP', 'vde_autosave_ap');
 function ANSCHLUSS_AUTOSAVE_KEY_AKTUELL() { return autosaveKeyFuerEntwurf('AP', AKTUELLER_ENTWURF_ID); }
 
-/* [9.0.0] Alle Formularfelder, die NICHT zum einen Uebergabepunkt-Block
- * gehoeren (der wird separat in UEBERGABEPUNKT_FIELD_IDS erfasst). Neu:
- * pruefnorm, pruefumfang, res_plakette (siehe Aenderungsbericht 9.0.0). Die
- * frueher separaten globalen Erdungsfelder (pa_angeschlossen/erdung_re/
- * pa_messpunkt) sind jetzt Teil von UEBERGABEPUNKT_FIELD_IDS - hier entfernt. */
+/* Alle Formularfelder, die NICHT zu den Uebergabepunkt-Karten gehoeren
+ * (die werden ueber CARD_FELD_SELEKTOREN je Karte erfasst, siehe
+ * collectAnschlussState()/restoreAnschlussState()). */
 const ANSCHLUSS_FIELD_IDS = [
   'auftraggeber', 'anlage_bez', 'pruefer', 'pruefer_qualifikation', 'datum', 'messgeraet', 'seriennummer',
   'pruefintervall', 'res_termin_date', 'pruefnorm', 'pruefgrund',
@@ -1129,25 +1415,6 @@ const ANSCHLUSS_FIELD_IDS = [
   'protokollnummer'
 ];
 
-/* [9.0.0] Felder des EINEN Uebergabepunkt-Blocks (frueher: je .feed-card).
- * Neu ergaenzt: pa_angeschlossen/erdung_re/pa_messpunkt (Punkt 5.2, wieder
- * Teil des Blocks statt globaler Abschnitt), rcd_in (I_n RCD gab es zwar
- * schon als Basisdaten-Feld, jetzt zusaetzlich als eigenstaendiges Feld),
- * basis_sich/basis_rcd_typ/basis_rcd_in/basis_rcd_idn werden NICHT separat
- * gespeichert - sie sind reine Spiegelfelder der "echten" Werte und werden
- * beim Wiederherstellen ueber schutzBasisdatenAusEinzelfeldernUebernehmen()
- * beim naechsten Aufklappen neu befuellt. */
-const UEBERGABEPUNKT_FIELD_IDS = [
-  'bez', 'netzsystem', 'netzart', 'frequenz',
-  // [9.4.0, Gap-Analyse Masterliste] neu ergänzte Felder
-  'speisepunkt_art', 'steckverbindung', 'rpe', 'riso_verbraucher', 'riso_mode', 'riso',
-  'u_l1n', 'u_l2n', 'u_l3n', 'u_l12', 'u_l23', 'u_l13', 'unpe', 'drehfeld',
-  'pa_angeschlossen', 'erdung_re', 'pa_messpunkt', 'pa_durchg', 'pa_widerstand',
-  'sich', 'zs', 'ik', 'zln', 'ik2',
-  'rcd_typ', 'rcd_in', 'rcd_idn', 'rcd_imess', 'rcd_ta', 'rcd_pruefstrom',
-  'gef', 'art', 'umess'
-];
-
 // Zeigt das Freitextfeld nur, wenn "Sonstiges" gewaehlt ist.
 function toggleEinspeisungSonstiges(wert) {
   const gruppe = document.getElementById('einspeisung_sonstiges_gruppe');
@@ -1156,14 +1423,19 @@ function toggleEinspeisungSonstiges(wert) {
 }
 
 function collectAnschlussState() {
-  const state = { fields: {}, uebergabepunkt: {} };
+  const state = { fields: {}, uebergabepunkte: [] };
   ANSCHLUSS_FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) state.fields[id] = el.value;
   });
-  UEBERGABEPUNKT_FIELD_IDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) state.uebergabepunkt[id] = el.value;
+
+  state.uebergabepunkte = Array.from(document.querySelectorAll('#feedsContainer .feed-card')).map(card => {
+    const obj = { kartenId: card.dataset.kartenId || '' };
+    Object.keys(CARD_FELD_SELEKTOREN).forEach(key => {
+      const el = card.querySelector(CARD_FELD_SELEKTOREN[key]);
+      if (el) obj[key] = el.value;
+    });
+    return obj;
   });
 
   state.gebaeude = document.getElementById('gebaeude_custom').value;
@@ -1187,10 +1459,18 @@ function restoreAnschlussState(state) {
     el.value = val;
   });
 
-  Object.entries(state.uebergabepunkt || {}).forEach(([id, val]) => {
-    const el = document.getElementById(id);
-    if (el) el.value = val;
-  });
+  document.getElementById('feedsContainer').innerHTML = '';
+  cardCounter = 0;
+  if (state.uebergabepunkte && state.uebergabepunkte.length) {
+    state.uebergabepunkte.forEach(u => addFeedCard(u));
+  } else {
+    // Abwaertskompatibel: ein VOR der Mehrfach-Uebergabepunkte-Aenderung
+    // gespeicherter Zwischenstand (state.uebergabepunkt, Singular, flaches
+    // Objekt mit denselben Feldnamen wie CARD_FELD_SELEKTOREN) wird als EINE
+    // Karte wiederhergestellt; ganz ohne gespeicherte Uebergabepunkt-Daten
+    // entsteht eine leere Karte.
+    addFeedCard(state.uebergabepunkt || {});
+  }
 
   ['res_bemerkungen'].forEach(id => {
     const ta = document.getElementById(id);
@@ -1216,14 +1496,7 @@ function restoreAnschlussState(state) {
     });
   }
 
-  // [9.0.0] Anzeige-Zustand des Uebergabepunkt-Blocks nach dem Wiederherstellen
-  // neu auswerten (Drehstrom-Felder, RCD-Messwerte-Block).
-  updateFeedNetzart();
-  updateFeedSpeisepunktArt();
-  syncRcdMesswerteAnzeigeAnschluss();
-
   document.querySelectorAll('.sicht-item, .erp-item').forEach(el => sichtErpNiOPruefen(el));
-  validateFeedNorms();
 
   return true;
 }
@@ -1232,6 +1505,7 @@ function autosaveProtocol() {
   if (typeof WERKBANK_MODUS !== 'undefined' && WERKBANK_MODUS) return; // [9.2.0]
   try {
     sicherSetItem(ANSCHLUSS_AUTOSAVE_KEY_AKTUELL(), JSON.stringify(collectAnschlussState()));
+    const anzahl = document.querySelectorAll('#feedsContainer .feed-card').length;
     entwurfMerken('AP', AKTUELLER_ENTWURF_ID, {
       protokollnummer: document.getElementById('protokollnummer')?.value || '',
       bezeichnung: entwurfBezeichnung('AP', () => ({
@@ -1241,10 +1515,7 @@ function autosaveProtocol() {
       standort: document.getElementById('uebergabe_standort')?.value || document.getElementById('auftraggeber')?.value || '',
       gebaeude: document.getElementById('gebaeude_custom')?.value || '',
       anlage: document.getElementById('anlage_bez')?.value || '',
-      // [9.0.0] Es gibt jetzt immer genau einen Uebergabepunkt (keine Karten
-      // mehr) - die Spalte "Anzahl" in "Offene Prüfungen" zeigt deshalb
-      // konstant 1.
-      anzahl: 1
+      anzahl: anzahl
     });
   } catch (e) {}
 }
@@ -1272,10 +1543,9 @@ function resetAnschlussForm() {
 
   applyMasterDataToForm();
 
-  updateFeedNetzart();
-  updateFeedSpeisepunktArt();
-  syncRcdMesswerteAnzeigeAnschluss();
-  validateFeedNorms();
+  document.getElementById('feedsContainer').innerHTML = '';
+  cardCounter = 0;
+  addFeedCard();
 
   if (typeof padPruefer !== 'undefined' && padPruefer) padPruefer.clear();
   if (typeof padAuftraggeber !== 'undefined' && padAuftraggeber) padAuftraggeber.clear();

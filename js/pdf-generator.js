@@ -1624,7 +1624,15 @@ async function generatePDFInner(isBlank = false) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
-  const bemZeilen = isBlank ? 2 : Math.max(splitBemerkung.length, 1);
+  // [Korrektur] Leerformular: 2 -> 1 Schreiblinie bei "Bemerkungen/Mängel".
+  // Zusammen mit der Kuerzung von offTermin/offBemLabel (2 Zeilen weiter
+  // unten) schliesst das die Luecke, durch die Kasten 4 + Abschlussblock
+  // (Freigabe/Unterschriften) nicht mehr auf Blatt 1 passten und auf ein
+  // fast leeres Blatt 2 ausgewichen sind - bei "2/3/4 Blaetter" verschob das
+  // zusaetzlich die gesamte Fortsetzungs-Zaehlung um eine Seite (die
+  // gedruckte "Blatt X von Y"-Beschriftung passte dann nicht mehr zur
+  // tatsaechlichen Seitenzahl im PDF).
+  const bemZeilen = isBlank ? 1 : Math.max(splitBemerkung.length, 1);
 
   // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
   // [9.4.0, Gap-Analyse Masterliste] OFF_PA_KONZEPT/OFF_PA_DURCHG neu:
@@ -1640,8 +1648,11 @@ async function generatePDFInner(isBlank = false) {
   // was gemessen wurde, nicht, was bewusst ungeprueft blieb.
   const OFF_UMFANG = OFF_PA_DURCHG + ZA;
   const offErgebnis   = OFF_UMFANG + ZA;
-  const offTermin     = offErgebnis + 5.5;
-  const offBemLabel   = offTermin + 5.5;
+  // [Korrektur] Im Leerformular sind diese beiden Abstaende knapper (5.5 ->
+  // 4.3 mm) - siehe Kommentar bei bemZeilen oben. Im ausgefuellten Protokoll
+  // unveraendert, damit sich am bestehenden Layout dort nichts verschiebt.
+  const offTermin     = offErgebnis + (isBlank ? 4.3 : 5.5);
+  const offBemLabel   = offTermin + (isBlank ? 4.3 : 5.5);
   const offBemStart   = offBemLabel + 4.2;
   const boxHeight     = offBemStart + bemZeilen * 4.2 + 1.5;
 
@@ -1851,7 +1862,7 @@ async function generatePDFInner(isBlank = false) {
    * nach dem Vergroessern der Stammdaten-Zeilen (Sektion 1) rechnerisch noch
    * auf Blatt 1, kollidierte dort aber mit der Legende. */
   if (isBlank) {
-    const fussGrenze = leerFussOben(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]) - 2;
+    const fussGrenze = leerFussOben(doc, [LEER_BEISPIEL_TEXT_VDE, LEER_SOLLWERTE_VDE, LEER_LEGENDE_VDE]) - 0.8;
     if (finalY + abschlussHoehe > fussGrenze) {
       doc.addPage();
       finalY = PDF_CONTENT_TOP;

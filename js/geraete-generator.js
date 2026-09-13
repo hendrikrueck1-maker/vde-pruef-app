@@ -72,20 +72,15 @@ function addDeviceCard(data = {}) {
     </div>
 
     <div class="sub-section">
-      <div class="sub-title">2. Erproben</div>
-      <div class="grid">
-        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'funktion_' + cardCounter, label: 'Funktionsprüfung', klasse: 'c-funktion erp-item', wert: data.funktion, ohneNa: true })}
-      </div>
-    </div>
-
-    <div class="sub-section">
-      <!-- I26: Drehschalter-Icons hier bewusst NICHT eingebunden (anders als
-           in vde0100.html/anschlusspruefung.html) - das Fluke 6500-2 fuer die
+      <!-- [Korrektur] Nutzerwunsch: Reihenfolge 2./3. getauscht - "2. Messen"
+           steht jetzt vor "3. Erproben" (vorher umgekehrt). I26: Drehschalter-
+           Icons hier bewusst NICHT eingebunden (anders als in
+           vde0100.html/anschlusspruefung.html) - das Fluke 6500-2 fuer die
            Geraetepruefung hat keinen vergleichbaren Drehschalter, die
            1663er-Icons waeren hier irrefuehrend. Infokarte + Fluke-6500-
            Kurzanleitung (messgroesseBlock(...).karten weiter unten) bleiben
            unveraendert bestehen. -->
-      <div class="sub-title mess-karte-titel"><span class="titel-text">3. Messen</span></div>
+      <div class="sub-title mess-karte-titel"><span class="titel-text">2. Messen</span></div>
       <!-- [Welle 3 / Prüfschritt-Bibliothek] Baustein zentral in
            js/pruefschritte.js (PRUEFSCHRITTE.geraete_messblock). -->
       ${PRUEFSCHRITTE.geraete_messblock.html({ cardIdAusdruck: cardCounter, data: data })}
@@ -94,6 +89,13 @@ function addDeviceCard(data = {}) {
       ${(typeof MESSGROESSEN_INFO !== 'undefined' && MESSGROESSEN_INFO.ableitstrom)
         ? infokarteInhaltHtml(MESSGROESSEN_INFO.ableitstrom, 'ableitstrom') + flukeAnleitungHtml(MESSGROESSEN_INFO.ableitstrom, 'fluke6500', 'ableitstrom')
         : ''}
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">3. Erproben</div>
+      <div class="grid">
+        ${PRUEFSCHRITTE.sicht_erp_item.html({ id: 'funktion_' + cardCounter, label: 'Funktionsprüfung', klasse: 'c-funktion erp-item', wert: data.funktion, ohneNa: true })}
+      </div>
     </div>
 
     <!-- [9.8.0] Nutzerwunsch: "4. Beurteilung und Prüfplakette" landet jetzt
@@ -111,6 +113,7 @@ function addDeviceCard(data = {}) {
         ${PRUEFSCHRITTE.res_maengel_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-maengel' })}
         ${PRUEFSCHRITTE.res_plakette_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-plakette' })}
         ${PRUEFSCHRITTE.res_gewaehrleistung_dropdown.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-gewaehrleistung', jaLabel: 'Ja (Gerät entspricht den Normen)' })}
+        ${PRUEFSCHRITTE.geraet_bemerkung_feld.html({ idSuffix: '_' + cardCounter, klasse: 'c-device-bemerkung' })}
       </div>
     </div>
 
@@ -140,6 +143,11 @@ function addDeviceCard(data = {}) {
   if (data.res_gewaehrleistung !== undefined) {
     const el = card.querySelector('.c-device-gewaehrleistung');
     if (el) el.value = data.res_gewaehrleistung;
+  }
+  // [Korrektur] Bemerkung je Gerät - gleiches Restore-Muster wie oben.
+  if (data.geraet_bemerkung !== undefined) {
+    const el = card.querySelector('.c-device-bemerkung');
+    if (el) el.value = data.geraet_bemerkung;
   }
   container.appendChild(card);
   nummeriereKartenNeu('#devicesContainer', '.feed-card', 'Gerät');
@@ -793,12 +801,15 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
       const deviceMaengelZustand = getMaengelZustand(deviceMaengelVal);
       const devicePlaketteVal = card.querySelector('.c-device-plakette')?.value || 'Ja';
       const deviceGewaehrleistungVal = card.querySelector('.c-device-gewaehrleistung')?.value || 'Ja';
+      // [Korrektur] Bemerkung je Gerät.
+      const deviceBemerkungVal = card.querySelector('.c-device-bemerkung')?.value || '';
       deviceBewertungen.push({
         nr: idx + 1,
         bez: cleanStr(`${bez}${typ !== '-' ? ' (' + typ + ')' : ''}`),
         maengelZustand: deviceMaengelZustand,
         plaketteVal: devicePlaketteVal,
         gewaehrleistungVal: deviceGewaehrleistungVal,
+        bemerkung: cleanStr(deviceBemerkungVal),
         isDeviceOut: isDeviceOut
       });
 
@@ -867,9 +878,13 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
    *  einziges Geraet mit "Mängel festgestellt" macht das gesamte Protokoll
    *  rot, unabhaengig davon, wie viele andere Geraete i.O. sind).
    * ========================================================================== */
-  const beurteilungHead = [['Nr.', 'Bezeichnung', 'Gesamtbewertung Mängel', 'Plakette', 'Sicherer Gebrauch']];
+  // [Korrektur] Neue Spalte "Bemerkung" (Nutzerwunsch: Bemerkungsfeld pro
+  // Kreis/Gerät) - Breiten der uebrigen Spalten dafuer leicht verkleinert
+  // (Summe weiterhin 180 mm = 190 mm Tabellenbreite - 10 mm fuer die neue
+  // Spalte).
+  const beurteilungHead = [['Nr.', 'Bezeichnung', 'Gesamtbewertung Mängel', 'Plakette', 'Sicherer Gebrauch', 'Bemerkung']];
   const beurteilungRows = isBlank
-    ? [['', '', '', '', '']]
+    ? [['', '', '', '', '', '']]
     : deviceBewertungen.map(function (d) {
         const dHatMaengel = d.maengelZustand === MAENGEL_OFFEN;
         const dHatBehoben = d.maengelZustand === MAENGEL_BEHOBEN;
@@ -881,7 +896,8 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
           makeCell(cleanStr(d.maengelZustand === MAENGEL_UNBESTIMMT ? '-' :
             (dHatMaengel ? 'Mängel festgestellt' : dHatBehoben ? 'Mängel behoben' : 'Keine Mängel')), dHasIssues),
           makeCell(cleanStr(d.plaketteVal), dHasIssues && d.plaketteVal === 'Ja'),
-          makeCell(cleanStr(d.gewaehrleistungVal), dHasIssues && d.gewaehrleistungVal === 'Ja')
+          makeCell(cleanStr(d.gewaehrleistungVal), dHasIssues && d.gewaehrleistungVal === 'Ja'),
+          d.bemerkung || '-'
         ];
       });
 
@@ -898,7 +914,7 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
       lineColor: katBeurteilung.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
     },
     bodyStyles: { fontSize: 6.4, textColor: textColor, halign: 'center', valign: 'middle' },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 62, halign: 'left' }, 2: { cellWidth: 45 }, 3: { cellWidth: 20 }, 4: { cellWidth: 45 } },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 52, halign: 'left' }, 2: { cellWidth: 38 }, 3: { cellWidth: 16 }, 4: { cellWidth: 36 }, 5: { cellWidth: 30, halign: 'left' } },
     margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
     styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18, minCellHeight: isBlank ? LEER_ZEILENHOEHE_GP : 5.5,
               overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
@@ -982,9 +998,31 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const offBemStart = offBemLabel + 4.2;
   const boxHeight   = offBemStart + bemZeilen * 4.2 + 1.5;
 
+  // [Korrektur] complianceText/complianceLines vorgezogen (wurden bisher erst
+  // nach dem Zeichnen von Box 4 berechnet), damit die Platzpruefung unten mit
+  // der TATSAECHLICHEN Zeilenzahl rechnen kann statt mit einem pauschalen
+  // "+32"-Schaetzwert. Der pauschale Wert reichte fuer eine kurze
+  // "keine Maengel"-Zeile, war aber bei den laengeren, FETT gesetzten
+  // "ACHTUNG"/"HINWEIS"-Texten (3 Zeilen) zu knapp - dort passte Box 4 noch
+  // auf Blatt 1, der Abschlusstext mit den beiden Unterschriften brach aber
+  // separat auf ein fast leeres Blatt 2 um (eigene, zu spaete Platzpruefung
+  // weiter unten, siehe dort).
+  const complianceText = isBlank
+    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
+    : ampelStatus === 'gelb'
+      ? `HINWEIS: ${deviceOutCount} Gerät wurde als n.i.O. dokumentiert und darf nicht weiter betrieben werden (siehe Kennzeichnung/Bemerkung). Die übrigen geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik und dürfen bestimmungsgemäß weiterverwendet werden.`
+      : hasIssues
+        ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
+        : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
+  doc.setFontSize(6.5);
+  const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
+  const complianceHoehe = 4 + complianceLines.length * 3.2 + 4 + 16;
+
   /* 4.5.0 (C1): Bewertungskasten und Abschlussblock gemeinsam pruefen, damit
-   * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen. */
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + 32);
+   * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen.
+   * [Korrektur] "+32" -> complianceHoehe (echter Platzbedarf, siehe oben). */
+  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + complianceHoehe);
 
   drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ABSCHLUSS", kat: 'ergebnis' });
 
@@ -1024,23 +1062,14 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
 
   finalY += boxHeight + 5;
 
-  const complianceText = isBlank
-    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
-    : ampelStatus === 'gelb'
-      ? `HINWEIS: ${deviceOutCount} Gerät wurde als n.i.O. dokumentiert und darf nicht weiter betrieben werden (siehe Kennzeichnung/Bemerkung). Die übrigen geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik und dürfen bestimmungsgemäß weiterverwendet werden.`
-      : hasIssues
-        ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte oder ein n.i.O.-Ergebnis bei Sicht-/Funktionsprüfung festgestellt. Die betroffenen Geräte entsprechen NICHT den anerkannten Regeln der Elektrotechnik und dürfen bis zur Mängelbeseitigung und erneuten Prüfung NICHT weiter betrieben werden."
-        : "Die geprüften Geräte entsprechen den anerkannten Regeln der Elektrotechnik. Ein sicherer Gebrauch bei bestimmungsgemäßer Anwendung ist gewährleistet.";
-
-  /* Der Warntext bei Maengeln wird FETT gesetzt und ist damit rund 7 %
-   * breiter als in normaler Schrift. Wurde er normal gemessen und fett
-   * gedruckt, lief er ueber die rechte Papierkante hinaus und die letzten
-   * Zeichen fehlten im PDF. Schrift deshalb VOR splitTextToSize setzen. */
-  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
-  doc.setFontSize(6.5);
-  const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
-  finalY = pdfPlatzPruefen(doc, finalY, 4 + complianceLines.length * 3.2 + 4 + 16);
-
+  // [Korrektur] complianceText/complianceLines/complianceHoehe wurden weiter
+  // oben vorgezogen (siehe Kommentar bei der Box-4-Platzpruefung) - identische
+  // Berechnung, nur vor dem Zeichnen von Box 4. Die Platzpruefung selbst
+  // entfaellt hier: sie ist jetzt Teil der EINEN kombinierten Pruefung oben,
+  // die Box 4 UND diesen Abschlusstext gemeinsam auf Platz prueft (finalY
+  // steht damit an dieser Stelle bereits sicher weit genug oben auf der
+  // Seite - kein zweiter Seitenumbruch mehr moeglich, der Box 4 allein auf
+  // Blatt 1 und die Unterschriften auf Blatt 2 zurueckliesse).
   doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const ampelTextFarbeGeraete = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
@@ -1221,7 +1250,9 @@ function collectGeraeteState() {
     // Felder res_maengel/res_plakette/res_gewaehrleistung in GERAETE_FIELD_IDS.
     res_maengel: card.querySelector('.c-device-maengel')?.value || '',
     res_plakette: card.querySelector('.c-device-plakette')?.value || '',
-    res_gewaehrleistung: card.querySelector('.c-device-gewaehrleistung')?.value || ''
+    res_gewaehrleistung: card.querySelector('.c-device-gewaehrleistung')?.value || '',
+    // [Korrektur] Bemerkung je Gerät - gleiches Muster wie res_maengel etc.
+    geraet_bemerkung: card.querySelector('.c-device-bemerkung')?.value || ''
   }));
 
   return state;

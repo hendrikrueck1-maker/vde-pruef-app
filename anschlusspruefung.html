@@ -63,11 +63,16 @@
 
   <form id="anschlussForm">
     <!-- ===========================================================================
-         [9.0.0] KOMPLETTER STRUKTURUMBAU (siehe Aenderungsbericht 9.0.0):
-         - Genau EIN Übergabepunkt pro Protokoll (keine .feed-card-Mehrfachkarten
-           mehr). Wer mehrere Übergabepunkte hat, füllt mehrere Protokolle aus.
-         - Potenzialausgleich/Erdung ist wieder Teil des Übergabepunkt-Blocks
-           (Unterpunkt der messtechnischen Feststellungen), nicht mehr ein
+         [9.0.0 -> 9.10.0] STRUKTURGESCHICHTE:
+         - 9.0.0 hatte auf Nutzerwunsch auf genau EINEN Übergabepunkt pro
+           Protokoll umgestellt (keine .feed-card-Mehrfachkarten mehr).
+         - [9.10.0, Korrektur] Das erwies sich als Rückschritt: mehrere
+           Übergabepunkte/Kreise pro Anschlussprüfung sind in der Praxis
+           üblich. Mehrfach-Übergabepunkte wurden wieder eingeführt - 1:1
+           nach dem Karten-Muster aus vde0100.html/geraetepruefung.html
+           (#feedsContainer + addFeedCard(), siehe js/anschluss-generator.js).
+         - Potenzialausgleich/Erdung ist weiterhin Teil jedes Übergabepunkt-
+           Blocks (Unterpunkt der messtechnischen Feststellungen), nicht ein
            separater, globaler Abschnitt.
          - Schutzeinrichtungs-Basisdaten als Aufklapp-Panel (Muster 1:1 aus
            vde0100.html/js/pdf-generator.js übernommen, siehe .c-schutz-basisdaten).
@@ -157,12 +162,13 @@
     </div>
 
     <!-- 5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT -->
-    <!-- [9.0.0] Genau EIN Übergabepunkt-Block statt beliebig vieler
-         .feed-card-Karten (siehe Aenderungsbericht 9.0.0). Wer mehrere
-         Übergabepunkte hat, füllt mehrere Protokolle aus. Der Block bleibt
-         trotzdem visuell wie eine Karte gestaltet (.feed-card-Optik), nur
-         ohne Kopfleiste mit Duplizieren/Entfernen-Buttons und ohne Container
-         für weitere Karten. -->
+    <!-- [9.10.0, Korrektur] Wieder beliebig viele Übergabepunkt-Karten
+         (.feed-card) statt genau einem festen Block - siehe Kommentar zur
+         Strukturgeschichte oben. Der komplette Kartenaufbau (Kopf-Grid,
+         Schutzbasisdaten, 5.0-5.4, Fotoleiste, Duplizieren/Entfernen) steht
+         jetzt zentral in addFeedCard() (js/anschluss-generator.js) - 1:1
+         nach dem Muster von addCircuitCard() (vde0100.html) und
+         addDeviceCard() (geraetepruefung.html). -->
     <h2 class="kat-messen" id="abschnitt-messen">5. Messtechnische Feststellungen je Übergabepunkt</h2>
     <p class="limit-hint" style="margin:-4px 0 8px;">
       Richtwerte: R<sub>PE</sub> &le; 0,30 &Omega; · I<sub>K</sub> &ge; 5&times;I<sub>n</sub> (B) / 10&times;I<sub>n</sub> (C) ·
@@ -170,125 +176,8 @@
       Netzspannung &plusmn;10&nbsp;% nach DIN&nbsp;EN&nbsp;50160 · U<sub>N&ndash;PE</sub> Sollwert 0&nbsp;V
     </p>
 
-    <div class="feed-card anschluss-uebergabepunkt" id="uebergabepunktBlock">
-      <div class="grid">
-        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
-             (PRUEFSCHRITTE.bezeichnung_feld) - siehe auch die gleichnamigen
-             Felder der Stromkreis-/Geräte-Karte (js/pruefschritte.js,
-             gemeinsame Klasse .c-bez). -->
-        <div data-pruefschritt="bezeichnung_feld" data-ctx='{"label":"Bezeichnung Übergabepunkt:","platzhalter":"z. B. Bühnenversorgung Haupthaus","gridFull":true}'></div>
-        <div data-pruefschritt="netzsystem_dropdown" data-ctx='{"klasse":"c-netzsystem"}'></div>
-        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
-             (PRUEFSCHRITTE.netzart_auswahl) - eigene id "netzart"/Klasse
-             "c-netzart" bleiben unverändert (siehe Kommentar dort). -->
-        <div data-pruefschritt="netzart_auswahl" data-ctx='{"id":"netzart","klasse":"c-netzart","onChange":"updateFeedNetzart","zweiteOptionZusatz":""}'></div>
-        <!-- [9.8.0, Feld-Reihenfolge] Das Frequenz-Feld stand hier frueher
-             direkt im Kopf-Grid des Uebergabepunkt-Blocks. Nutzerwunsch:
-             Frequenz gehoert inhaltlich zur Netzmessung (5.1) und steht dort
-             jetzt nach U_N-PE, vor der Drehfeldrichtung - siehe unten. Die
-             Ueberschrift "5.1 Netzmessung - Spannungen, Frequenz & N-PE"
-             kuendigte das Feld ohnehin schon an dieser Stelle an. Reines
-             Verschieben des Markers, keine Aenderung an id/class/Attributen -
-             #frequenz wird weiterhin ausschliesslich per ID gelesen (siehe
-             js/anschluss-generator.js).
-             [9.4.0, Gap-Analyse Masterliste] Art des Speisepunkts + Steckverbindung
-             mitgeprüft - 1:1 nach dem Muster aus vde0100.html
-             (netzmessung_speisepunkt_art/netzmessung_steckverbindung), hier aber
-             ohne eigene istSpeisepunktSteckstelle()-Kopie: dieselbe Funktion aus
-             pdf-generator.js wird wiederverwendet (liest nur per getElementById,
-             ist also Datei-unabhängig), siehe updateFeedSpeisepunktArt() unten.
-             [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
-             (PRUEFSCHRITTE.speisepunkt_art_auswahl). -->
-        <div data-pruefschritt="speisepunkt_art_auswahl" data-ctx='{"id":"speisepunkt_art","onChange":"updateFeedSpeisepunktArt","mitHinweistext":false}'></div>
-      </div>
-      <div class="form-group" id="feed_steckstelle_gruppe" style="display:none;">
-        <!-- [Prüfschritt-Bibliothek] Baustein zentral in js/pruefschritte.js
-             (PRUEFSCHRITTE.steckverbindung_auswahl). -->
-        <div data-pruefschritt="steckverbindung_auswahl" data-ctx='{"id":"steckverbindung","hinweistext":"Bei Versorgung über eine Steckstelle ist die Steckverbindung selbst zwingend mitzuprüfen (z. B. CEE-Kupplung am Übergabepunkt) – die Messung der Spannungen erfolgt weiterhin am Speisepunkt."}'></div>
-      </div>
-
-      <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
-           js/pruefschritte.js (PRUEFSCHRITTE.schutz_basisdaten).
-           ctx.rcdTypOptionen ohne "Typ F" - hier historisch nicht Teil der
-           Schnellwahl (anders als in der Stromkreis-Karte). -->
-      <div data-pruefschritt="schutz_basisdaten" data-ctx='{"rcdTypOptionen":["Typ A","Typ B","Typ B+","Ohne RCD"]}'></div>
-
-      <!-- 5.0 SCHUTZLEITERWIDERSTAND & ISOLATIONSWIDERSTAND -->
-      <!-- [9.4.0, Gap-Analyse Masterliste] RPE/RISO fehlten am Übergabepunkt
-           komplett - 1:1 nach dem Muster der Stromkreis-Karte (pdf-generator.js,
-           addCircuitCard()) übernommen, inkl. Prüfspannungs-Dropdown. IDs ohne
-           Zähler-Suffix, da es (wie beim restlichen Übergabepunkt-Block) nur
-           genau einen Übergabepunkt pro Formular gibt.
-           [9.5.0, Welle 3] Baustein zentral in js/pruefschritte.js
-           (PRUEFSCHRITTE.rpe_riso_messblock) - Default-ctx (ohne mitCardId)
-           entspricht 1:1 dem hier bisher hartcodierten HTML. -->
-      <div data-pruefschritt="rpe_riso_messblock" data-ctx='{"titelNummer":"5.0","titelText":"Schutzleiterwiderstand &amp; Isolationswiderstand"}'></div>
-
-      <!-- 5.1 NETZMESSUNG -->
-      <div class="sub-section">
-        <div class="sub-title mess-karte-titel" id="netzmessung_icon_wrap"><span class="titel-text">5.1 Netzmessung &ndash; Spannungen, Frequenz &amp; N&ndash;PE</span></div>
-        <p class="limit-hint" style="margin:0 0 8px;">Sollwerte: L gegen N je 230 V (&plusmn;10&nbsp;%) · L gegen L je 400 V (&plusmn;10&nbsp;%) · N gegen PE 0 V · Frequenz 50 Hz.</p>
-        <div class="grid">
-          <div data-pruefschritt="netzmessung_spannungsgrid" data-ctx='{"mitKlasse":true,"onInputFn":"validateFeedNetzspannungsfeld","mitBindestrichArg":true,"l1nLabelSpanKlasse":"c-l1n-label"}'></div>
-          <div class="form-group">
-            <label>U<sub>N&ndash;PE</sub> (V) [Sollwert 0 V] <span class="feld-badge feld-badge-pflicht">Pflicht</span>:</label>
-            <input type="text" inputmode="decimal" class="c-unpe" id="unpe" placeholder="z. B. 0,3" oninput="validateFeedNorms()">
-            <div class="limit-hint">Der einzige Wert, der eigenständig einen Fehler findet: hochohmiger PEN, Fremdeinspeisung, vertauschte Einspeisung am Aggregat.</div>
-          </div>
-          <!-- [9.8.0, Feld-Reihenfolge] Hierher verschoben aus dem Kopf-Grid
-               des Uebergabepunkt-Blocks (siehe Kommentar dort) - unveraendert
-               id="frequenz"/class="c-frequenz", nur die Position im DOM hat
-               sich geaendert. -->
-          <div class="form-group">
-            <label for="frequenz">Frequenz (Hz):</label>
-            <input type="text" inputmode="decimal" class="c-frequenz" id="frequenz" placeholder="z. B. 50 Hz">
-          </div>
-          <!-- [Prüfschritt-Bibliothek] Baustein zentral in
-               js/pruefschritte.js (PRUEFSCHRITTE.drehfeld_auswahl) - siehe
-               dortiger Kommentar dazu, warum dies bewusst kein
-               sicht_erp_item-Aufruf ist. -->
-          <div data-pruefschritt="drehfeld_auswahl"></div>
-        </div>
-      </div>
-
-      <!-- 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH -->
-      <!-- [9.0.0] Wieder Teil des Übergabepunkt-Blocks (Nutzerwunsch), nicht
-           mehr eigener globaler Formularabschnitt wie zeitweise in 8.0.0.
-           [9.5.0, Welle 3] Feldgruppe zentral in js/pruefschritte.js
-           (PRUEFSCHRITTE.potenzialausgleich_messfelder), hier mit eigener
-           Messpunkt-Schnellwahl-Liste + zusätzlichem R_PA-Feld (ctx.mitRpa). -->
-      <div class="sub-section">
-        <div class="sub-title">5.2 Durchgängigkeit Potenzialausgleich (Messwert dieses Übergabepunkts)</div>
-        <div class="grid">
-          <div data-pruefschritt="potenzialausgleich_messfelder" data-ctx='{"erdungReOnInput":"validateErdungAnschluss","erdungReMitZusatz":true,"messpunktId":"pa_messpunkt","messpunktPlatzhalter":"z. B. PA-Schiene im Übergabeverteiler","messpunktButtons":[{"wert":"HES (Haupterdungsschiene)","label":"HES"},{"wert":"Potenzialausgleichsschiene (PAS)","label":"PA-Schiene"},{"wert":"PE-Schiene Übergabeverteiler","label":"PE-Schiene Übergabe"},{"wert":"Baustromverteiler","label":"Baustromverteiler"},{"wert":"Zählerschrank / Hausanschlusskasten","label":"Zählerschrank"},{"wert":"Generator-Sternpunkt","label":"Generator-Sternpunkt"},{"wert":"Erdspieß / Tiefenerder","label":"Erdspieß"},{"wert":"Fundamenterder","label":"Fundamenterder"},{"wert":"CEE-Verteiler Bühne","label":"CEE-Verteiler"},{"wert":"Traverse / Tribüne","label":"Traverse/Tribüne"},{"wert":"Bauzaun / Absperrung","label":"Bauzaun"},{"wert":"Bühnenpodest / Bühnenwagen","label":"Bühnenpodest"}],"mitRpa":true}'></div>
-        </div>
-      </div>
-
-      <!-- 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ -->
-      <!-- [Welle 2 / Prüfschritt-Bibliothek] Baustein zentral in
-           js/pruefschritte.js (PRUEFSCHRITTE.absicherung_schleifenimpedanz). -->
-      <div class="sub-section">
-        <div class="sub-title mess-karte-titel"><span class="titel-text">5.3 Absicherung & Schleifenimpedanz am Übergabepunkt</span></div>
-        <div data-pruefschritt="absicherung_schleifenimpedanz"></div>
-      </div>
-
-      <!-- 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) -->
-      <!-- [Welle 2 / Prüfschritt-Bibliothek] Bausteine zentral in
-           js/pruefschritte.js (PRUEFSCHRITTE.rcd_typ_hauptfeld,
-           PRUEFSCHRITTE.rcd_messwerte mit mitBeruehrungsspannung:true). -->
-      <div class="sub-section">
-        <div class="sub-title mess-karte-titel"><span class="titel-text">5.4 Fehlerstrom-Schutzeinrichtung (RCD / FI) am Übergabepunkt</span></div>
-        <div data-pruefschritt="rcd_typ_hauptfeld" data-ctx='{"syncFn":"syncRcdMesswerteAnzeigeAnschluss","rcdTypOptionen":["Typ A","Typ B","Typ B+","Ohne RCD"]}'></div>
-        <!-- [9.0.0] Bei "Ohne RCD" klappen die Ausloese-Messwerte automatisch
-             ein - 1:1 nach dem Muster syncRcdMesswerteAnzeige() aus
-             vde0100.html (dort .c-rcd-messwerte), siehe
-             syncRcdMesswerteAnzeigeAnschluss() in js/anschluss-generator.js. -->
-        <div data-pruefschritt="rcd_messwerte" data-ctx='{"mitBeruehrungsspannung":true,"mitSpannungsart":true}'></div>
-      </div>
-
-      <!-- FOTODOKUMENTATION am Ende des Übergabepunkt-Abschnitts -->
-      <div id="uebergabepunkt_fotos_platzhalter"></div>
-    </div>
+    <div id="feedsContainer"></div>
+    <button type="button" class="btn btn-secondary" onclick="addFeedCard()">+ Übergabepunkt hinzufügen</button>
 
     <!-- 6. ERPROBEN -->
     <h2 class="kat-sicht" id="abschnitt-erproben">6. Erproben (Funktionsprüfung)</h2>
@@ -368,22 +257,19 @@
   initProtokollNummer('AP');
   toggleEinspeisungSonstiges(document.getElementById('einspeisung_art').value);
 
-  // [9.0.0] Kein addFeedCard() mehr - der EINE Übergabepunkt-Block steht
-  // direkt im Formular (siehe #uebergabepunktBlock oben). Anzeige-Zustand
-  // (Drehstrom-Felder, RCD-Messwerte-Block, Basisdaten-Panel) einmalig
-  // synchronisieren.
-  updateFeedNetzart();
-  updateFeedSpeisepunktArt();
-  syncRcdMesswerteAnzeigeAnschluss();
-  validateFeedNorms();
+  // [9.10.0, Korrektur] addFeedCard() baut die erste Übergabepunkt-Karte
+  // (Kopf-Grid, Schutzbasisdaten, 5.0-5.4, Fotoleiste) direkt inkl. aller
+  // Anzeige-Synchronisierung (Drehstrom-Felder, RCD-Messwerte-Block,
+  // Basisdaten-Panel) auf - 1:1 nach dem Muster von addDeviceCard() in
+  // geraetepruefung.html. restoreAnschlussState() leert/baut den Container
+  // bei Bedarf neu auf (z. B. beim Wiederherstellen eines Autosaves mit
+  // mehreren Übergabepunkten).
+  addFeedCard();
 
-  // [7.1.0] Foto-Anlage am Übergabepunkt-Block und am zentralen Feld
-  // "Mängel / Bemerkungen / Auflagen" (siehe vde0100.html, gleiches Muster).
+  // [7.1.0] Foto-Anlage am zentralen Feld "Mängel / Bemerkungen / Auflagen"
+  // (siehe vde0100.html, gleiches Muster). Die Fotoleiste je Übergabepunkt-
+  // Karte wird bereits innerhalb von addFeedCard() aufgebaut.
   if (typeof fotosLeisteHtml === 'function') {
-    const uebergabepunktFotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'uebergabepunkt', 1);
-    document.getElementById('uebergabepunkt_fotos_platzhalter').innerHTML = fotosLeisteHtml(uebergabepunktFotoKey);
-    fotosLeisteAktualisieren(uebergabepunktFotoKey);
-
     const bemerkungenFotoKey = fotoKartenKey('AP', AKTUELLER_ENTWURF_ID, 'bemerkungen', 1);
     document.getElementById('bemerkungen_fotos_platzhalter').innerHTML = fotosLeisteHtml(bemerkungenFotoKey);
     fotosLeisteAktualisieren(bemerkungenFotoKey);
@@ -399,6 +285,9 @@
   initStatusleiste({
     typLabel: 'Anschlussprüfung',
     bezFeldIds: ['uebergabe_standort', 'anlage_bez', 'gebaeude_custom'],
+    kartenSelector: '.feed-card',
+    kartenLabelSelector: '.feed-header span',
+    kartenContainerSelector: '#feedsContainer',
     abschnitte: [
       { selector: '#abschnitt-stammdaten-1', label: 'Stammdaten' },
       { selector: '#abschnitt-stammdaten-2', label: 'Stammdaten' },
