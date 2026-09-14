@@ -21,7 +21,7 @@
  * automatisch den "Neue Version verfuegbar"-Hinweis.
  * (Das Skript UPDATE.bat erhoeht diese Zahl automatisch.)
  */
-var APP_VERSION = '9.10.0';
+var APP_VERSION = '10.0.0';
 
 /* ---------------------------------------------------------------------------
  * 1b. BETRIEBSNAME (Branding)

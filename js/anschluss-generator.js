@@ -938,20 +938,70 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   y += SEK4_H + 6;
 
   /* --- SEKTION 5: MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT ----------
-   * Schleife ueber alle Uebergabepunkt-Karten. Im Leerformular wird
-   * unabhaengig von der tatsaechlichen Kartenzahl GENAU EIN leeres Template
-   * gezeichnet (card=null -> feldWertCard() liefert ueberall ''). */
+   * [10.0.0] Wieder im kompakten Tabellen-Stil des urspruenglichen Formulars
+   * (eine Zeile pro Übergabepunkt, analog zur Stromkreis-Tabelle in
+   * vde0100.html) statt der 5 Einzel-Kategorieboxen (5.0-5.4) aus 9.0.0-
+   * 9.10.0. Alle seit 9.0.0/9.4.0 hinzugekommenen Felder (RPE/RISO, Art des
+   * Speisepunkts/Steckverbindung, PA-Konzept/Durchgängigkeit als eigener
+   * Messwert) bleiben inhaltlich vollständig erhalten, stehen jetzt aber als
+   * zusätzliche Zeile(n) innerhalb der jeweiligen Tabellenzelle statt in
+   * eigenen Boxen - das spart bei 1 Übergabepunkt eine ganze Seite und
+   * bringt auch mehrere Übergabepunkte in der Regel auf 1 Seite (bei 4-5
+   * Karten: automatischer Zeilenumbruch/Fortsetzung wie bei den anderen
+   * Protokollen, siehe pdfPlatzPruefen/rowPageBreak:'avoid'). Die gesamte
+   * Validierungs-/Grenzwertlogik ist unveraendert aus 9.10.0 uebernommen. */
   const feedCards = Array.from(document.querySelectorAll('#feedsContainer .feed-card'));
+  const kartenAnzahlSchleife = isBlank ? 1 : Math.max(feedCards.length, 1);
+
+  const katMessenAP = drawKategorieTitel(doc, "5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT", y, 'messen');
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.6);
+  doc.setTextColor(...PDF_MUTED);
+  doc.text(isBlank ? "Schutzleiter, Schleifenimpedanz, RCD. Grenzwerte je Spalte im Tabellenkopf."
+                   : "Schutzleiter, Schleifenimpedanz, RCD. Grenzwerte je Spalte im Tabellenkopf; unzulässige Werte werden rot hinterlegt.",
+           PDF_MARGIN_LEFT, y + 3.4);
+  doc.setTextColor(...textColor);
+  y += 6;
+
+  const HEAD_AP_AUSGEFUELLT = [[
+    'Nr.', 'Bezeichnung\nÜbergabepunkt', 'Netzsystem\nSpannung / Frequenz', 'Drehfeld',
+    'R_{PE}\n(Ω)\nRichtw. ≤ 0,30', 'U_{N-PE}\n(V)\nSollwert 0', 'Absicherung\nTyp / I_{n}',
+    'Z_{S} (Ω) / I_{K} (A)\nZ_{S} ≤ 230 V / I_{a}\nI_{K} ≥ 5x/10x/20x I_{n}',
+    'RCD: Typ (I_{Δn})\nI_{Δmess} 0,5-1,0x I_{Δn}\nt_{A} ≤ 40 ms bei 5x'
+  ]];
+  const HEAD_AP_LEER = [[
+    'Nr.', 'Bezeichnung\nÜbergabepunkt', 'Netzsystem\nSpannung / Frequenz', 'Drehfeld',
+    'R_{PE} (Ω)\n≤ 0,30', 'U_{N-PE} (V)\nSoll 0', 'Absicherung\nTyp / I_{n}',
+    'Z_{S} (Ω) / I_{K} (A)', 'RCD Typ (I_{Δn})\nI_{Δmess} / t_{A}'
+  ]];
+  const SPALTEN_AP = {
+    0: { cellWidth: 6 }, 1: { cellWidth: 26, halign: 'left' }, 2: { cellWidth: 26 },
+    3: { cellWidth: 12 }, 4: { cellWidth: 15 }, 5: { cellWidth: 14 },
+    6: { cellWidth: 18 }, 7: { cellWidth: 24 }, 8: { cellWidth: 39 }
+  };
+
+  const makeCellAP = (text, isOut = false) => {
+    if (!isBlank && isOut) {
+      return { content: text, styles: { fillColor: redCellBg, textColor: redCellText, fontStyle: 'bold' } };
+    }
+    return text;
+  };
+
+  const tableRowsAP = [];
   let anyFeedMeasurementOutGesamt = false;
   let anyDokumentationsmangelGesamt = false;
   let isErdungOutGesamt = false;
   let isPaFehltGesamt = false;
 
-  const kartenAnzahlSchleife = isBlank ? 1 : Math.max(feedCards.length, 1);
   for (let kIdx = 0; kIdx < kartenAnzahlSchleife; kIdx++) {
     const card = isBlank ? null : feedCards[kIdx];
     const kartenNr = kIdx + 1;
     const fw = (key) => feldWertCard(card, key);
+
+    if (isBlank) {
+      tableRowsAP.push([kartenNr, "", "", "", "", "", "", "", ""]);
+      continue;
+    }
 
     const netzsystemVal = fw('netzsystem') || 'TN-S';
     const netzartVal = fw('netzart') || 'Drehstrom';
@@ -959,101 +1009,55 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     let freqVal = fw('frequenz');
     if (freqVal && !freqVal.toLowerCase().includes('hz')) freqVal += ' Hz';
 
-    const SEK5_H = 16;
-    y = pdfPlatzPruefen(doc, y, SEK5_H + 12);
-    drawKategorieBox(doc, { y, h: SEK5_H, titel: kartenAnzahlSchleife > 1
-        ? `5. MESSTECHNISCHE FESTSTELLUNGEN – ÜBERGABEPUNKT #${kartenNr}`
-        : "5. MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT", kat: 'messen' });
-    drawFeldZeile(doc, "Bezeichnung Übergabepunkt:", fw('bez'), spL, y + 10, spB, isBlank);
-    drawFeldZeile(doc, "Netzsystem:",  netzsystemVal, spR, y + 10, 40, isBlank);
-    drawFeldZeile(doc, "Netzart:",     istDrehstromZeile ? 'Drehstrom' : '1-phasig', spR + 45, y + 10, 40, isBlank);
-
-    y += SEK5_H + 4;
-
-    /* 5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND + ART DES SPEISEPUNKTS/STECKVERBINDUNG */
+    /* RPE/RISO + Art des Speisepunkts/Steckverbindung */
     const rpeValAP = fw('rpe');
     const risoValAP = fw('riso');
     const risoModeValAP = fw('riso_mode') || '';
     const risoMinAP = risoModeValAP.includes('SELV') ? 0.5 : 1.0;
     const rpeNumAP = parseMesswert(rpeValAP);
-    const isRpeOutAP = !isBlank && !isNaN(rpeNumAP) && rpeNumAP > 0.30;
+    const isRpeOutAP = !isNaN(rpeNumAP) && (rpeNumAP > 0.30 || rpeNumAP < 0);
     const risoTxtAP = (risoValAP || '').trim();
-    const isRisoOutAP = !isBlank && risoTxtAP !== '' && !risoTxtAP.startsWith('>') &&
+    const isRisoOutAP = risoTxtAP !== '' && !risoTxtAP.startsWith('>') &&
       !isNaN(parseMesswert(risoTxtAP)) && parseMesswert(risoTxtAP) < risoMinAP;
     const speisepunktArtValAP = fw('speisepunkt_art') || 'Steckstelle';
     const istSteckstelleAP = speisepunktArtValAP === 'Steckstelle';
+    const steckverbindungValAP = istSteckstelleAP ? fw('steckverbindung') : 'n. a. (fest verkabelt)';
+    const rpeText = rpeValAP ? `${kommaZahlGeprueft(rpeValAP)} Ω` : '-';
+    const risoText = risoValAP ? `${risoTxtAP.startsWith('>') ? kommaZahl(risoValAP) : kommaZahlGeprueft(risoValAP)} MΩ (min. ${risoMinAP})` : '-';
 
-    const SEK50_H = 10 + 2 * ZA + 4;
-    y = pdfPlatzPruefen(doc, y, SEK50_H + 8);
-    drawKategorieBox(doc, { y, h: SEK50_H, titel: "5.0 SCHUTZLEITER-/ISOLATIONSWIDERSTAND", kat: 'messen' });
-    const z50 = (i) => y + 10 + i * ZA;
-    drawFeldZeile(doc, "R_{PE} (Ω) [Richtwert ≤ 0,30 Ω]:", rpeValAP ? withUnit(rpeValAP, 'Ω') : '', spL, z50(0), 85, isBlank, { rot: isRpeOutAP });
-    drawFeldZeile(doc, `R_{ISO} (MΩ) [min. ${risoMinAP}]:`, risoValAP ? withUnit(risoValAP, 'MΩ') : '', spR, z50(0), 90, isBlank, { rot: isRisoOutAP });
-    drawFeldZeile(doc, "Art des Speisepunkts:", speisepunktArtValAP, spL, z50(1), 85, isBlank);
-    drawFeldZeile(doc, "Steckverbindung mitgeprüft:", istSteckstelleAP ? fw('steckverbindung') : 'n. a. (fest verkabelt)', spR, z50(1), 90, isBlank);
-
-    y += SEK50_H + 4;
-
-    /* 5.1 NETZMESSUNG */
+    /* Netzmessung */
     const uL1n = fw('u_l1n'), uL2n = fw('u_l2n'), uL3n = fw('u_l3n');
     const uL12 = fw('u_l12'), uL23 = fw('u_l23'), uL13 = fw('u_l13');
     const unpeVal = fw('unpe');
-    const isUnpeOut = !isBlank && (npeUeberschritten(unpeVal) || istMesswertUngueltig(unpeVal));
+    const isUnpeOut = npeUeberschritten(unpeVal) || istMesswertUngueltig(unpeVal);
     const drehfeldVal = fw('drehfeld');
-    const isDrehfeldOut = !isBlank && drehfeldVal === 'n.i.O.';
-
-    const SEK51_H = istDrehstromZeile ? (10 + 3 * ZA + 4) : 18;
-    y = pdfPlatzPruefen(doc, y, SEK51_H + 8);
-    drawKategorieBox(doc, { y, h: SEK51_H, titel: "5.1 NETZMESSUNG – SPANNUNGEN, FREQUENZ & N–PE", kat: 'messen' });
-    const z51 = (i) => y + 10 + i * ZA;
+    const isDrehfeldOut = drehfeldVal === 'n.i.O.';
+    const isL1nOut = uL1n && netzspannungAusserNorm('u_l1n', uL1n);
+    const isL2nOut = uL2n && netzspannungAusserNorm('u_l2n', uL2n);
+    const isL3nOut = uL3n && netzspannungAusserNorm('u_l3n', uL3n);
+    const isL12Out = uL12 && netzspannungAusserNorm('u_l12', uL12);
+    const isL23Out = uL23 && netzspannungAusserNorm('u_l23', uL23);
+    const isL13Out = uL13 && netzspannungAusserNorm('u_l13', uL13);
+    const anySpannungOut = isL1nOut || isL2nOut || isL3nOut || isL12Out || isL23Out || isL13Out;
+    let spannungText;
     if (istDrehstromZeile) {
-      const isL1nOut = !isBlank && uL1n && netzspannungAusserNorm('u_l1n', uL1n);
-      const isL2nOut = !isBlank && uL2n && netzspannungAusserNorm('u_l2n', uL2n);
-      const isL3nOut = !isBlank && uL3n && netzspannungAusserNorm('u_l3n', uL3n);
-      const isL12Out = !isBlank && uL12 && netzspannungAusserNorm('u_l12', uL12);
-      const isL23Out = !isBlank && uL23 && netzspannungAusserNorm('u_l23', uL23);
-      const isL13Out = !isBlank && uL13 && netzspannungAusserNorm('u_l13', uL13);
-      drawFeldZeile(doc, "U L1–N (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank, { rot: isL1nOut });
-      drawFeldZeile(doc, "U L2–N (V):", uL2n ? withUnit(uL2n, 'V') : '', spL + 60, z51(0), 55, isBlank, { rot: isL2nOut });
-      drawFeldZeile(doc, "U L3–N (V):", uL3n ? withUnit(uL3n, 'V') : '', spL + 120, z51(0), 55, isBlank, { rot: isL3nOut });
-      drawFeldZeile(doc, "U L1–L2 (V):", uL12 ? withUnit(uL12, 'V') : '', spL, z51(1), 55, isBlank, { rot: isL12Out });
-      drawFeldZeile(doc, "U L2–L3 (V):", uL23 ? withUnit(uL23, 'V') : '', spL + 60, z51(1), 55, isBlank, { rot: isL23Out });
-      drawFeldZeile(doc, "U L1–L3 (V):", uL13 ? withUnit(uL13, 'V') : '', spL + 120, z51(1), 55, isBlank, { rot: isL13Out });
-      drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL, z51(2), 90, isBlank, { rot: isUnpeOut });
-      drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL + 95, z51(2), 40, isBlank);
-      drawFeldZeile(doc, "Drehfeldrichtung:", drehfeldVal, spL, z51(3), 90, isBlank, { rot: isDrehfeldOut });
+      spannungText = `${netzsystemVal} - 230 / 400 V, ${freqVal || '50 Hz'}`;
     } else {
-      drawFeldZeile(doc, "U (V):", uL1n ? withUnit(uL1n, 'V') : '', spL, z51(0), 55, isBlank);
-      drawFeldZeile(doc, "U N–PE (V) [Soll 0]:", unpeVal ? withUnit(unpeVal, 'V') : '', spL + 60, z51(0), 60, isBlank, { rot: isUnpeOut });
-      drawFeldZeile(doc, "Frequenz (Hz):", freqVal, spL, z51(1), 55, isBlank);
+      spannungText = `${netzsystemVal} - ${uL1n ? kommaZahlGeprueft(uL1n) + ' V' : '230 V'}, ${freqVal || '50 Hz'}`;
     }
 
-    y += SEK51_H + 4;
-
-    /* 5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH */
+    /* Potenzialausgleich/Erdung */
     const paVal = fw('pa_angeschlossen');
     const erdungReVal = fw('erdung_re');
     const erdungReNum = parseMesswert(erdungReVal);
-    const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS || erdungReNum < 0);
+    const isErdungOut = !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT_ANSCHLUSS || erdungReNum < 0);
     const paDurchgVal = fw('pa_durchg');
-    const isPaFehlt = !isBlank && paVal === 'Nein';
-    const isPaDurchgOut = !isBlank && paDurchgVal === 'n.i.O.';
+    const isPaFehlt = paVal === 'Nein';
+    const isPaDurchgOut = paDurchgVal === 'n.i.O.';
     isErdungOutGesamt = isErdungOutGesamt || isErdungOut;
     isPaFehltGesamt = isPaFehltGesamt || isPaFehlt;
 
-    const SEK52_H = 22;
-    y = pdfPlatzPruefen(doc, y, SEK52_H + 8);
-    drawKategorieBox(doc, { y, h: SEK52_H, titel: "5.2 DURCHGÄNGIGKEIT POTENZIALAUSGLEICH", kat: 'erdung' });
-    const z52 = (i) => y + 10 + i * ZA;
-    drawFeldZeile(doc, "PA grundsätzlich vorhanden (Konzept):", paVal, spL, z52(0), 90, isBlank, { rot: isPaFehlt });
-    drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT_ANSCHLUSS} Ω):`,
-                  erdungReVal ? withUnit(erdungReVal, 'Ω') : '', spR, z52(0), 90, isBlank, { rot: isErdungOut });
-    drawFeldZeile(doc, "Messpunkt / Bezugspunkt:", fw('pa_messpunkt'), spL, z52(1), 177, isBlank);
-    drawFeldZeile(doc, "Durchgängigkeit PA (Messwert):", paDurchgVal, spL, z52(2), 90, isBlank, { rot: isPaDurchgOut });
-
-    y += SEK52_H + 4;
-
-    /* 5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ */
+    /* Absicherung & Schleifenimpedanz */
     const sichVal = fw('sich');
     const zsVal = fw('zs');
     const ikVal = fw('ik');
@@ -1061,110 +1065,102 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     const ik2Val = fw('ik2');
     const minIkAP = getMinIk(sichVal);
     const ikNumAP = parseMesswert(ikVal);
-    const isIkOutAP = !isBlank && minIkAP !== null && !isNaN(ikNumAP) && ikNumAP < minIkAP;
+    const isIkOutAP = minIkAP !== null && !isNaN(ikNumAP) && ikNumAP < minIkAP;
     const maxZsAP = getMaxZs(sichVal);
     const zsNumAP = parseMesswert(zsVal);
     const zlnNumAP = parseMesswert(zlnVal);
-    const isZlnOutAP = !isBlank && maxZsAP !== null && !isNaN(zlnNumAP) && (zlnNumAP > maxZsAP || zlnNumAP < 0);
-    const isZsOutAP = !isBlank && ((maxZsAP !== null && !isNaN(zsNumAP) && (zsNumAP > maxZsAP || zsNumAP < 0)) || isZlnOutAP
-      || istMesswertUngueltig(zsVal) || istMesswertUngueltig(ikVal) || istMesswertUngueltig(zlnVal) || istMesswertUngueltig(ik2Val));
-    const zsIkWiderspruchAP = !isBlank && (!zIkPlausibel(zsVal, ikVal) || !zIkPlausibel(zlnVal, ik2Val));
-    const absicherungUnbekanntAP = !isBlank && istAbsicherungUnbekannt(sichVal);
+    const isZlnOutAP = maxZsAP !== null && !isNaN(zlnNumAP) && (zlnNumAP > maxZsAP || zlnNumAP < 0);
+    const isZsOutAP = (maxZsAP !== null && !isNaN(zsNumAP) && (zsNumAP > maxZsAP || zsNumAP < 0)) || isZlnOutAP
+      || istMesswertUngueltig(zsVal) || istMesswertUngueltig(ikVal) || istMesswertUngueltig(zlnVal) || istMesswertUngueltig(ik2Val);
+    const zsIkWiderspruchAP = !zIkPlausibel(zsVal, ikVal) || !zIkPlausibel(zlnVal, ik2Val);
+    const absicherungUnbekanntAP = istAbsicherungUnbekannt(sichVal);
     if (zsIkWiderspruchAP || absicherungUnbekanntAP) anyDokumentationsmangelGesamt = true;
+    let zsikTextAP = '-';
+    if (zsVal || ikVal) zsikTextAP = `${kommaZahlGeprueft(zsVal) || '-'} Ω / ${kommaZahlGeprueft(ikVal) || '-'} A`;
+    if (zlnVal || ik2Val) zsikTextAP += `\nL-N: ${kommaZahlGeprueft(zlnVal) || '-'} Ω / ${kommaZahlGeprueft(ik2Val) || '-'} A`;
+    if (absicherungUnbekanntAP) zsikTextAP += '\nAbsicherung nicht erkannt – nicht bewertet';
 
-    const SEK53_H = 22;
-    y = pdfPlatzPruefen(doc, y, SEK53_H + 8);
-    drawKategorieBox(doc, { y, h: SEK53_H, titel: "5.3 ABSICHERUNG & SCHLEIFENIMPEDANZ AM ÜBERGABEPUNKT", kat: 'messen' });
-    const z53 = (i) => y + 10 + i * ZA;
-    drawFeldZeile(doc, "Absicherung (Typ/I_{n}):", sichVal, spL, z53(0), 85, isBlank);
-    drawFeldZeile(doc, `Z_{S} (Ω) [max. ${maxZsAP !== null ? maxZsAP.toFixed(2).replace('.', ',') : '?'}]:`,
-                  zsVal ? withUnit(zsVal, 'Ω') : '', spR, z53(0), 90, isBlank, { rot: isZsOutAP });
-    drawFeldZeile(doc, `I_{K} (A) [min. ${minIkAP !== null ? minIkAP : '?'}]:`,
-                  ikVal ? withUnit(ikVal, 'A') : '', spL, z53(1), 85, isBlank, { rot: isIkOutAP });
-    drawFeldZeile(doc, "Z_{L-N} (Ω) – Netzimpedanz:", zlnVal ? withUnit(zlnVal, 'Ω') : '', spR, z53(1), 90, isBlank, { rot: isZlnOutAP });
-    drawFeldZeile(doc, "I_{K2} (A) – Kurzschlussstrom L–N:", ik2Val ? withUnit(ik2Val, 'A') : '', spL, z53(2), 85, isBlank);
-    if (absicherungUnbekanntAP) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.4);
-      doc.setTextColor(...redCellText);
-      doc.text('Absicherung nicht erkannt – Z_S/I_K nicht bewertet.', spR, z53(2));
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
-    }
-    if (zsIkWiderspruchAP) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.4);
-      doc.setTextColor(...redCellText);
-      doc.text('Z und I_{K} passen nicht zusammen (I = 230 V / Z).', spL, z53(3));
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
-    }
-
-    y += SEK53_H + 4;
-
-    /* 5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) */
+    /* RCD */
     const rcdTypVal = fw('rcd_typ');
     const rcdInVal = fw('rcd_in');
     const rcdIdnVal = fw('rcd_idn');
     const rcdImessVal = fw('rcd_imess');
     const rcdTaVal = fw('rcd_ta');
-    const rcdPruefstromVal = fw('rcd_pruefstrom');
+    const rcdPruefstromSelectAP = card && card.querySelector('.c-rcd-pruefstrom');
+    const rcdPruefstromVal = rcdPruefstromSelectAP ? rcdPruefstromSelectAP.value : '';
     const rcdZelleAP = buildRcdZelle({
       typ: rcdTypVal, in: rcdInVal, idn: rcdIdnVal, imess: rcdImessVal, ta: rcdTaVal, pruefstrom: rcdPruefstromVal
     });
     const taNumAP = parseMesswert(rcdTaVal);
-    const isTaOutAP = !isBlank && rcdZelleAP.taMax !== null && !isNaN(taNumAP) && (taNumAP > rcdZelleAP.taMax || taNumAP < 0);
+    const isTaOutAP = rcdZelleAP.taMax !== null && !isNaN(taNumAP) && (taNumAP > rcdZelleAP.taMax || taNumAP < 0);
     const idnRangeAP = getRcdIdnRangeMa(rcdIdnVal);
     const imessNumAP = parseMesswert(rcdImessVal);
-    const isImessOutAP = !isBlank && idnRangeAP !== null && !isNaN(imessNumAP) && (imessNumAP < idnRangeAP.min || imessNumAP > idnRangeAP.max);
-    if (!isBlank && rcdZelleAP.isDokumentationsmangel) anyDokumentationsmangelGesamt = true;
+    const isImessOutAP = idnRangeAP !== null && !isNaN(imessNumAP) && (imessNumAP < idnRangeAP.min || imessNumAP > idnRangeAP.max);
+    if (rcdZelleAP.isDokumentationsmangel) anyDokumentationsmangelGesamt = true;
+    const isRcdOutAP = isTaOutAP || isImessOutAP || rcdZelleAP.isOut;
+    const isRcdBeanstandungAP = isTaOutAP || isImessOutAP || rcdZelleAP.isPruefungUnvollstaendig;
 
+    /* Berührungsspannung (Erproben-Feld, gehört inhaltlich zur RCD-Prüfung -
+     * als eigene Zeile in der RCD-Zelle statt eigener Box). */
     const gefVal = fw('gef') || 'normal';
     const artValAP = fw('art') || 'AC';
     const umessVal = fw('umess');
     const umessNumAP = parseMesswert(umessVal);
     const limitUAP = getUlGrenzwert(artValAP, gefVal || 'normal');
-    const isUmessOutAP = !isBlank && ((!isNaN(umessNumAP) && (umessNumAP > limitUAP || umessNumAP < 0)) || istMesswertUngueltig(umessVal));
+    const isUmessOutAP = (!isNaN(umessNumAP) && (umessNumAP > limitUAP || umessNumAP < 0)) || istMesswertUngueltig(umessVal);
+    let rcdTextAP = rcdZelleAP.text;
+    if (umessVal) rcdTextAP += `\nU_{L}: ${withUnit(umessVal, 'V')} (max. ${getUlText(artValAP, gefVal)})`;
 
-    const SEK54_H = 27;
-    y = pdfPlatzPruefen(doc, y, SEK54_H + 8);
-    drawKategorieBox(doc, { y, h: SEK54_H, titel: "5.4 FEHLERSTROM-SCHUTZEINRICHTUNG (RCD/FI) AM ÜBERGABEPUNKT", kat: 'messen' });
-    const z54 = (i) => y + 10 + i * ZA;
-    drawFeldZeile(doc, "RCD Typ:", rcdTypVal, spL, z54(0), 55, isBlank);
-    drawFeldZeile(doc, "I_{n} (RCD):", rcdInVal, spL + 60, z54(0), 40, isBlank);
-    drawFeldZeile(doc, "I_{Δn}:", rcdIdnVal, spL + 105, z54(0), 40, isBlank);
-    const rcdPruefstromSelectAP = card && card.querySelector('.c-rcd-pruefstrom');
-    const rcdPruefstromTextAP = (!isBlank && rcdPruefstromSelectAP && rcdPruefstromSelectAP.value)
-      ? rcdPruefstromSelectAP.value + 'x I_{Δn}' : '';
-    drawFeldZeile(doc, "Prüfstrom:", rcdPruefstromTextAP, spL + 145, z54(0), 32, isBlank);
-    drawFeldZeile(doc, "I_{Δmess} (mA):", rcdImessVal ? withUnit(rcdImessVal, 'mA') : '', spL, z54(1), 55, isBlank, { rot: isImessOutAP });
-    drawFeldZeile(doc, `t_{A} (ms) [max. ${rcdZelleAP.taMax !== null ? rcdZelleAP.taMax : '?'}]:`,
-                  rcdTaVal ? withUnit(rcdTaVal, 'ms') : '', spL + 60, z54(1), 55, isBlank, { rot: isTaOutAP });
-    drawFeldZeile(doc, "Bereich/Gefährdung:", gefVal === 'erhoeht' ? `Erhöhte Gefährdung (25 V ${artValAP})` : `Normalbereich (50 V ${artValAP})`, spL, z54(2), 90, isBlank);
-    drawFeldZeile(doc, "Max. zul. U_{L}:", getUlText(artValAP, gefVal), spR, z54(2), 45, isBlank);
-    drawFeldZeile(doc, "Gemessene U_{L} (V):", umessVal ? withUnit(umessVal, 'V') : '', spL, z54(3), 90, isBlank, { rot: isUmessOutAP });
-    if (rcdZelleAP.isPruefungUnvollstaendig && !isBlank) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.4);
-      doc.setTextColor(...redCellText);
-      doc.text('RCD eingetragen, aber nicht vollständig geprüft (I_{Δmess}/t_{A} fehlt).', spL, z54(4));
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
+    /* Zusatzzeile in der Bezeichnungs-Zelle: Art des Speisepunkts +
+     * Steckverbindung + PA-Konzept/Durchgängigkeit + RISO - alles Felder,
+     * die im urspruenglichen Formular noch nicht existierten (9.0.0/9.4.0),
+     * aber inhaltlich erhalten bleiben muessen. */
+    const erdungReText = erdungReVal ? `${kommaZahlGeprueft(erdungReVal)} Ω` : '-';
+    const bezZusatzAP = `${speisepunktArtValAP}${istSteckstelleAP ? ' (Steckverb. ' + (steckverbindungValAP || '-') + ')' : ''}` +
+      `\nPA: ${paVal || '-'}${paDurchgVal ? ', Durchg. ' + paDurchgVal : ''} · R_{ISO} ${risoText} · R_{E} ${erdungReText}`;
+
+    if (isRpeOutAP || isRisoOutAP || isUnpeOut || isDrehfeldOut || anySpannungOut || isIkOutAP || isZsOutAP ||
+        isRcdBeanstandungAP || isUmessOutAP || isPaDurchgOut || isErdungOut || isPaFehlt) {
+      anyFeedMeasurementOutGesamt = true;
     }
 
-    y += SEK54_H + 6;
-
-    const anyFeedMeasurementOutK = !isBlank && (isDrehfeldOut ||
-      (uL1n && netzspannungAusserNorm('u_l1n', uL1n)) || (uL2n && netzspannungAusserNorm('u_l2n', uL2n)) ||
-      (uL3n && netzspannungAusserNorm('u_l3n', uL3n)) || (uL12 && netzspannungAusserNorm('u_l12', uL12)) ||
-      (uL23 && netzspannungAusserNorm('u_l23', uL23)) || (uL13 && netzspannungAusserNorm('u_l13', uL13)) ||
-      isUnpeOut || isIkOutAP || isZsOutAP || isTaOutAP || isImessOutAP || rcdZelleAP.isPruefungUnvollstaendig ||
-      isUmessOutAP || isPaDurchgOut);
-    anyFeedMeasurementOutGesamt = anyFeedMeasurementOutGesamt || anyFeedMeasurementOutK;
+    tableRowsAP.push([
+      kartenNr,
+      makeCellAP(cleanStr(`${fw('bez') || '-'}\n${bezZusatzAP}`), isPaFehlt || isPaDurchgOut || isRisoOutAP || isErdungOut),
+      makeCellAP(cleanStr(spannungText), anySpannungOut),
+      makeCellAP(cleanStr(drehfeldVal || (istDrehstromZeile ? '-' : 'n. a.')), isDrehfeldOut),
+      makeCellAP(cleanStr(rpeText), isRpeOutAP),
+      makeCellAP(unpeVal ? `${kommaZahlGeprueft(unpeVal)} V` : '-', isUnpeOut),
+      cleanStr(sichVal || '-'),
+      makeCellAP(cleanStr(zsikTextAP), isIkOutAP || isZsOutAP || zsIkWiderspruchAP || absicherungUnbekanntAP),
+      makeCellAP(cleanStr(rcdTextAP), isRcdOutAP || isUmessOutAP)
+    ]);
   }
+
+  const tabellenStilAP = {
+    theme: 'grid',
+    rowPageBreak: 'avoid',
+    headStyles: {
+      fillColor: katMessenAP.kopf, textColor: katMessenAP.akzent,
+      fontSize: 5.6, fontStyle: 'bold', halign: 'center', valign: 'middle',
+      lineColor: katMessenAP.rand, lineWidth: 0.15, cellPadding: { top: 1.4, bottom: 1.4, left: 0.8, right: 0.8 }
+    },
+    bodyStyles: { fontSize: 6.3, textColor: textColor, halign: 'center', valign: 'middle' },
+    margin: { top: PDF_CONTENT_TOP, left: PDF_MARGIN_LEFT, right: PDF_MARGIN_RIGHT, bottom: 16 },
+    styles: { lineColor: PDF_TABLE_LINE, lineWidth: 0.18,
+              minCellHeight: isBlank ? 10 : 5, overflow: 'linebreak',
+              cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } }
+  };
+
+  doc.autoTable(mitFormelHooks(doc, {
+    startY: y,
+    head: isBlank ? HEAD_AP_LEER : HEAD_AP_AUSGEFUELLT,
+    body: tableRowsAP,
+    columnStyles: SPALTEN_AP,
+    ...tabellenStilAP
+  }));
+
+  y = doc.lastAutoTable.finalY + 6;
 
   const anyFeedMeasurementOut = anyFeedMeasurementOutGesamt;
   const isErdungOut = isErdungOutGesamt;

@@ -155,10 +155,10 @@
     );
     el.dataset.typ = 'mismatch';
     el.querySelector('[data-act="hard"]').onclick = function () {
-      el.remove();
+      removeBanner(el);
       appZuruecksetzen();
     };
-    el.querySelector('[data-act="later"]').onclick = function () { el.remove(); };
+    el.querySelector('[data-act="later"]').onclick = function () { removeBanner(el); };
   }
 
   function showServerUpdateBanner(serverVersion) {
@@ -171,10 +171,10 @@
     );
     el.dataset.typ = 'server';
     el.querySelector('[data-act="hard"]').onclick = function () {
-      el.remove();
+      removeBanner(el);
       appZuruecksetzen();
     };
-    el.querySelector('[data-act="later"]').onclick = function () { el.remove(); };
+    el.querySelector('[data-act="later"]').onclick = function () { removeBanner(el); };
   }
 
   /* ---------- 1c. Notfall-Reset (auch von der Startseite aufrufbar) --------
@@ -216,7 +216,7 @@
               '<span class="pwa-text">✅ Die App ist aktuell (Version ' + APP_VERSION + ').</span>' +
               '<button class="pwa-primary" data-act="ok">OK</button>'
             );
-            el.querySelector('[data-act="ok"]').onclick = function () { el.remove(); };
+            el.querySelector('[data-act="ok"]').onclick = function () { removeBanner(el); };
           }
         }, 1500);
       })
@@ -268,12 +268,55 @@
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
+  /* [10.0.0] Der Banner ist "position: fixed; bottom: 12px" und liegt damit
+   * IMMER ueber dem sichtbaren Seitenende, unabhaengig davon, wie weit die
+   * Nutzerin gerade gescrollt hat. Ohne Gegenmassnahme deckt er dauerhaft
+   * jeden Button ab, der am unteren Rand des Formulars steht (z. B. "Leeres
+   * Protokoll drucken" in der Anschluss-/Geraetepruefung) - ein Klick dort
+   * geht ins Leere, OHNE dass ein Fehler in der Konsole erscheint (der Klick
+   * trifft technisch den Banner, nicht den Button darunter). Fix: solange ein
+   * Banner sichtbar ist, bekommt <body> unten zusaetzlichen Platz
+   * (padding-bottom in Bannerhoehe + Sicherheitsabstand) reserviert, damit
+   * jeder Button unterhalb des sichtbaren Formularendes weiterhin erreichbar
+   * bleibt, statt vom fixierten Banner verdeckt zu werden. removeBanner()
+   * macht das beim Schliessen wieder rueckgaengig. */
+  const PWA_BODY_PADDING_ATTR = 'data-pwa-orig-padding-bottom';
+
+  function reserviereBannerPlatz(el) {
+    if (document.body.getAttribute(PWA_BODY_PADDING_ATTR) === null) {
+      document.body.setAttribute(PWA_BODY_PADDING_ATTR, document.body.style.paddingBottom || '');
+    }
+    // Hoehe erst NACH dem Einfuegen ins DOM bekannt (abhaengig vom Text-
+    // umbruch bei schmalen Bildschirmen) - deshalb hier statt beim Erzeugen.
+    const hoehe = el.offsetHeight || 90;
+    document.body.style.paddingBottom = (hoehe + 24) + 'px';
+  }
+
+  function gibBannerPlatzFrei() {
+    // Nur zuruecksetzen, wenn tatsaechlich kein Banner mehr sichtbar ist -
+    // mehrere Banner koennen (kurzzeitig) gleichzeitig angefordert werden.
+    if (document.querySelector('.pwa-banner')) return;
+    const orig = document.body.getAttribute(PWA_BODY_PADDING_ATTR);
+    document.body.style.paddingBottom = orig || '';
+    document.body.removeAttribute(PWA_BODY_PADDING_ATTR);
+  }
+
+  // Zentrales Entfernen EINES Banners - ersetzt die frueher verstreuten
+  // el.remove()-Aufrufe, damit reserveierter Platz zuverlaessig wieder
+  // freigegeben wird (siehe reserviereBannerPlatz() oben).
+  function removeBanner(el) {
+    if (el && el.parentNode) el.remove();
+    gibBannerPlatzFrei();
+  }
+  window.removeBanner = removeBanner;
+
   function makeBanner(html) {
     document.querySelectorAll('.pwa-banner').forEach(function (b) { b.remove(); });
     const el = document.createElement('div');
     el.className = 'pwa-banner';
     el.innerHTML = html;
     document.body.appendChild(el);
+    reserviereBannerPlatz(el);
     return el;
   }
 
@@ -286,9 +329,9 @@
     );
     el.querySelector('[data-act="update"]').onclick = function () {
       worker.postMessage({ type: 'SKIP_WAITING' });
-      el.remove();
+      removeBanner(el);
     };
-    el.querySelector('[data-act="later"]').onclick = function () { el.remove(); };
+    el.querySelector('[data-act="later"]').onclick = function () { removeBanner(el); };
   }
 
   /* ---------- 5. Installations-Button (Android / Chrome / Edge) ---------- */
@@ -352,7 +395,7 @@
       );
       el.querySelector('[data-act="ok"]').onclick = function () {
         try { localStorage.setItem('pwa_ios_hint_dismissed', '1'); } catch (e) {}
-        el.remove();
+        removeBanner(el);
       };
     }, 2500);
   });
