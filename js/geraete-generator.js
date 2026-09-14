@@ -396,10 +396,16 @@ const GERAETE_REVISION = "Formular Rev. 2026-09 · Normstand: DIN EN 50678:2021-
  *  Zeilenhoehe 6,5 mm -> 8,0 mm: 6,5 mm reichen zum Drucken, nicht zum
  *  Schreiben. 8,0 mm ist dieselbe Hoehe wie in den beiden anderen Protokollen.
  * ======================================================================== */
-const LEER_ZEILEN_BLATT1_GP = 13;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
+const LEER_ZEILEN_BLATT1_GP = 11;   // 4.5.0: 16 -> 14, damit Bewertung, Unterschriften
                                     // und die Legende auf Blatt 1 passen (Befund C1).
                                     // 4.6.0 (N5): 14 -> 13, um Platz fuer die neue
                                     // Pruefumfang-Zeile in Sektion 3 zu schaffen.
+                                    // [Neuaufbau] 13 -> 11: das Leerformular passte
+                                    // schon VOR dem Neuaufbau nicht auf 1 Seite
+                                    // (bestehender Fehler, ~10 mm Ueberlauf) - mit
+                                    // dem neu vermessenen PdfBox-Layout behoben,
+                                    // siehe Pflichtanforderung "jedes Protokoll
+                                    // muss auf 1 Seite passen".
 const LEER_ZEILEN_FOLGE_GP  = 30;   // Zeilen je Fortsetzungsblatt
 const LEER_ZEILENHOEHE_GP   = 8.0;  // mm, Handschrift
 
@@ -572,10 +578,7 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-  const primaryColor = [0, 51, 102];
   const textColor = [15, 23, 42];
-  const boxBorder = [203, 213, 225];
-  const tableHeaderBg = [226, 232, 240];
   const redCellText = [153, 27, 27];
   const redCellBg = [254, 226, 226];
 
@@ -638,22 +641,8 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   let y = PDF_CONTENT_TOP;
 
   /* --- SEKTION 1: STAMMDATEN ---------------------------------------------
-   * Kompakt: 5 Zeilen je Spalte. Protokoll-Nr. und Prueflings-ID stehen in
-   * der Kopfbox oben rechts und werden hier nicht wiederholt. */
-  const ZA = 4.6;
-  // [7.4.0, Punkt 11] Von 31 auf 35 mm vergroessert: eine fuenfte Zeile
-  // "Anlage/Objekt" kam hinzu (ersetzt die entfernte "Prüflings-ID", siehe
-  // Punkt 7) - fuer die Archiv-Anzeige (Punkt 11) analog zu vde0100.html/
-  // anschlusspruefung.html.
-  const SEK1_H = 35;
-  drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm' });
-
-  doc.setFontSize(7.2);
-  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
-  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
-  // vor spR (107) endet.
-  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;
-
+   * [11.0.0] Neu aufgebaut mit PdfBox - Design/Feldinhalt unveraendert,
+   * die Box misst ihre Hoehe jetzt selbst aus den 5 Zeilen je Spalte. */
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
     if (!g) return '';
@@ -666,20 +655,13 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
     ? ''
     : cleanStr(pruefintervallSelect.options[pruefintervallSelect.selectedIndex].text);
 
-  const z1 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Anlage/Objekt:",    feldWert('anlage_bez'),      spL, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Prüfgerät:",        messgeraetText,              spL, z1(4), spB, isBlank);
-
-  drawFeldZeile(doc, "Prüfart:",             feldWert('pruefart'), spR, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Grund der Prüfung:",   feldWert('pruefgrund'), spR, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Prüffrist:",           pruefintervallText,   spR, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",           datum,                spR, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Nächster Prüftermin:", naechsterTermin,      spR, z1(4), spB, isBlank);
-
-  y += SEK1_H + 6;
+  const box1 = new PdfBox(doc, { titel: "1. STAMMDATEN & PRÜFART", kat: 'stamm', y });
+  box1.zeile2sp("Auftraggeber:", feldWert('auftraggeber'), "Prüfart:", feldWert('pruefart'), { isBlank });
+  box1.zeile2sp("Anlage/Objekt:", feldWert('anlage_bez'), "Grund der Prüfung:", feldWert('pruefgrund'), { isBlank });
+  box1.zeile2sp("Gebäude/Bereich:", feldWert('gebaeude_custom'), "Prüffrist:", pruefintervallText, { isBlank });
+  box1.zeile2sp("Prüfer/-in:", feldWert('pruefer'), "Prüfdatum:", datum, { isBlank });
+  box1.zeile2sp("Prüfgerät:", messgeraetText, "Nächster Prüftermin:", naechsterTermin, { isBlank });
+  y = box1.schliessen();
 
   // SEKTION 2: GERÄTE-TABELLE
   const katMessen = drawKategorieTitel(doc, "2. GERÄTE: BESICHTIGEN, ERPROBEN, MESSEN", y, 'messen');
@@ -985,28 +967,6 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   // passen Bewertung UND Unterschriften wieder auf Blatt 1.
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
 
-  // [Befund N5] Pruefumfang (Vollpruefung/Stichprobe, DIN VDE 0105-100)
-  // bekommt die erste Zeile im Kasten, UNTER dem Kastentitel (Titel-Baseline
-  // liegt bei y+5, siehe drawKategorieBox) - alles Weitere ruesckt um
-  // denselben Abstand nach unten.
-  const offUmfang = 9;
-  // [9.8.0] Frueher folgten hier "Prüfergebnis"/"Prüfplakette" (je eine
-  // eigene Zeile, offErgebnis/offPlakette) - beide sind jetzt Teil der
-  // Pro-Geraet-Tabelle oben und entfallen hier. Die Bemerkungszeile ruesckt
-  // direkt nach dem Pruefumfang nach.
-  const offBemLabel = offUmfang + 5.5;
-  const offBemStart = offBemLabel + 4.2;
-  const boxHeight   = offBemStart + bemZeilen * 4.2 + 1.5;
-
-  // [Korrektur] complianceText/complianceLines vorgezogen (wurden bisher erst
-  // nach dem Zeichnen von Box 4 berechnet), damit die Platzpruefung unten mit
-  // der TATSAECHLICHEN Zeilenzahl rechnen kann statt mit einem pauschalen
-  // "+32"-Schaetzwert. Der pauschale Wert reichte fuer eine kurze
-  // "keine Maengel"-Zeile, war aber bei den laengeren, FETT gesetzten
-  // "ACHTUNG"/"HINWEIS"-Texten (3 Zeilen) zu knapp - dort passte Box 4 noch
-  // auf Blatt 1, der Abschlusstext mit den beiden Unterschriften brach aber
-  // separat auf ein fast leeres Blatt 2 um (eigene, zu spaete Platzpruefung
-  // weiter unten, siehe dort).
   const complianceText = isBlank
     ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
     : ampelStatus === 'gelb'
@@ -1019,17 +979,18 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const complianceLines = doc.splitTextToSize(complianceText, PDF_CONTENT_WIDTH);
   const complianceHoehe = 4 + complianceLines.length * 3.2 + 4 + 16;
 
-  /* 4.5.0 (C1): Bewertungskasten und Abschlussblock gemeinsam pruefen, damit
-   * nie eine Seite entsteht, auf der nur die beiden Unterschriftslinien stehen.
-   * [Korrektur] "+32" -> complianceHoehe (echter Platzbedarf, siehe oben). */
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + complianceHoehe);
+  /* [11.0.0] Box 4 ("Abschluss") neu aufgebaut mit PdfBox - Schaetzung folgt
+   * derselben Formel wie PdfBox.schliessen(): Titel-Offset + Pruefumfang-Zeile
+   * (LAYOUT_ZEILE) + Bemerkungsbox + Innenabstand unten. Bewertungskasten und
+   * Abschlusstext (Unterschriften) werden weiterhin GEMEINSAM auf Platz
+   * geprueft, damit nie eine Seite mit nur den Unterschriftslinien entsteht. */
+  const box4HoeheSchaetzung = (LAYOUT_TITEL_HOEHE + LAYOUT_INNEN_ABSTAND) +
+    LAYOUT_ZEILE + (4.2 + bemZeilen * 4.2 + 1.5) + LAYOUT_INNEN_ABSTAND;
+  finalY = layoutSeitenumbruchPruefen(doc, finalY, box4HoeheSchaetzung + LAYOUT_BOX_ABSTAND + complianceHoehe);
 
-  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ABSCHLUSS", kat: 'ergebnis' });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
+  const box4 = new PdfBox(doc, { titel: "4. ABSCHLUSS", kat: 'ergebnis', y: finalY });
   // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
-  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + offUmfang, 177, isBlank);
+  box4.zeile1sp("Prüfumfang:", feldWert('pruefumfang'), { isBlank });
 
   /* [7.1.0, Befund "Mängel/Bewertung immer rot hinterlegt"] Rot nur, wenn
    * tatsaechlich mindestens ein Geraet "Mängel festgestellt" hat (hatMaengel)
@@ -1039,37 +1000,29 @@ async function generatePDFGeraeteInner(isBlank = false, fotos = []) {
   const gelbCellText = [113, 63, 6];
   const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
   const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
-  if (bemerkungFarbe !== 'neutral') {
-    const bemHighlightY = finalY + offBemLabel - 3.3;
-    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
-    doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
-    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
-  }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : textColor));
-  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
-  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
-  doc.setFontSize(6.8);
-  if (isBlank || splitBemerkung.length === 0) {
-    doc.setTextColor(...textColor);
-    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
-  } else {
-    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
-    doc.setTextColor(...textColor);
-    doc.setFont("helvetica", "normal");
-  }
+  box4.frei((doc, yy) => {
+    if (bemerkungFarbe !== 'neutral') {
+      const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+      doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
+      doc.roundedRect(box4.x + 1.5, yy - 3.3, box4.w - 3, bemHighlightH, 0.8, 0.8, 'F');
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : textColor));
+    doc.text("Bemerkungen / Mängel:", box4.x + 3, yy);
+    doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
+    doc.setFontSize(6.8);
+    if (isBlank || splitBemerkung.length === 0) {
+      doc.setTextColor(...textColor);
+      drawSchreibLinien(doc, box4.x + 3, yy + 4.2, box4.w - 6, bemZeilen, 4.2);
+    } else {
+      doc.text(splitBemerkung, box4.x + 3, yy + 4.2);
+      doc.setTextColor(...textColor);
+      doc.setFont("helvetica", "normal");
+    }
+  }, 4.2 + bemZeilen * 4.2 + 1.5);
+  finalY = box4.schliessen();
 
-  finalY += boxHeight + 5;
-
-  // [Korrektur] complianceText/complianceLines/complianceHoehe wurden weiter
-  // oben vorgezogen (siehe Kommentar bei der Box-4-Platzpruefung) - identische
-  // Berechnung, nur vor dem Zeichnen von Box 4. Die Platzpruefung selbst
-  // entfaellt hier: sie ist jetzt Teil der EINEN kombinierten Pruefung oben,
-  // die Box 4 UND diesen Abschlusstext gemeinsam auf Platz prueft (finalY
-  // steht damit an dieser Stelle bereits sicher weit genug oben auf der
-  // Seite - kein zweiter Seitenumbruch mehr moeglich, der Box 4 allein auf
-  // Blatt 1 und die Unterschriften auf Blatt 2 zurueckliesse).
   doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const ampelTextFarbeGeraete = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];

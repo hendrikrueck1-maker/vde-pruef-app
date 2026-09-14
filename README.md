@@ -343,7 +343,7 @@ Anpassungen und Modifikationen sind erlaubt.
 
 ---
 
-**Version:** 10.0.0  
-**Letztes Update:** 2026-09-13  
+**Version:** 10.1.0  
+**Letztes Update:** 2026-09-14  
 **Status:** ✅ Produktiv
 

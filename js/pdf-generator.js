@@ -1097,15 +1097,22 @@ async function generatePDFInner(isBlank = false) {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-  
-  const primaryColor = [0, 51, 102];
+
   const textColor = [15, 23, 42];
-  const boxBorder = [203, 213, 225];
-  const tableHeaderBg = [226, 232, 240];
+  const redCellBg = [254, 226, 226];
+  const redCellText = [153, 27, 27];
 
-  const redCellBg = [254, 226, 226];  
-  const redCellText = [153, 27, 27];   
+  return generatePDFZeichnen(doc, { isBlank, maengelZustand, textColor, redCellBg, redCellText, nummerRoh });
+}
 
+/* [11.0.0, Nutzeranforderung "komplett neu aufbauen, nur Design behalten"]
+ * Reine Zeichenlogik, ausgelagert aus generatePDFInner() (dort verbleiben nur
+ * die Guards/Abbruchbedingungen vor dem eigentlichen PDF-Aufbau). Nutzt die
+ * neue Layout-Engine (js/pdf-layout.js, PdfBox/checkboxGruppe) statt der
+ * bisherigen handgerechneten Offset-Kaskaden - siehe dortige Kommentare fuer
+ * die Beweggruende. Die FACHLICHE Logik (Grenzwerte, Ampel-Bewertung,
+ * Pflichtfeldpruefungen) ist UNVERAENDERT aus generatePDFInner() uebernommen. */
+async function generatePDFZeichnen(doc, { isBlank, maengelZustand, textColor, redCellBg, redCellText, nummerRoh }) {
   const makeCell = (text, isOut = false) => {
     if (!isBlank && isOut) {
       return { content: text, styles: { fillColor: redCellBg, textColor: redCellText, fontStyle: 'bold' } };
@@ -1164,28 +1171,15 @@ async function generatePDFInner(isBlank = false) {
   let y = PDF_CONTENT_TOP;
 
   /* --- SEKTION 1: STAMMDATEN ---------------------------------------------
-   * Kompakt gehalten: 5 Zeilen je Spalte, Zeilenabstand 4,6 mm.
-   * Protokoll-Nr. und Prueflings-ID stehen bereits in der Kopfbox oben rechts
-   * und werden hier nicht wiederholt - das spart eine ganze Zeile. */
-  /* 4.5.0: 49 mm -> 44 mm. Das Ankreuzfeld "einphasig" ist entfallen, die
-   * Netzmessung belegt nur noch zwei Zeilen Kurzfelder. Die gewonnenen 5 mm
-   * werden gebraucht, damit Bewertung UND Unterschriften auf Blatt 1 passen. */
-  const ZA = 4.4;                        // Zeilenabstand ab Sektion 4 (unveraendert)
-  /* 4.6.0: Im Leerformular sind die Stammdaten-Zeilen (Sektion 1) jetzt
-   * grosszuegiger, damit von Hand lesbar eingetragen werden kann - 5,7 mm statt
-   * 4,4 mm Zeilenabstand (+30 %). Im ausgefuellten Protokoll bleibt es beim
-   * kompakten Abstand, da dort ohnehin am Rechner getippt wird. Damit Blatt 1
-   * trotzdem eine Seite bleibt, wurde dafuer eine Eintragezeile aus der
-   * Messtabelle herausgenommen (LEER_ZEILEN_BLATT1 6 -> 5, siehe unten). */
-  const ZA1 = isBlank ? 5.7 : ZA;
-  const SEK1_H = isBlank ? 51 : 42;
-  drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm' });
-
-  doc.setFontSize(7.2);
-  // 4.7.0: spL von 13 auf PDF_MARGIN_LEFT + 3 (23) verschoben (Locherrand),
-  // spB entsprechend von 90 auf 80 verkleinert, damit die Zeile weiterhin
-  // vor spR (107) endet.
-  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;   // linke/rechte Spalte, Spaltenbreite
+   * [11.0.0] Neu aufgebaut mit PdfBox statt handgerechneter SEK1_H/ZA1 -
+   * die Box misst ihre Hoehe jetzt selbst aus der tatsaechlichen Zeilenzahl
+   * (6 Zeilen je Spalte + ggf. 1-2 Netzmessungszeilen), Design/Feldinhalt
+   * unveraendert. */
+  const isNpeOut = !isBlank && npeUeberschritten(document.getElementById('u_npe')?.value);
+  const netzWert = (id) => isBlank ? '' : (document.getElementById(id)?.value || '').trim();
+  const hatNetzmessung = isBlank || NETZMESS_FELDER.some(f => netzWert(f.id)) || netzWert('netzfrequenz');
+  const drehstrom = isBlank || istNetzmessungDrehstrom();
+  const netzmessungZeilen = hatNetzmessung ? (drehstrom ? 2 : 1) : 0;
 
   let volt = feldWert('netzspannung');
   if (volt && !volt.toLowerCase().includes('v')) volt += ' V';
@@ -1202,104 +1196,60 @@ async function generatePDFInner(isBlank = false) {
     return t;
   })();
 
-  const z1 = (i) => y + 10 + i * ZA1;
-  drawFeldZeile(doc, "Auftraggeber:",     feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",  feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Anlage:",           feldWert('anlage_bez'),      spL, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",       feldWert('pruefer'),         spL, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",        datum,                       spL, z1(4), spB, isBlank);
-  // Hausanschluss/Speisepunkt: oberste Schutzebene, Grundlage fuer Selektivitaet
-  // und maximalen Kurzschlussstrom. Bei Open Air steht hier der Speisepunkt.
-  drawFeldZeile(doc, "Hausanschluss/Speisepunkt:", feldWert('hausanschluss'), spL, z1(5), spB, isBlank);
-
-  drawFeldZeile(doc, "Prüfnorm:",            feldWert('pruefnorm'),  spR, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Grund der Prüfung:",   feldWert('pruefgrund'), spR, z1(1), spB, isBlank);
-  // B5: Speisepunkt-Art nur anhaengen, wenn "Steckstelle" gewaehlt wurde (der
-  // Normalfall "Fest verkabelt" aendert diese Zeile bewusst nicht - schont
-  // den Platz im Hinblick auf die 1-Seiten-Vorgabe, siehe E14.1).
+  // B5: Speisepunkt-Art nur anhaengen, wenn "Steckstelle" gewaehlt wurde.
   const speisepunktSuffix = (!isBlank && istSpeisepunktSteckstelle())
     ? ` | Steckstelle, Steckverbindung ${feldWert('netzmessung_steckverbindung') || 'n. gepr.'}`
     : '';
-  drawFeldZeile(doc, "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - ') + speisepunktSuffix, spR, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Spannung / Frequenz:", spannungFreq,           spR, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Netzbetreiber:",       feldWert('vnb'),        spR, z1(4), spB, isBlank);
-  drawFeldZeile(doc, "Prüfgerät:",           messgeraetText,         spR, z1(5), spB, isBlank);
+
+  const box1ZeilenHoehe = isBlank ? 5.7 : LAYOUT_ZEILE;
+  const box1 = new PdfBox(doc, { titel: "1. STAMMDATEN, NETZSYSTEM & MESSGERÄTE", kat: 'stamm', y });
+  box1.zeile2sp("Auftraggeber:", feldWert('auftraggeber'), "Prüfnorm:", feldWert('pruefnorm'), { isBlank, hoehe: box1ZeilenHoehe });
+  box1.zeile2sp("Gebäude/Bereich:", feldWert('gebaeude_custom'), "Grund der Prüfung:", feldWert('pruefgrund'), { isBlank, hoehe: box1ZeilenHoehe });
+  box1.zeile2sp("Anlage:", feldWert('anlage_bez'),
+    "Netzsystem / Einspeisung:", [feldWert('netzsystem'), feldWert('einspeisung')].filter(Boolean).join(' - ') + speisepunktSuffix,
+    { isBlank, hoehe: box1ZeilenHoehe });
+  box1.zeile2sp("Prüfer/-in:", feldWert('pruefer'), "Spannung / Frequenz:", spannungFreq, { isBlank, hoehe: box1ZeilenHoehe });
+  box1.zeile2sp("Prüfdatum:", datum, "Netzbetreiber:", feldWert('vnb'), { isBlank, hoehe: box1ZeilenHoehe });
+  // Hausanschluss/Speisepunkt: oberste Schutzebene, Grundlage fuer Selektivitaet
+  // und maximalen Kurzschlussstrom. Bei Open Air steht hier der Speisepunkt.
+  box1.zeile2sp("Hausanschluss/Speisepunkt:", feldWert('hausanschluss'), "Prüfgerät:", messgeraetText, { isBlank, hoehe: box1ZeilenHoehe });
 
   /* --- NETZMESSUNG ------------------------------------------------------
-   * FRUEHER war das im Leerformular EINE beschriftete Linie ueber 184 mm
-   * ("Netzmessung L-N / L-L / N-PE:") fuer sieben Einzelwerte. Wer von Hand
-   * eintrug, musste sich Reihenfolge und Format selbst ausdenken, und ein
-   * Feld fuer die Frequenz gab es nicht.
-   *
-   * JETZT: acht einzeln beschriftete Kurzfelder in zwei Zeilen. Nicht
-   * gemessene Werte bleiben leer - das frueher hier stehende Ankreuzfeld
-   * "einphasige Einspeisung" wurde in 4.5.0 ersatzlos entfernt (zu speziell,
-   * wurde automatisch gesetzt und widersprach dreiphasigen Messwerten). */
-  const isNpeOut = !isBlank && npeUeberschritten(document.getElementById('u_npe')?.value);
-  const netzWert = (id) => isBlank ? '' : (document.getElementById(id)?.value || '').trim();
-  const hatNetzmessung = isBlank || NETZMESS_FELDER.some(f => netzWert(f.id)) || netzWert('netzfrequenz');
-
+   * Acht einzeln beschriftete Kurzfelder in bis zu zwei Zeilen. Nicht
+   * gemessene Werte bleiben leer (Leerformular) bzw. "n. gem." (ausgefuellt). */
   if (hatNetzmessung) {
-    doc.setFont('helvetica', 'bold');
-    // 4.7.0: seit spL auf 23 mm verschoben wurde (Locherrand), passte die fett
-    // gesetzte Beschriftung "Netzmessung:" bei 7 pt nicht mehr vor die bei
-    // x = 36 beginnende erste Kurzfeld-Spalte und ueberdeckte "U L1-N".
-    // drawFittedText verkleinert die Schrift so weit wie noetig (ca. 13 mm
-    // verfuegbar) - bei Bedarf bis auf 5.5 pt, was hier immer noch gut lesbar
-    // ist, weil es sich um ein kurzes, einzeiliges Label handelt.
-    drawFittedText(doc, 'Netzmessung:', spL, z1(6), 36 - spL - 1, 7, 5.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    box1.frei((doc, yy, innenRechts) => {
+      doc.setFont('helvetica', 'bold');
+      drawFittedText(doc, 'Netzmessung:', box1.x + 3, yy, 16, 7, 5.5);
+      doc.setFont('helvetica', 'normal');
 
-    // Vier Kurzfelder je Zeile, 45 mm Raster ab x = 36 mm
-    const NM_X0 = 36, NM_DX = 41, NM_FELD_B = 38;
-    const nmZelle = (label, id, spalte, zeile, rotOverride) => {
-      const wert = netzWert(id);
-      const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
-      /* 4.5.0: Im AUSGEFUELLTEN Protokoll steht bei einem nicht gemessenen Wert
-       * "n. gem." statt einer leeren Schreiblinie. Eine leere Linie in einem
-       * abgeschlossenen Dokument sieht aus wie ein vergessenes Feld - genau das
-       * war der Punkt, an dem frueher zusaetzlich das Ankreuzfeld
-       * "einphasige Einspeisung" fuer Verwirrung sorgte. Im Leerformular
-       * bleibt die Schreiblinie natuerlich stehen. */
-      const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
-      // Fehlerbewertung: u_npe uebergibt weiterhin explizit isNpeOut (eigener
-      // Schwellenwert, siehe oben); alle anderen Felder (L-N/L-L) werden jetzt
-      // zentral ueber netzspannungAusserNorm() geprueft - vorher wurden diese
-      // sechs Werte im PDF nie bewertet, ein Tippfehler wie "400" bei L1-N
-      // erschien unauffaellig und unmarkiert.
-      const rot = rotOverride !== undefined ? rotOverride : (!isBlank && netzspannungAusserNorm(id, wert));
-      drawFeldZeile(doc, label + ':', text,
-                    NM_X0 + spalte * NM_DX, z1(6) + zeile * ZA1, NM_FELD_B, isBlank, { rot: !!rot });
-    };
-    doc.setFontSize(6.6);
-    // [7.3.0, Nutzerwunsch #2] Bei 1-phasiger Netzart (z. B. Schukosteckdose
-    // ohne Drehstromanschluss) ergeben L2-N/L3-N/die drei L-L-Werte keinen
-    // Sinn - statt sie leer bzw. als "n. gem." zu drucken (wirkt wie ein
-    // vergessenes Feld), wird nur eine kompakte Zeile mit U/f/N-PE gedruckt.
-    const drehstrom = isBlank || istNetzmessungDrehstrom();
-    if (drehstrom) {
-      nmZelle('U L1-N',  'u_l1n', 0, 0);
-      nmZelle('U L2-N',  'u_l2n', 1, 0);
-      nmZelle('U L3-N',  'u_l3n', 2, 0);
-      nmZelle('f',       'netzfrequenz', 3, 0);
-      nmZelle('U L1-L2', 'u_l12', 0, 1);
-      nmZelle('U L2-L3', 'u_l23', 1, 1);
-      nmZelle('U L1-L3', 'u_l13', 2, 1);
-      // N-PE ist der einzige Wert der Netzmessung, der eigenstaendig einen
-      // Fehler findet (hochohmiger PEN, Fremdeinspeisung) -> bei Ueberschreitung
-      // rot, damit er nicht als unauffaellige Zahl untergeht.
-      nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
-    } else {
-      nmZelle('U (1-phasig)', 'u_l1n', 0, 0);
-      nmZelle('f',       'netzfrequenz', 1, 0);
-      nmZelle('U N-PE',  'u_npe', 2, 0, isNpeOut);
-    }
-
-    doc.setFontSize(7.2);
+      const NM_X0 = box1.x + 19, NM_DX = 39.5, NM_FELD_B = 36.5;
+      const nmZelle = (label, id, spalte, zeile, rotOverride) => {
+        const wert = netzWert(id);
+        const einheit = id === 'netzfrequenz' ? 'Hz' : 'V';
+        const text = wert ? withUnit(wert, einheit) : (isBlank ? '' : 'n. gem.');
+        const rot = rotOverride !== undefined ? rotOverride : (!isBlank && netzspannungAusserNorm(id, wert));
+        doc.setFontSize(6.6);
+        drawFeldZeile(doc, label + ':', text,
+                      NM_X0 + spalte * NM_DX, yy + zeile * box1ZeilenHoehe, NM_FELD_B, isBlank, { rot: !!rot });
+      };
+      if (drehstrom) {
+        nmZelle('U L1-N',  'u_l1n', 0, 0);
+        nmZelle('U L2-N',  'u_l2n', 1, 0);
+        nmZelle('U L3-N',  'u_l3n', 2, 0);
+        nmZelle('f',       'netzfrequenz', 3, 0);
+        nmZelle('U L1-L2', 'u_l12', 0, 1);
+        nmZelle('U L2-L3', 'u_l23', 1, 1);
+        nmZelle('U L1-L3', 'u_l13', 2, 1);
+        nmZelle('U N-PE',  'u_npe', 3, 1, isNpeOut);
+      } else {
+        nmZelle('U (1-phasig)', 'u_l1n', 0, 0);
+        nmZelle('f',       'netzfrequenz', 1, 0);
+        nmZelle('U N-PE',  'u_npe', 2, 0, isNpeOut);
+      }
+    }, netzmessungZeilen * box1ZeilenHoehe);
   }
-
-  y += SEK1_H + 4;
+  y = box1.schliessen();
 
   /* --- SEKTION 2: BESICHTIGEN & ERPROBEN ---------------------------------
    * Wieder 3 Spalten (spart gegenueber 2 Spalten zwei Zeilen Hoehe).
@@ -1314,12 +1264,21 @@ async function generatePDFInner(isBlank = false) {
    * nur 1 Zeile). Jeder Punkt hat weiterhin drei Zustaende - "n.a." ist
    * noetig, weil es Brandabschottungen oder Motoren nicht an jeder Anlage
    * gibt und ein erzwungenes i.O./n.i.O. dort falsch waere. */
-  const SICHT_ZA = 4.3;
-  const SEK2_H = 47;   // 4.5.0: 51 -> 47 mm, Inhalt endet bei y+45,5 (siehe C1)
-  drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht' });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  // Ein Pruefpunkt mit den drei Zustaenden i.O. / n.i.O. / n.a. - Beschriftung
+  // + Checkbox-Gruppe. [Nutzerfeedback] "Kästchen sehr durcheinander, überall
+  // untereinander ausrichten": labelFeldBreite fixiert die Startposition der
+  // ERSTEN Checkbox je Spalte, damit "i.O." in allen Zeilen einer Spalte
+  // exakt untereinandersteht statt an der (je nach Labellaenge wechselnden)
+  // Textbreite zu haengen. 26 mm deckt alle 16 Pruefpunkt-Labels bis auf die
+  // zwei laengsten ab ("6. Zus. Potenzialausgl.", "10. Leiterverbindungen"),
+  // die dort minimal (< 1 mm) nachgeben - siehe checkboxGruppe()-Kommentar.
+  const drawPruefpunkt3sp = (doc, label, xLabel, yy, wert) => {
+    checkboxGruppe(doc, xLabel, yy, label + ':', [
+      { label: 'i.O.', checked: !isBlank && wert === 'i.O.' },
+      { label: 'n.i.O.', checked: !isBlank && wert === 'n.i.O.', farbe: 'rot' },
+      { label: 'n.a.', checked: !isBlank && wert === 'n.a.' },
+    ], { luecke: 2.0, fontSize: 6.4, labelFeldBreite: 26 });
+  };
 
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
@@ -1327,65 +1286,52 @@ async function generatePDFInner(isBlank = false) {
     "5. Kennzeichnung", "6. Zus. Potenzialausgl.", "7. Berührungsschutz",
     "8. Typenschild", "9. Brandabschottung", "10. Leiterverbindungen"
   ];
-  // 4.7.0: Spalten neu berechnet (Locherrand, PDF_MARGIN_LEFT jetzt 20 mm).
-  // Zwei Zwischenstaende hatten noch Ueberlappungen: zuerst ueberdeckte das
-  // "n.a." einer Spalte das Label der naechsten, danach stiess bei 9/18 mm
-  // Kaestchenabstand der Text von "n.i.O." an das "n.a."-Kaestchen. Jetzt:
-  // schmaleres Label (22 mm) UND etwas weiterer Kaestchenabstand (11/22 mm),
-  // beides zusammen passt wieder in die Spaltenbreite von 58 mm.
-  const SICHT_LABEL_X = [23, 81, 139];   // Textbeginn je Spalte
-  const SICHT_CB_X    = [48, 106, 164];  // "i.O."-Kaestchen
-  const SICHT_LABEL_W = 22;
+  const SICHT_SP_X = [PDF_MARGIN_LEFT + 3, 81, 139];   // Spaltenbeginn (Label)
 
-  // Ein Pruefpunkt mit den drei Zustaenden i.O. / n.i.O. / n.a.
-  const drawPruefpunkt = (label, xLabel, xBox, yy, wert) => {
-    doc.setFontSize(7);
-    drawFittedText(doc, label + ':', xLabel, yy, SICHT_LABEL_W, 7, 5.2);
-    doc.setFontSize(6.4);
-    drawCheckbox(doc, xBox, yy, "i.O.", !isBlank && wert === "i.O.");
-    drawCheckbox(doc, xBox + 11, yy, "n.i.O.", !isBlank && wert === "n.i.O.", true);
-    drawCheckbox(doc, xBox + 22, yy, "n.a.", !isBlank && wert === "n.a.");
-    doc.setFontSize(7);
-  };
-
-  sichtLabels.forEach((label, i) => {
-    const spalte = Math.floor(i / 4);
-    const zeile = i % 4;
-    drawPruefpunkt(label, SICHT_LABEL_X[spalte], SICHT_CB_X[spalte], y + 9 + zeile * SICHT_ZA, s[i]?.value);
-  });
+  const box2 = new PdfBox(doc, { titel: "2. BESICHTIGEN & ERPROBEN (SICHT- UND FUNKTIONSPRÜFUNG)", kat: 'sicht', y });
+  // 10 Sichtpruefungspunkte, 3 Spalten x 4 Zeilen (letzte Spalte nur 2 Zeilen).
+  for (let zeile = 0; zeile < 4; zeile++) {
+    box2.frei((doc, yy) => {
+      for (let spalte = 0; spalte < 3; spalte++) {
+        const i = spalte * 4 + zeile;
+        if (i >= sichtLabels.length) continue;
+        drawPruefpunkt3sp(doc, sichtLabels[i], SICHT_SP_X[spalte], yy, s[i]?.value);
+      }
+    }, LAYOUT_ZEILE_KOMPAKT);
+  }
 
   // Anschlusskabel: im Leerformular als durchgehende Linie ueber die volle Breite
   const kabelAnschluss = kommaZahl([feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
     .filter(p => p).join(' '));
-  doc.setFontSize(7);
-  const yKabel = y + 9 + 4 * SICHT_ZA + 0.6;
-  drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
-                             : "Anschlusskabel (Typ / Adern / Querschnitt):",
-                kabelAnschluss, PDF_MARGIN_LEFT + 3, yKabel, 177, isBlank);
+  box2.zeile1sp(isBlank ? "Anschlusskabel Typ / Adern / Quersch.:" : "Anschlusskabel (Typ / Adern / Querschnitt):",
+    kabelAnschluss, { isBlank });
 
-  const yErp = yKabel + SICHT_ZA + 1.4;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("Erproben:", PDF_MARGIN_LEFT + 3, yErp);
-  doc.setFont("helvetica", "normal");
+  box2.frei((doc, yy) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("Erproben:", box2.x + 3, yy);
+    doc.setFont("helvetica", "normal");
+  }, 4.2);
 
   const erpEls = document.querySelectorAll('.erp-item');
-  // [Nutzerwunsch] "Sicherheitsbeleuchtung" entfernt (Formularfeld
-  // erp_sicherheitsbel gibt es nicht mehr, siehe vde0100.html) - Reihenfolge
-  // hier MUSS weiterhin exakt der Reihenfolge der .erp-item-Elemente im
-  // Formular entsprechen (erpEls[i]).
+  // [Nutzerwunsch] "Sicherheitsbeleuchtung" entfernt - Reihenfolge hier MUSS
+  // weiterhin exakt der Reihenfolge der .erp-item-Elemente im Formular
+  // entsprechen (erpEls[i]).
   const erpLabels = [
     "Funktion Anlage", "Schutzeinrichtungen", "Drehfeld CEE (rechts)",
     "Polarität/Belegung", "RCD-Prüftaste",
     "Drehrichtung Motoren"
   ];
-  erpLabels.forEach((label, i) => {
-    const spalte = Math.floor(i / 3);
-    const zeile = i % 3;
-    drawPruefpunkt(label, SICHT_LABEL_X[spalte], SICHT_CB_X[spalte], yErp + 4.4 + zeile * SICHT_ZA, erpEls[i]?.value);
-  });
-
-  y += SEK2_H + 6;
+  for (let zeile = 0; zeile < 2; zeile++) {
+    box2.frei((doc, yy) => {
+      for (let spalte = 0; spalte < 3; spalte++) {
+        const i = spalte * 2 + zeile;
+        if (i >= erpLabels.length) continue;
+        drawPruefpunkt3sp(doc, erpLabels[i], SICHT_SP_X[spalte], yy, erpEls[i]?.value);
+      }
+    }, LAYOUT_ZEILE_KOMPAKT);
+  }
+  y = box2.schliessen();
 
   // SEKTION 3: TABELLE
   const katMessen = drawKategorieTitel(doc, "3. MESSTECHNISCHE PRÜFUNGEN DER STROMKREISE", y, 'messen');
@@ -1632,51 +1578,12 @@ async function generatePDFInner(isBlank = false) {
   // zusaetzlich die gesamte Fortsetzungs-Zaehlung um eine Seite (die
   // gedruckte "Blatt X von Y"-Beschriftung passte dann nicht mehr zur
   // tatsaechlichen Seitenzahl im PDF).
+  // [Korrektur, bereits vor 11.0.0] Leerformular bewusst nur 1 Schreiblinie
+  // bei "Bemerkungen/Mängel" - sonst passen Kasten 4 + Abschlussblock
+  // (Freigabe/Unterschriften) nicht mehr auf Blatt 1 (siehe Fussnoten-
+  // Kollisionspruefung unten, leerFussOben()).
   const bemZeilen = isBlank ? 1 : Math.max(splitBemerkung.length, 1);
 
-  // Relative Abstaende innerhalb der Box (mm ab Boxoberkante)
-  // [9.4.0, Gap-Analyse Masterliste] OFF_PA_KONZEPT/OFF_PA_DURCHG neu:
-  // Potenzialausgleich-Konzept + Durchgängigkeit (bisher nur am Übergabepunkt
-  // vorhanden), jeweils +ZA in die bestehende Offset-Kaskade eingehaengt.
-  const OFF_PA_KONZEPT = 9;
-  const OFF_R = OFF_PA_KONZEPT + ZA;
-  const OFF_PUNKT = OFF_R + ZA;
-  const OFF_PA_DURCHG = OFF_PUNKT + ZA;
-  // [Befund N5] DIN VDE 0105-100 verlangt bei Wiederholungspruefungen die
-  // Angabe, was tatsaechlich geprueft wurde (Vollpruefung oder Stichprobe,
-  // und in welchem Umfang) - ohne dieses Feld dokumentiert das Protokoll nur,
-  // was gemessen wurde, nicht, was bewusst ungeprueft blieb.
-  const OFF_UMFANG = OFF_PA_DURCHG + ZA;
-  const offErgebnis   = OFF_UMFANG + ZA;
-  // [Korrektur] Im Leerformular sind diese beiden Abstaende knapper (5.5 ->
-  // 4.3 mm) - siehe Kommentar bei bemZeilen oben. Im ausgefuellten Protokoll
-  // unveraendert, damit sich am bestehenden Layout dort nichts verschiebt.
-  const offTermin     = offErgebnis + (isBlank ? 4.3 : 5.5);
-  const offBemLabel   = offTermin + (isBlank ? 4.3 : 5.5);
-  const offBemStart   = offBemLabel + 4.2;
-  const boxHeight     = offBemStart + bemZeilen * 4.2 + 1.5;
-
-  /* [Nutzerhinweis] Seitenumbruch bei genau 6 statt erst 7 Stromkreisen: Bis
-   * 6.0.0 wurde der Platzbedarf von Kasten 4 + Abschlussblock (Freigabe,
-   * Konformitaetstext, Unterschriften) an dieser Stelle nur GROB GESCHAETZT
-   * (fester Wert von 32 mm), weil der tatsaechliche Konformitaetstext erst
-   * WEITER UNTEN, waehrend Kasten 4 gezeichnet wird, feststand (4.5.0, Befund
-   * C1: Kasten 4 und Abschlussblock werden seitdem GEMEINSAM auf Platz
-   * geprueft, um ein Auseinanderreissen ueber einen Seitenumbruch zu
-   * verhindern). Ein kurzer, positiver Abschlusstext (keine Maengel, keine
-   * fehlende Angabe) braucht real oft nur rund 25-28 mm statt der
-   * geschaetzten 32 mm - bei einem knapp befuellten Blatt 1 (z. B. genau 6
-   * statt 5 Stromkreisen) loeste die zu grosszuegige Schaetzung dadurch einen
-   * unnoetigen Seitenumbruch aus, obwohl Kasten 4 UND der Abschlussblock
-   * rechnerisch noch auf Seite 1 gepasst haetten.
-   *
-   * Jetzt wird der tatsaechliche Bedarf VORGEZOGEN und EXAKT genauso berechnet
-   * wie bisher (identische Formeln, nur vor statt nach dem Zeichnen von
-   * Kasten 4) - alle dafuer noetigen Werte sind reine Feldablesungen bzw.
-   * boole'sche Verknuepfungen ohne Zeichen-Seiteneffekt und daher gefahrlos
-   * vorziehbar. Die spaeteren, gleichnamigen Deklarationen entfallen dadurch
-   * (sonst "bereits deklariert"-Fehler) - genutzt werden ab hier ausschliesslich
-   * diese hier vorgezogenen Werte. */
   const erdungReNum = parseMesswert((document.getElementById('erdung_re')?.value || ''));
   const isErdungOut = !isBlank && !isNaN(erdungReNum) && (erdungReNum > ERDUNG_RE_GRENZWERT || erdungReNum < 0);
   const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
@@ -1722,54 +1629,68 @@ async function generatePDFInner(isBlank = false) {
   const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
   const abschlussHoehe = 4 + complianceLines.length * 3.2 + 2 + 16;
 
+  // Validierung VOR dem Zeichnen von Box 4 - ein Abbruch mitten im Zeichnen
+  // wuerde ein halbfertiges PDF hinterlassen.
+  if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
+    await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
+    document.getElementById('res_gewaehrleistung')?.focus();
+    return;
+  }
+  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
+    await appAlert(plaketteWiderspruchHinweis());
+    document.getElementById('res_plakette')?.focus();
+    return;
+  }
+
   /* 4.5.0 (C1): Kasten 4 und der Abschlussblock (Freigabe, Konformitaetstext,
-   * Unterschriften) werden GEMEINSAM auf Platz geprueft. Vorher wurden beide
-   * getrennt geprueft; dadurch passte der Kasten noch auf die Seite, der
-   * Unterschriftenblock aber nicht mehr - und ein "1 Blatt"-Leerformular
-   * ergab zwei PDF-Seiten, die zweite mit nichts als zwei Linien darauf. */
-  finalY = pdfPlatzPruefen(doc, finalY, boxHeight + 5 + abschlussHoehe);
+   * Unterschriften) werden GEMEINSAM auf Platz geprueft - ein zu knapp
+   * geschaetzter Platzbedarf riss sie sonst ueber einen Seitenumbruch
+   * auseinander (ein zu GROSSZUEGIG geschaetzter Platzbedarf loest dagegen
+   * einen UNNOETIGEN Umbruch aus). Die Schaetzung folgt EXAKT derselben
+   * Formel wie PdfBox.schliessen() (Cursor-Fortschritt der sieben Zeilen in
+   * box4 unten + LAYOUT_INNEN_ABSTAND unten), damit sie mit der tatsaechlich
+   * gezeichneten Hoehe uebereinstimmt: Titel-Offset + PA-Zeile + R_E/
+   * Messpunkt + Durchg. + Umfang (je LAYOUT_ZEILE) + Ergebnis (5.5) + Termin
+   * (LAYOUT_ZEILE) + Bemerkungsbox + Innenabstand unten. */
+  const box4HoeheSchaetzung = (LAYOUT_TITEL_HOEHE + LAYOUT_INNEN_ABSTAND) +
+    5 * LAYOUT_ZEILE + 5.5 + (4.2 + bemZeilen * 4.2 + 1.5) + LAYOUT_INNEN_ABSTAND;
+  finalY = layoutSeitenumbruchPruefen(doc, finalY, box4HoeheSchaetzung + LAYOUT_BOX_ABSTAND + abschlussHoehe);
 
-  drawKategorieBox(doc, { y: finalY, h: boxHeight, titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung' });
+  const box4 = new PdfBox(doc, { titel: "4. ERDUNG, POTENZIALAUSGLEICH & GESAMTBEWERTUNG", kat: 'erdung', y: finalY });
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
+  // [9.4.0] Potenzialausgleich grundsaetzlich vorhanden (Ja/Nein/n.a.).
+  box4.frei((doc, yy) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    checkboxGruppe(doc, box4.x + 3, yy, "Potenzialausgleich grundsätzlich vorhanden:", [
+      { label: 'Ja', checked: !isBlank && feldWert('pa_angeschlossen') === 'Ja' },
+      { label: 'Nein', checked: !isBlank && feldWert('pa_angeschlossen') === 'Nein', farbe: 'rot' },
+      { label: 'n.a.', checked: !isBlank && feldWert('pa_angeschlossen') === 'n.a.' },
+    ], { luecke: 4, fontSize: 7.2 });
+  });
 
-  // [9.4.0, Gap-Analyse Masterliste] Potenzialausgleich-Konzept - bisher nur
-  // am Übergabepunkt vorhanden.
-  drawFeldZeile(doc, "Potenzialausgleich grundsätzlich vorhanden (Konzept):",
-                feldWert('pa_angeschlossen'), PDF_MARGIN_LEFT + 3, finalY + OFF_PA_KONZEPT, 177, isBlank);
+  box4.zeile2sp(
+    `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
+    feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '',
+    "Messpunkt / Bezugspunkt:", feldWert('erdung_messpunkt'),
+    { isBlank, optsL: { rot: isErdungOut } }
+  );
+  box4.zeile1sp("Durchgängigkeit Potenzialausgleich:", feldWert('pa_durchg'), { isBlank });
+  box4.zeile1sp("Prüfumfang:", feldWert('pruefumfang'), { isBlank });
 
-  // erdungReNum/isErdungOut wurden weiter oben vorgezogen (siehe Kommentar
-  // bei der Kasten-4/Abschlussblock-Platzpruefung).
-  // Rot ueber opts (siehe drawFeldZeile in pdf-utils.js).
-  drawFeldZeile(doc, `Erdungswiderstand R_{E} (≤ ${ERDUNG_RE_GRENZWERT} Ω):`,
-                feldWert('erdung_re') ? withUnit(feldWert('erdung_re'), 'Ω') : '', PDF_MARGIN_LEFT + 3, finalY + OFF_R, 177, isBlank, { rot: isErdungOut });
-
-  // MESSPUNKT / BEZUGSPUNKT - damit nachvollziehbar ist, WO gemessen wurde
-  drawFeldZeile(doc, "Messpunkt / Bezugspunkt:",
-                feldWert('erdung_messpunkt'), PDF_MARGIN_LEFT + 3, finalY + OFF_PUNKT, 177, isBlank);
-
-  // [9.4.0, Gap-Analyse Masterliste] Durchgängigkeit Potenzialausgleich als
-  // eigenes Messergebnis - bisher nur am Übergabepunkt vorhanden (#pa_durchg).
-  drawFeldZeile(doc, "Durchgängigkeit Potenzialausgleich:",
-                feldWert('pa_durchg'), PDF_MARGIN_LEFT + 3, finalY + OFF_PA_DURCHG, 177, isBlank);
-
-  // [Befund N5] Pruefumfang: Vollpruefung oder Stichprobe (DIN VDE 0105-100).
-  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, finalY + OFF_UMFANG, 177, isBlank);
-
-  /* --- DREI ZUSTAENDE STATT ZWEI -----------------------------------------
-   * "behoben" ist ein eigener Zustand mit eigenem Ankreuzfeld und nicht mehr
-   * ein Sonderfall von "Mängel festgestellt". */
-  // hatKeineMaengel/hatBehoben/hatMaengel/gewaehrleistungVal/anySichtNiO/
-  // anyErpNiO/restBeanstandungen/behobenTrotzOffener wurden weiter oben
-  // vorgezogen (siehe Kommentar bei der Kasten-4/Abschlussblock-Platzpruefung).
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, finalY + offErgebnis);
-  drawCheckbox(doc, 44, finalY + offErgebnis, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 92, finalY + offErgebnis, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
-  drawCheckbox(doc, 156, finalY + offErgebnis, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
+  box4.frei((doc, yy) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    checkboxGruppe(doc, box4.x + 3, yy, "Prüfergebnis:", [
+      { label: "Keine Mängel festgestellt", checked: !isBlank && hatKeineMaengel, farbe: hatKeineMaengel ? ampelStatus : 'neutral' },
+    ], { luecke: 6, fontSize: 7.5 });
+    checkboxGruppe(doc, 92, yy, null, [
+      { label: "Mängel behoben, Nachprüfung i.O.", checked: !isBlank && hatBehoben, farbe: hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral' },
+    ], { luecke: 6, fontSize: 7.5 });
+    checkboxGruppe(doc, 156, yy, null, [
+      { label: "Mängel festgestellt", checked: !isBlank && hatMaengel, farbe: 'rot' },
+    ], { luecke: 6, fontSize: 7.5 });
+  }, 5.5);
 
   const terminVal = document.getElementById('res_termin_date')?.value || "";
   let terminText = "";
@@ -1777,84 +1698,47 @@ async function generatePDFInner(isBlank = false) {
     const parts = terminVal.split('-');
     terminText = parts.length === 2 ? `${parts[1]} / ${parts[0]}` : terminVal;
   }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, PDF_MARGIN_LEFT + 3, finalY + offTermin, 90, isBlank);
+  box4.frei((doc, yy) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    drawFeldZeile(doc, "Nächster Prüftermin (Monat / Jahr):", terminText, box4.x + 3, yy, 90, isBlank);
+    // Die Pruefplakette steht in derselben Zeile rechts daneben.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    doc.text("Prüfplakette erteilt:", 120, yy);
+    drawCheckbox(doc, 150, yy, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
+    drawCheckbox(doc, 162, yy, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
+  });
 
-  // Die Prüfplakette steht jetzt in dieser Zeile: die Ergebniszeile darueber
-  // braucht die volle Breite fuer das dritte Ankreuzfeld ("Mängel behoben").
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.text("Prüfplakette erteilt:", 120, finalY + offTermin);
-  drawCheckbox(doc, 150, finalY + offTermin, "Ja", !isBlank && document.getElementById('res_plakette')?.value === "Ja");
-  drawCheckbox(doc, 162, finalY + offTermin, "Nein", !isBlank && document.getElementById('res_plakette')?.value === "Nein", true);
-
-  /* [7.1.0, Befund "Mängel/Bewertung immer rot hinterlegt"] Ein eingetragener
-   * Text im Bemerkungsfeld ging im PDF bisher in normaler Schrift unter - auf
-   * einen Blick war nicht erkennbar, ob dort ueberhaupt etwas vermerkt wurde.
-   * VORHER wurde deshalb JEDER eingetragene Text automatisch rot hinterlegt -
-   * das war irrefuehrend, weil "Bemerkung" nicht automatisch "Mangel"
-   * bedeutet (z. B. reine Stichprobenangabe oder ein Hinweis ohne Befund).
-   * JETZT: rot nur, wenn tatsaechlich "Mängel festgestellt" angekreuzt ist
-   * (hatMaengel) - das entspricht der bereits bestehenden Ampel-Logik bei den
-   * Ergebnis-Checkboxen weiter oben. Ist stattdessen nur Text eingetragen,
-   * ohne dass ein Mangel angekreuzt wurde (z. B. bei "behoben" oder "keine
-   * Mängel"), wird der Bereich gelb hervorgehoben (gleiche Farbe wie
-   * .missing-value/.pflichtfeld-leer in style.css) - auffaellig genug, um zu
-   * zeigen "hier steht etwas", ohne faelschlich einen Mangel zu suggerieren.
-   * Eine leere Bemerkung (Leerformular oder nichts eingetragen) bleibt
-   * unveraendert schwarz mit Schreiblinien. */
+  /* [7.1.0] Bemerkungen/Maengel: rot bei "Maengel festgestellt", gelb bei
+   * reinem Freitext ohne Mangel-Haken, sonst neutral. */
   const gelbCellBg = [254, 249, 195];
   const gelbCellText = [113, 63, 6];
   const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
   const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
-  if (bemerkungFarbe !== 'neutral') {
-    const bemHighlightY = finalY + offBemLabel - 3.3;
-    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
-    doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
-    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
-  }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : PDF_TEXT));
-  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, finalY + offBemLabel);
-  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
-  doc.setFontSize(6.8);
-  if (isBlank || splitBemerkung.length === 0) {
-    doc.setTextColor(...PDF_TEXT);
-    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, finalY + offBemStart + 1, 177, bemZeilen, 4.2);
-  } else {
-    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, finalY + offBemStart);
-    doc.setTextColor(...PDF_TEXT);
-    doc.setFont("helvetica", "normal");
-  }
+  box4.frei((doc, yy) => {
+    if (bemerkungFarbe !== 'neutral') {
+      const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+      doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
+      doc.roundedRect(box4.x + 1.5, yy - 3.3, box4.w - 3, bemHighlightH, 0.8, 0.8, 'F');
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : PDF_TEXT));
+    doc.text("Bemerkungen / Mängel:", box4.x + 3, yy);
+    doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
+    doc.setFontSize(6.8);
+    if (isBlank || splitBemerkung.length === 0) {
+      doc.setTextColor(...PDF_TEXT);
+      drawSchreibLinien(doc, box4.x + 3, yy + 4.2, box4.w - 6, bemZeilen, 4.2);
+    } else {
+      doc.text(splitBemerkung, box4.x + 3, yy + 4.2);
+      doc.setTextColor(...PDF_TEXT);
+      doc.setFont("helvetica", "normal");
+    }
+  }, 4.2 + bemZeilen * 4.2 + 1.5);
+  finalY = box4.schliessen();
 
-  // DER FREIGABETEXT DARF NUR ERSCHEINEN, WENN TATSÄCHLICH ALLES I.O. IST –
-  // BEI MÄNGELN, SICHERHEITSRISIKO ODER N.I.O.-ERGEBNISSEN MUSS EINE WARNUNG STEHEN
-  /* Ein "behoben" mit noch offenen roten Werten bleibt ein Mangelprotokoll -
-   * sonst koennte man den Widerspruch einfach in die andere Richtung erzeugen. */
-  // hasIssues/behobenOk wurden weiter oben vorgezogen (siehe Kommentar bei
-  // der Kasten-4/Abschlussblock-Platzpruefung).
-
-  // Kein Dokument, das gleichzeitig "Ja" ankreuzt und "NICHT gewährleistet" schreibt.
-  if (freigabeWidersprichtBefund(isBlank, hasIssues, gewaehrleistungVal)) {
-    await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
-    document.getElementById('res_gewaehrleistung')?.focus();
-    return;
-  }
-
-  // Dieselbe Logik fuer die Pruefplakette: sie ist das Einzige, was an der
-  // Anlage sichtbar bleibt, wenn das Protokoll im Ordner liegt.
-  if (plaketteWidersprichtBefund(isBlank, hasIssues, document.getElementById('res_plakette')?.value)) {
-    await appAlert(plaketteWiderspruchHinweis());
-    document.getElementById('res_plakette')?.focus();
-    return;
-  }
-
-  // complianceText/complianceGesamt/complianceLines/abschlussHoehe wurden
-  // weiter oben vorgezogen (siehe Kommentar bei der Kasten-4/Abschlussblock-
-  // Platzpruefung) - identische Berechnung, nur vor dem Zeichnen von Kasten 4.
-  finalY += boxHeight + 5;
   /* 4.6.0: Im Leerformular darf der Abschlussblock nicht nur bis
    * PDF_CONTENT_BOTTOM reichen, sondern muss VOR der Fussnotenzeile enden -
    * sonst ueberschreiben sich Unterschriftenzeile und Fussnoten (siehe

@@ -796,6 +796,20 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   const redCellText = PDF_RED_TEXT;
   const redCellBg = [254, 226, 226];
 
+  return generatePDFAnschlussZeichnen(doc, { isBlank, fotos, maengelZustand, textColor, redCellText, redCellBg, nummerRoh });
+}
+
+/* ============================================================================
+ *  [11.0.0] NEU AUFGEBAUTE ZEICHENSCHICHT (Nutzeranforderung: komplette
+ *  Neuerstellung des PDF-Layouts, Design beibehalten). Verwendet PdfBox/
+ *  checkboxGruppe aus js/pdf-layout.js: jede Box misst ihre Hoehe SELBST aus
+ *  der Anzahl gezeichneter Zeilen, mit programmatisch erzwungenem
+ *  Mindestabstand von 3mm (Text/Linie <-> Boxrand oben/unten/rechts) und
+ *  3mm zwischen zwei Boxen. Die FACHLICHE Berechnung (Grenzwerte, Ampel-
+ *  Status, Rotmarkierung, Pflichtfelder) ist 1:1 unveraendert aus der
+ *  bisherigen Funktion uebernommen - nur die Zeichenaufrufe sind neu.
+ * ========================================================================== */
+async function generatePDFAnschlussZeichnen(doc, { isBlank, fotos, maengelZustand, textColor, redCellText, redCellBg, nummerRoh }) {
   const getVal = (id, defaultBlank = "____________________") => {
     if (isBlank) return defaultBlank;
     const elem = document.getElementById(id);
@@ -838,14 +852,8 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   drawProtokollHeader(doc, ANSCHLUSS_KOPF);
 
   let y = PDF_CONTENT_TOP;
-  const ZA = 4.4;
 
   /* --- SEKTION 1: STAMMDATEN --------------------------------------------- */
-  const SEK1_H = 32;
-  drawKategorieBox(doc, { y, h: SEK1_H, titel: "1. ALLGEMEINE ANGABEN & STAMMDATEN", kat: 'stamm' });
-  doc.setFontSize(7.2);
-  const spL = PDF_MARGIN_LEFT + 3, spR = 107, spB = 80;
-
   const messgeraetText = (() => {
     const g = feldWert('messgeraet');
     if (!g) return '';
@@ -860,82 +868,63 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   const prueferNameAP = feldWert('pruefer');
   const prueferMitQualiAP = prueferNameAP + (prueferNameAP && pruegerQualiKurzAP ? ' (' + pruegerQualiKurzAP + ')' : '');
 
-  const z1 = (i) => y + 10 + i * ZA;
-  drawFeldZeile(doc, "Auftraggeber:",       feldWert('auftraggeber'),    spL, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Gebäude/Bereich:",    feldWert('gebaeude_custom'), spL, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Anlage/Objekt:",      feldWert('anlage_bez'),      spL, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Protokoll-Nr.:",      kopfProtokollNr,             spL, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Prüfer/-in:",         prueferMitQualiAP,           spL, z1(4), spB, isBlank);
-  drawFeldZeile(doc, "Prüfdatum:",          datum,                       spL, z1(5), spB, isBlank);
-
-  drawFeldZeile(doc, "Prüfgerät:",          messgeraetText,              spR, z1(0), spB, isBlank);
-  drawFeldZeile(doc, "Netzbetreiber (VNB):", feldWert('vnb'),            spR, z1(1), spB, isBlank);
-  drawFeldZeile(doc, "Firma/Vermieter:",    feldWert('firma_vermieter'), spR, z1(2), spB, isBlank);
-  drawFeldZeile(doc, "Ansprechpartner/-in:", feldWert('bereitsteller_ansprechpartner'), spR, z1(3), spB, isBlank);
-  drawFeldZeile(doc, "Telefon:",            feldWert('bereitsteller_telefon'), spR, z1(4), spB, isBlank);
-  drawFeldZeile(doc, "Prüfart/Norm:",       feldWert('pruefnorm'),       spR, z1(5), spB, isBlank);
-
-  y += SEK1_H + 4;
+  const box1 = new PdfBox(doc, { titel: "1. ALLGEMEINE ANGABEN & STAMMDATEN", kat: 'stamm', y });
+  box1.zeile2sp("Auftraggeber:", feldWert('auftraggeber'), "Prüfgerät:", messgeraetText, { isBlank });
+  box1.zeile2sp("Gebäude/Bereich:", feldWert('gebaeude_custom'), "Netzbetreiber (VNB):", feldWert('vnb'), { isBlank });
+  box1.zeile2sp("Anlage/Objekt:", feldWert('anlage_bez'), "Firma/Vermieter:", feldWert('firma_vermieter'), { isBlank });
+  box1.zeile2sp("Protokoll-Nr.:", kopfProtokollNr, "Ansprechpartner/-in:", feldWert('bereitsteller_ansprechpartner'), { isBlank });
+  box1.zeile2sp("Prüfer/-in:", prueferMitQualiAP, "Telefon:", feldWert('bereitsteller_telefon'), { isBlank });
+  box1.zeile2sp("Prüfdatum:", datum, "Prüfart/Norm:", feldWert('pruefnorm'), { isBlank });
+  y = box1.schliessen();
 
   /* --- SEKTION 2: NETZSYSTEM, NETZBETREIBER ------------------------------ */
-  const SEK2_H = 27;
-  drawKategorieBox(doc, { y, h: SEK2_H, titel: "2. NETZSYSTEM, NETZBETREIBER", kat: 'stamm' });
-  const z2 = (i) => y + 10 + i * ZA;
   const einspeisungText = (() => {
     const art = feldWert('einspeisung_art');
     const sonst = feldWert('einspeisung_sonstiges');
     if (art && /sonstig/i.test(art) && sonst) return `${art}: ${sonst}`;
     return art;
   })();
-  drawFeldZeile(doc, "Art der Einspeisung:",       einspeisungText,               spL, z2(0), spB, isBlank);
-  drawFeldZeile(doc, "Grund der Prüfung:",         feldWert('pruefgrund'),        spL, z2(1), spB, isBlank);
-  drawFeldZeile(doc, "Standort Übergabepunkt:",    feldWert('uebergabe_standort'), spL, z2(2), spB, isBlank);
-  drawFeldZeile(doc, "Anschlussleistung (kVA):",   feldWert('anschlussleistung_vertrag'), spL, z2(3), spB, isBlank);
-
-  drawFeldZeile(doc, "Netzspannung (V):",          feldWert('netzspannung') || '230 / 400', spR, z2(0), spB, isBlank);
-  drawFeldZeile(doc, "Hausanschluss/Speisepunkt:", feldWert('hausanschluss'),     spR, z2(1), spB, isBlank);
-
-  y += SEK2_H + 4;
+  const box2 = new PdfBox(doc, { titel: "2. NETZSYSTEM, NETZBETREIBER", kat: 'stamm', y });
+  box2.zeile2sp("Art der Einspeisung:", einspeisungText, "Netzspannung (V):", feldWert('netzspannung') || '230 / 400', { isBlank });
+  box2.zeile2sp("Grund der Prüfung:", feldWert('pruefgrund'), "Hausanschluss/Speisepunkt:", feldWert('hausanschluss'), { isBlank });
+  box2.zeile2sp("Standort Übergabepunkt:", feldWert('uebergabe_standort'), null, null, { isBlank });
+  box2.zeile2sp("Anschlussleistung (kVA):", feldWert('anschlussleistung_vertrag'), null, null, { isBlank });
+  y = box2.schliessen();
 
   /* --- SEKTION 3: BESICHTIGEN --------------------------------------------- */
-  const SEK3_H = 18;
-  drawKategorieBox(doc, { y, h: SEK3_H, titel: "3. BESICHTIGEN (SICHTPRÜFUNG ÜBERGABEPUNKT)", kat: 'sicht' });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-
   const s = document.querySelectorAll('.sicht-item');
   const sichtLabels = [
     "1. Verteiler/Zählerschr.", "2. Steckvorr./Kuppl.", "3. Zuleitung/Kabel",
     "4. Kennzeichnung", "5. Witterungsschutz", "6. Berührungsschutz"
   ];
-  const SICHT_LABEL_X = [23, 112];
-  const SICHT_CB_X    = [55, 144];
-  const SICHT_LABEL_W = [30, 30];
-
-  sichtLabels.forEach((label, i) => {
-    const spalte = Math.floor(i / 3);
-    const zeile = i % 3;
-    const yy = y + 10 + zeile * ZA;
-    doc.setFontSize(7);
-    drawFittedText(doc, label + ':', SICHT_LABEL_X[spalte], yy, SICHT_LABEL_W[spalte], 7, 5.4);
-    doc.setFontSize(7);
-    drawCheckbox(doc, SICHT_CB_X[spalte], yy, "i.O.", !isBlank && s[i]?.value === "i.O.");
-    drawCheckbox(doc, SICHT_CB_X[spalte] + 11, yy, "n.i.O.", !isBlank && s[i]?.value === "n.i.O.", true);
-    drawCheckbox(doc, SICHT_CB_X[spalte] + 24, yy, "n.a.", !isBlank && s[i]?.value === "n.a.");
-  });
-
-  y += SEK3_H + 6;
+  const box3 = new PdfBox(doc, { titel: "3. BESICHTIGEN (SICHTPRÜFUNG ÜBERGABEPUNKT)", kat: 'sicht', y });
+  for (let zeile = 0; zeile < 3; zeile++) {
+    box3.frei((doc, yy) => {
+      const iL = zeile, iR = zeile + 3;
+      // [Nutzerfeedback] Kaestchen sollen je Spalte fluchten statt an der
+      // (je Zeile wechselnden) Labelbreite zu haengen - siehe Kommentar bei
+      // drawPruefpunkt3sp() in pdf-generator.js, gleiches Prinzip hier.
+      checkboxGruppe(doc, box3.x + 3, yy, sichtLabels[iL] + ':', [
+        { label: 'i.O.', checked: !isBlank && s[iL]?.value === 'i.O.' },
+        { label: 'n.i.O.', checked: !isBlank && s[iL]?.value === 'n.i.O.', farbe: 'rot' },
+        { label: 'n.a.', checked: !isBlank && s[iL]?.value === 'n.a.' },
+      ], { luecke: 3, labelFeldBreite: 30 });
+      checkboxGruppe(doc, box3.x + 92, yy, sichtLabels[iR] + ':', [
+        { label: 'i.O.', checked: !isBlank && s[iR]?.value === 'i.O.' },
+        { label: 'n.i.O.', checked: !isBlank && s[iR]?.value === 'n.i.O.', farbe: 'rot' },
+        { label: 'n.a.', checked: !isBlank && s[iR]?.value === 'n.a.' },
+      ], { luecke: 3, labelFeldBreite: 30 });
+    });
+  }
+  y = box3.schliessen();
 
   /* --- SEKTION 4: ANSCHLUSSKABEL DER ANLAGE ------------------------------- */
-  const SEK4_H = 12;
-  drawKategorieBox(doc, { y, h: SEK4_H, titel: "4. ANSCHLUSSKABEL DER ANLAGE", kat: 'sicht' });
   const kabelAnschlussAP = kommaZahl([feldWert('anschluss_typ'), feldWert('anschluss_leiter'), feldWert('anschluss_qs')]
     .filter(p => p).join(' '));
-  drawFeldZeile(doc, isBlank ? "Anschlusskabel Typ / Adern / Quersch.:"
-                             : "Anschlusskabel (Typ / Adern / Querschnitt):",
-                kabelAnschlussAP, PDF_MARGIN_LEFT + 3, y + 9, 177, isBlank);
-
-  y += SEK4_H + 6;
+  const box4 = new PdfBox(doc, { titel: "4. ANSCHLUSSKABEL DER ANLAGE", kat: 'sicht', y });
+  box4.zeile1sp(isBlank ? "Anschlusskabel Typ / Adern / Quersch.:" : "Anschlusskabel (Typ / Adern / Querschnitt):",
+                kabelAnschlussAP, { isBlank });
+  y = box4.schliessen();
 
   /* --- SEKTION 5: MESSTECHNISCHE FESTSTELLUNGEN JE ÜBERGABEPUNKT ----------
    * [10.0.0] Wieder im kompakten Tabellen-Stil des urspruenglichen Formulars
@@ -1160,7 +1149,7 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     ...tabellenStilAP
   }));
 
-  y = doc.lastAutoTable.finalY + 6;
+  y = doc.lastAutoTable.finalY + LAYOUT_BOX_ABSTAND;
 
   const anyFeedMeasurementOut = anyFeedMeasurementOutGesamt;
   const isErdungOut = isErdungOutGesamt;
@@ -1172,28 +1161,29 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
    * Zeilen à 2 Spalten umgestellt statt einer Zeile mit 3 Spalten. Es wird
    * gezielt per ID statt per NodeList-Reihenfolge gelesen, damit die
    * Zuordnung unabhängig von der HTML-Reihenfolge der .erp-item-Elemente ist. */
-  const SEK6_H = 10 + 2 * ZA;
-  y = pdfPlatzPruefen(doc, y, SEK6_H + 8);
-  drawKategorieBox(doc, { y, h: SEK6_H, titel: "6. ERPROBEN (FUNKTIONSPRÜFUNG)", kat: 'sicht' });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  y = layoutSeitenumbruchPruefen(doc, y, 26);
   const erpIdsAP = ["erp_schutz", "erp_polaritaet", "erp_prueftaste", "erp_motoren"];
   const erpLabelsAP = ["Schutzeinrichtungen", "Polarität/Steckdosen", "RCD-Prüftaste", "Drehrichtung Motoren"];
-  const ERP_LABEL_X = [23, 141, 23, 141];
-  const ERP_CB_X    = [46, 164, 46, 164];
-  erpLabelsAP.forEach((label, i) => {
-    const zeileY = y + 9 + Math.floor(i / 2) * ZA;
-    const elVal = document.getElementById(erpIdsAP[i])?.value;
-    doc.setFontSize(7);
-    drawFittedText(doc, label + ':', ERP_LABEL_X[i], zeileY, 24, 7, 5.4);
-    doc.setFontSize(6.4);
-    drawCheckbox(doc, ERP_CB_X[i], zeileY, "i.O.", !isBlank && elVal === "i.O.");
-    drawCheckbox(doc, ERP_CB_X[i] + 11, zeileY, "n.i.O.", !isBlank && elVal === "n.i.O.", true);
-    drawCheckbox(doc, ERP_CB_X[i] + 22, zeileY, "n.a.", !isBlank && elVal === "n.a.");
-  });
-  doc.setFontSize(7);
-
-  y += SEK6_H + 6;
+  const box6 = new PdfBox(doc, { titel: "6. ERPROBEN (FUNKTIONSPRÜFUNG)", kat: 'sicht', y });
+  for (let zeile = 0; zeile < 2; zeile++) {
+    box6.frei((doc, yy) => {
+      const iL = zeile * 2, iR = zeile * 2 + 1;
+      const elValL = document.getElementById(erpIdsAP[iL])?.value;
+      const elValR = document.getElementById(erpIdsAP[iR])?.value;
+      // [Nutzerfeedback] siehe Kommentar bei Sektion 3 oben.
+      checkboxGruppe(doc, box6.x + 3, yy, erpLabelsAP[iL] + ':', [
+        { label: 'i.O.', checked: !isBlank && elValL === 'i.O.' },
+        { label: 'n.i.O.', checked: !isBlank && elValL === 'n.i.O.', farbe: 'rot' },
+        { label: 'n.a.', checked: !isBlank && elValL === 'n.a.' },
+      ], { luecke: 3, labelFeldBreite: 30 });
+      checkboxGruppe(doc, box6.x + 92, yy, erpLabelsAP[iR] + ':', [
+        { label: 'i.O.', checked: !isBlank && elValR === 'i.O.' },
+        { label: 'n.i.O.', checked: !isBlank && elValR === 'n.i.O.', farbe: 'rot' },
+        { label: 'n.a.', checked: !isBlank && elValR === 'n.a.' },
+      ], { luecke: 3, labelFeldBreite: 30 });
+    });
+  }
+  y = box6.schliessen();
 
   /* --- SEKTION 7: GESAMTBEURTEILUNG & FREIGABE ---------------------------- */
   const bemerkungRoh = isBlank ? '' : getVal('res_bemerkungen', '');
@@ -1201,52 +1191,6 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
   doc.setFontSize(6.8);
   const splitBemerkung = bemerkungRoh ? doc.splitTextToSize(bemerkungRoh, PDF_CONTENT_WIDTH - 12) : [];
   const bemZeilen = isBlank ? 3 : Math.max(splitBemerkung.length, 1);
-
-  const OFF_UMFANG = 10;
-  const OFF_ERGEBNIS = OFF_UMFANG + ZA + 2;
-  const OFF_FREIGABE = OFF_ERGEBNIS + 5.5;
-  const OFF_BEM_LABEL = OFF_FREIGABE + 5.5;
-  const OFF_BEM_START = OFF_BEM_LABEL + 4.2;
-  const boxHeight = OFF_BEM_START + bemZeilen * 4.2 + 2.5;
-
-  // [Korrektur] ampelStatus/hasIssues/hatMaengel muessen fuer complianceText
-  // schon hier bekannt sein - deshalb die drei Gesamtbewertungs-Konstanten
-  // (hatKeineMaengel/hatBehoben/hatMaengel, weiter unten ohnehin gebraucht)
-  // vorgezogen. complianceText/complianceLines selbst folgen gleich danach,
-  // damit die Platzpruefung unten den ECHTEN Platzbedarf des Abschlusstexts
-  // kennt statt eines pauschalen "+32"-Schaetzwerts.
-  const hatKeineMaengelVor = maengelZustand === MAENGEL_KEINE;
-  const hatBehobenVor      = maengelZustand === MAENGEL_BEHOBEN;
-  const hatMaengelVor      = maengelZustand === MAENGEL_OFFEN;
-  const restBeanstandungenVor = !isBlank && (
-    (document.getElementById('res_freigabe')?.value || 'Ja') === 'Nein' ||
-    (document.getElementById('res_leistung_ausreichend')?.value || '') === 'Nein' ||
-    Array.from(s).some(el => el?.value === 'n.i.O.') ||
-    anyFeedMeasurementOut || isErdungOut || isPaFehlt);
-  const ampelStatusVor = ermittleAmpelStatus({
-    isBlank, hatKeineMaengel: hatKeineMaengelVor, hatBehoben: hatBehobenVor, hatMaengel: hatMaengelVor,
-    restBeanstandungen: restBeanstandungenVor, einzelDefektAnzahl: 0
-  });
-  const hasIssuesVor = !isBlank && (hatMaengelVor || restBeanstandungenVor);
-  const complianceTextVor = isBlank
-    ? "Zutreffendes nach Abschluss der Prüfung ankreuzen und mit Unterschrift bestätigen."
-    : hasIssuesVor
-      ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei der Sichtprüfung, eine nicht ausreichende Anschlussleistung oder ein Sicherheitsrisiko festgestellt. Der Übergabepunkt ist in diesem Zustand NICHT freigegeben. Eine Nutzung ist erst nach Beseitigung der genannten Mängel und erneuter Prüfung zulässig."
-      : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik. Sicherer Gebrauch ist im genannten Rahmen gewährleistet.";
-  const complianceGesamtVor = complianceTextVor +
-    (!isBlank && anyDokumentationsmangelGesamt ? DOKU_MANGEL_ZUSATZ : '');
-  doc.setFont("helvetica", ampelStatusVor === 'neutral' ? "italic" : "bold");
-  doc.setFontSize(6.5);
-  const complianceHoeheVor = doc.splitTextToSize(complianceGesamtVor, PDF_CONTENT_WIDTH).length * 3.2 + 6 + 16;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
-
-  y = pdfPlatzPruefen(doc, y, boxHeight + 5 + complianceHoeheVor);
-  drawKategorieBox(doc, { y, h: boxHeight, titel: "7. GESAMTBEURTEILUNG & FREIGABE", kat: 'ergebnis' });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
-  drawFeldZeile(doc, "Prüfumfang:", feldWert('pruefumfang'), PDF_MARGIN_LEFT + 3, y + OFF_UMFANG, 177, isBlank);
 
   const hatKeineMaengel = maengelZustand === MAENGEL_KEINE;
   const hatBehoben      = maengelZustand === MAENGEL_BEHOBEN;
@@ -1264,54 +1208,12 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     einzelDefektAnzahl: 0
   });
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Prüfergebnis:", PDF_MARGIN_LEFT + 3, y + OFF_ERGEBNIS);
-  drawCheckbox(doc, 44, y + OFF_ERGEBNIS, "Keine Mängel festgestellt", !isBlank && hatKeineMaengel, hatKeineMaengel ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 92, y + OFF_ERGEBNIS, "Mängel behoben, Nachprüfung i.O.", !isBlank && hatBehoben, hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral');
-  drawCheckbox(doc, 156, y + OFF_ERGEBNIS, "Mängel festgestellt", !isBlank && hatMaengel, 'rot');
-
-  doc.text("Sicherer Gebrauch gewährleistet:", PDF_MARGIN_LEFT + 3, y + OFF_FREIGABE);
-  drawCheckbox(doc, 75, y + OFF_FREIGABE, "Ja", !isBlank && freigabeVal === "Ja", freigabeVal === "Ja" ? ampelStatus : 'neutral');
-  drawCheckbox(doc, 86, y + OFF_FREIGABE, "Nein", !isBlank && freigabeVal === "Nein", 'rot');
-
-  doc.text("Leistung ausr.:", 105, y + OFF_FREIGABE);
-  drawCheckbox(doc, 130, y + OFF_FREIGABE, "Ja", !isBlank && leistungVal === "Ja");
-  drawCheckbox(doc, 141, y + OFF_FREIGABE, "Nein", !isBlank && leistungVal === "Nein", true);
-  drawCheckbox(doc, 156, y + OFF_FREIGABE, "n.a.", !isBlank && leistungVal === "n.a.");
-  doc.text("Plakette:", 172, y + OFF_FREIGABE);
-  drawCheckbox(doc, 186, y + OFF_FREIGABE, "Ja", !isBlank && plaketteVal === "Ja");
-
-  const gelbCellBg = [254, 249, 195];
-  const gelbCellText = [113, 63, 6];
-  const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
-  const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
-  if (bemerkungFarbe !== 'neutral') {
-    const bemHighlightY = y + OFF_BEM_LABEL - 3.3;
-    const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
-    doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
-    doc.roundedRect(PDF_MARGIN_LEFT + 1.5, bemHighlightY, PDF_CONTENT_WIDTH - 3, bemHighlightH, 0.8, 0.8, 'F');
-  }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : textColor));
-  doc.text("Bemerkungen / Mängel:", PDF_MARGIN_LEFT + 3, y + OFF_BEM_LABEL);
-  doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
-  doc.setFontSize(6.8);
-  if (isBlank || splitBemerkung.length === 0) {
-    doc.setTextColor(...textColor);
-    drawSchreibLinien(doc, PDF_MARGIN_LEFT + 3, y + OFF_BEM_START + 1, 177, bemZeilen, 4.2);
-  } else {
-    doc.text(splitBemerkung, PDF_MARGIN_LEFT + 3, y + OFF_BEM_START);
-    doc.setTextColor(...textColor);
-    doc.setFont("helvetica", "normal");
-  }
-
-  let finalY = y + boxHeight + 5;
-
   const hasIssues = !isBlank && (hatMaengel || restBeanstandungen);
   const behobenOk = !isBlank && hatBehoben && !restBeanstandungen;
 
+  // Freigabe-Widerspruch wird VOR dem Zeichnen von Box 7 geprueft (wie
+  // bisher) - ein Abbruch mitten im Zeichnen wuerde ein halbfertiges PDF
+  // hinterlassen.
   if (freigabeWidersprichtBefund(isBlank, hasIssues, freigabeVal)) {
     await appAlert(freigabeWiderspruchHinweis('Sicherer Gebrauch gewährleistet'));
     document.getElementById('res_freigabe')?.focus();
@@ -1323,20 +1225,83 @@ async function generatePDFAnschlussInner(isBlank = false, fotos = []) {
     : hasIssues
       ? "ACHTUNG: Es wurden Mängel, unzulässige Messwerte, ein n.i.O.-Ergebnis bei der Sichtprüfung, eine nicht ausreichende Anschlussleistung oder ein Sicherheitsrisiko festgestellt. Der Übergabepunkt ist in diesem Zustand NICHT freigegeben. Eine Nutzung ist erst nach Beseitigung der genannten Mängel und erneuter Prüfung zulässig."
       : "Der Übergabepunkt wurde besichtigt, erprobt und gemessen. Er entspricht den anerkannten Regeln der Elektrotechnik. Sicherer Gebrauch ist im genannten Rahmen gewährleistet.";
-
   const complianceGesamt = complianceText +
     (!isBlank && anyDokumentationsmangelGesamt ? DOKU_MANGEL_ZUSATZ : '');
-
-  // [Korrektur] Die eigene Platzpruefung hier ENTFAELLT: Box 7 UND dieser
-  // Abschlusstext wurden bereits VOR dem Zeichnen von Box 7 gemeinsam auf
-  // Platz geprueft (siehe complianceHoeheVor weiter oben) - ein zweiter,
-  // hier separater Seitenumbruch koennte sonst wieder Box 7 allein auf
-  // Blatt 1 und die Unterschriften auf Blatt 2 zuruecklassen.
   doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
   doc.setFontSize(6.5);
   const complianceLines = doc.splitTextToSize(complianceGesamt, PDF_CONTENT_WIDTH);
+  // Geschaetzter Platzbedarf von Box 7 (Kopfzeilen + Bemerkungsbereich) plus
+  // Abschlusstext plus Unterschriftenblock - fuer den Seitenumbruch VOR dem
+  // Zeichnen. Die Box selbst misst ihre tatsaechliche Hoehe danach ueber
+  // PdfBox/schliessen() exakt aus - dieser Wert ist nur die Vorabschaetzung,
+  // damit Box 7 nicht allein auf Seite 1 und der Rest auf Seite 2 landet.
+  const box7HoeheSchaetzung = 10 + 4.4 + 2 + 5.5 + 5.5 + 4.2 + bemZeilen * 4.2 + 6;
+  const complianceHoehe = complianceLines.length * 3.2 + 6 + 16;
+  y = layoutSeitenumbruchPruefen(doc, y, box7HoeheSchaetzung + LAYOUT_BOX_ABSTAND + complianceHoehe);
 
+  const box7 = new PdfBox(doc, { titel: "7. GESAMTBEURTEILUNG & FREIGABE", kat: 'ergebnis', y });
+  box7.zeile1sp("Prüfumfang:", feldWert('pruefumfang'), { isBlank });
+  box7.frei((doc, yy) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    const nachLabel = checkboxGruppe(doc, box7.x + 3, yy, "Prüfergebnis:", [
+      { label: "Keine Mängel festgestellt", checked: !isBlank && hatKeineMaengel, farbe: hatKeineMaengel ? ampelStatus : 'neutral' },
+    ], { luecke: 6, fontSize: 7.5 });
+    checkboxGruppe(doc, 92, yy, null, [
+      { label: "Mängel behoben, Nachprüfung i.O.", checked: !isBlank && hatBehoben, farbe: hatBehoben ? (behobenTrotzOffener ? 'rot' : ampelStatus) : 'neutral' },
+    ], { luecke: 6, fontSize: 7.5 });
+    checkboxGruppe(doc, 156, yy, null, [
+      { label: "Mängel festgestellt", checked: !isBlank && hatMaengel, farbe: 'rot' },
+    ], { luecke: 6, fontSize: 7.5 });
+  }, 5.5);
+  box7.frei((doc, yy) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    checkboxGruppe(doc, box7.x + 3, yy, "Sicherer Gebrauch gewährleistet:", [
+      { label: "Ja", checked: !isBlank && freigabeVal === "Ja", farbe: freigabeVal === "Ja" ? ampelStatus : 'neutral' },
+      { label: "Nein", checked: !isBlank && freigabeVal === "Nein", farbe: 'rot' },
+    ], { luecke: 4 });
+    checkboxGruppe(doc, 105, yy, "Leistung ausr.:", [
+      { label: "Ja", checked: !isBlank && leistungVal === "Ja" },
+      { label: "Nein", checked: !isBlank && leistungVal === "Nein", farbe: 'rot' },
+      { label: "n.a.", checked: !isBlank && leistungVal === "n.a." },
+    ], { luecke: 4 });
+    checkboxGruppe(doc, 172, yy, "Plakette:", [
+      { label: "Ja", checked: !isBlank && plaketteVal === "Ja" },
+    ], { luecke: 4 });
+  }, 5.5);
+
+  const gelbCellBg = [254, 249, 195];
+  const gelbCellText = [113, 63, 6];
+  const hatBemerkungstext = !isBlank && splitBemerkung.length > 0;
+  const bemerkungFarbe = !hatBemerkungstext ? 'neutral' : (hatMaengel ? 'rot' : 'gelb');
+  box7.frei((doc, yy) => {
+    if (bemerkungFarbe !== 'neutral') {
+      const bemHighlightH = 4.2 + bemZeilen * 4.2 + 1.8;
+      doc.setFillColor(...(bemerkungFarbe === 'rot' ? redCellBg : gelbCellBg));
+      doc.roundedRect(box7.x + 1.5, yy - 3.3, box7.w - 3, bemHighlightH, 0.8, 0.8, 'F');
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    doc.setTextColor(...(bemerkungFarbe === 'rot' ? redCellText : bemerkungFarbe === 'gelb' ? gelbCellText : textColor));
+    doc.text("Bemerkungen / Mängel:", box7.x + 3, yy);
+    doc.setFont("helvetica", hatBemerkungstext ? "bold" : "normal");
+    doc.setFontSize(6.8);
+    if (isBlank || splitBemerkung.length === 0) {
+      doc.setTextColor(...textColor);
+      drawSchreibLinien(doc, box7.x + 3, yy + 4.2, box7.w - 6, bemZeilen, 4.2);
+    } else {
+      doc.text(splitBemerkung, box7.x + 3, yy + 4.2);
+      doc.setTextColor(...textColor);
+      doc.setFont("helvetica", "normal");
+    }
+  }, 4.2 + bemZeilen * 4.2 + 1.5);
+  y = box7.schliessen();
+
+  let finalY = y;
   const ampelTextFarbeAnschluss = { rot: redCellText, gelb: [133, 77, 6], gruen: [21, 101, 52], neutral: [71, 85, 105] }[ampelStatus] || [71, 85, 105];
+  doc.setFont("helvetica", ampelStatus === 'neutral' ? "italic" : "bold");
+  doc.setFontSize(6.5);
   doc.setTextColor(...ampelTextFarbeAnschluss);
   doc.text(complianceLines, PDF_MARGIN_LEFT, finalY);
   doc.setTextColor(...textColor);
